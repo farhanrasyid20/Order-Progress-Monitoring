@@ -1,4 +1,3 @@
-﻿# Order-Progress-Monitoring
 # Customer Order Tracking System
 
 Customer Order Tracking System adalah aplikasi web internal perusahaan yang dirancang untuk membantu proses **tracking dan monitoring order customer** secara terstruktur, mulai dari order diterima hingga seluruh tahapan proses selesai.
