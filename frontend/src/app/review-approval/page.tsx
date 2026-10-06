@@ -1,5 +1,5 @@
-import { ProcessView } from "@/components/workflow";
+import { redirect } from "next/navigation";
 
 export default function ReviewApprovalPage() {
-  return <ProcessView processKey="review-approval" />;
+  redirect("/orders");
 }

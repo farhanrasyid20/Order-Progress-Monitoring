@@ -28,7 +28,7 @@ export function OrderPagination({
   return (
     <div className="pagination">
       <span>
-        Showing {firstItem}-{lastItem} of {totalItems} orders
+        Showing {firstItem}-{lastItem} of {totalItems} projects
       </span>
       <div>
         <Button

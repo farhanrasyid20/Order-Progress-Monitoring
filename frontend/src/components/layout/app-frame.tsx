@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 
@@ -16,26 +16,17 @@ export type AppFrameProps = {
  */
 export default function AppFrame({ children, onLogout }: AppFrameProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // A selected route should never leave the mobile drawer over the new page.
-  useEffect(() => {
-    setSidebarOpen(false);
-  }, [pathname]);
 
   const handleLogout = () => {
     setSidebarOpen(false);
 
     if (onLogout) {
       onLogout();
-      return;
     }
-
-    router.push("/login");
   };
 
-  if (pathname === "/login") {
+  if (pathname === "/" || pathname === "/login") {
     return <>{children}</>;
   }
 

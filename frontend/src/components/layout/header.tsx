@@ -35,7 +35,7 @@ export function Header({ onOpenMenu }: HeaderProps) {
       <div className="header-actions">
         <label className="global-search">
           <Icon name="search" size={17} />
-          <input type="search" placeholder="Search order..." />
+          <input type="search" placeholder="Search projects..." />
           <kbd>Ctrl K</kbd>
         </label>
         <button
@@ -47,10 +47,10 @@ export function Header({ onOpenMenu }: HeaderProps) {
           <span />
         </button>
         <div className="profile">
-          <div className="avatar">AP</div>
+          <div className="avatar">FR</div>
           <div className="profile-copy">
-            <strong>Aditya Pranoto</strong>
-            <small>Administrator</small>
+            <strong>Farhan Rasyid</strong>
+            <small>Graphic Designer</small>
           </div>
           <Icon name="chevron" size={14} />
         </div>

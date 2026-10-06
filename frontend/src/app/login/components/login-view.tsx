@@ -1,8 +1,7 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 
 export type LoginCredentials = {
   email: string;
@@ -15,23 +14,10 @@ export type LoginViewProps = {
 };
 
 /** Standalone login feature. Authentication can be connected later via onLogin. */
-export function LoginView({ onLogin }: LoginViewProps) {
-  const router = useRouter();
+export function LoginView() {
   const [email, setEmail] = useState("admin@company.com");
   const [password, setPassword] = useState("password");
   const [remember, setRemember] = useState(true);
-
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const credentials = { email, password, remember };
-
-    if (onLogin) {
-      onLogin(credentials);
-      return;
-    }
-
-    router.push("/");
-  }
 
   return (
     <div className="login-page">
@@ -53,7 +39,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
           <p>Sign in to monitor and manage customer orders.</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <div>
           <label className="form-field">
             <span>Email or username</span>
             <input
@@ -62,7 +48,6 @@ export function LoginView({ onLogin }: LoginViewProps) {
               onChange={(event) => setEmail(event.target.value)}
               placeholder="name@company.com"
               autoComplete="username"
-              required
             />
           </label>
           <label className="form-field">
@@ -73,7 +58,6 @@ export function LoginView({ onLogin }: LoginViewProps) {
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter your password"
               autoComplete="current-password"
-              required
             />
           </label>
           <div className="login-options">
@@ -89,34 +73,13 @@ export function LoginView({ onLogin }: LoginViewProps) {
               Forgot password?
             </button>
           </div>
-          <Button type="submit" className="login-button">
+          <Link className="button button-primary login-button" href="/dashboard">
             Sign in
-          </Button>
-        </form>
+          </Link>
+        </div>
         <p className="login-help">
           Having trouble signing in? Contact IT Support.
         </p>
-      </div>
-
-      <div className="login-aside">
-        <div>
-          <span className="eyebrow">INTERNAL OPERATIONS</span>
-          <h2>Every order, clearly tracked from request to production.</h2>
-          <p>
-            A single source of truth for progress, ownership, deadlines,
-            documents, and approvals.
-          </p>
-          <div className="login-proof">
-            <div>
-              <strong>248</strong>
-              <span>Active orders</span>
-            </div>
-            <div>
-              <strong>94%</strong>
-              <span>On-time completion</span>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

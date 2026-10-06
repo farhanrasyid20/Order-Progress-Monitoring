@@ -1,5 +1,5 @@
-import { ProcessView } from "@/components/workflow";
+import { DesignDrawingView } from "./components";
 
 export default function DesignDrawingPage() {
-  return <ProcessView processKey="design-drawing" />;
+  return <DesignDrawingView />;
 }

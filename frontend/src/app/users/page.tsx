@@ -1,5 +1,5 @@
-import { ProcessView } from "@/components/workflow";
+import { UsersView } from "./components";
 
 export default function UsersPage() {
-  return <ProcessView processKey="users" />;
+  return <UsersView />;
 }

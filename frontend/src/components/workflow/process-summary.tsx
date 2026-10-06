@@ -5,10 +5,10 @@ export type ProcessSummaryProps = {
 };
 
 const processMetrics = [
-  ["Assigned", "18"],
-  ["In Progress", "9"],
-  ["Waiting", "5"],
-  ["Completed this month", "42"],
+  ["Desain Masuk", "18"],
+  ["Proses Desain", "7"],
+  ["Sample Progress", "6"],
+  ["Sample Selesai", "12"],
 ] as const;
 
 /** Reusable KPI row for process-specific workflow pages. */
@@ -22,7 +22,7 @@ export function ProcessSummary({ icon }: ProcessSummaryProps) {
           </div>
           <div className="summary-label">{label}</div>
           <strong className="summary-value">{value}</strong>
-          <span className="summary-meta">Updated today</span>
+          <span className="summary-meta">Diperbarui hari ini</span>
         </article>
       ))}
     </div>

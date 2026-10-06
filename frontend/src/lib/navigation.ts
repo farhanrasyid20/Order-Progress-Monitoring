@@ -10,31 +10,54 @@ export type NavigationItem = {
 
 /** Sidebar items and their actual App Router destinations. */
 export const navigationItems: readonly NavigationItem[] = [
-  { label: "Dashboard", href: "/", icon: "grid", group: "workspace" },
-  { label: "Orders", href: "/orders", icon: "box", count: 12, group: "workspace" },
+  { label: "Dashboard", href: "/dashboard", icon: "grid", group: "workspace" },
   {
-    label: "Design / Drawing",
+    label: "Incoming Design",
+    href: "/orders",
+    icon: "box",
+    count: 12,
+    group: "workspace",
+  },
+  {
+    label: "Design Process",
     href: "/design-drawing",
     icon: "pen",
     group: "workspace",
   },
   {
-    label: "Review & Approval",
-    href: "/review-approval",
-    icon: "check",
-    count: 5,
+    label: "Tooling Progress",
+    href: "/tooling-progress",
+    icon: "settings",
     group: "workspace",
   },
-  { label: "Sample", href: "/sample", icon: "flask", group: "workspace" },
   {
-    label: "Quality Control",
-    href: "/quality-control",
-    icon: "shield",
+    label: "Rubber Order & Setting",
+    href: "/rubber-order-setting",
+    icon: "box",
+    group: "workspace",
+  },
+  { label: "Sample Progress", href: "/sample", icon: "flask", group: "workspace" },
+  {
+    label: "After Sample / Decision",
+    href: "/after-sample",
+    icon: "check",
     count: 3,
     group: "workspace",
   },
+  {
+    label: "Order / Production",
+    href: "/order-production",
+    icon: "box",
+    group: "workspace",
+  },
+  {
+    label: "History & Archive",
+    href: "/history-archive",
+    icon: "file",
+    group: "workspace",
+  },
   { label: "Reports", href: "/reports", icon: "report", group: "workspace" },
-  { label: "User Management", href: "/users", icon: "users", group: "workspace" },
+  { label: "Master Data", href: "/users", icon: "users", group: "workspace" },
   { label: "Settings", href: "/settings", icon: "settings", group: "system" },
 ];
 

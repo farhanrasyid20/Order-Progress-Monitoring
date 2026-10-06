@@ -20,6 +20,7 @@ export type IconName =
   | "clock"
   | "alert"
   | "download"
+  | "save"
   | "eye"
   | "file"
   | "close";
@@ -109,6 +110,12 @@ const paths: Record<IconName, ReactNode> = {
     </>
   ),
   download: <path d="M12 3v12m-5-5 5 5 5-5M4 21h16" />,
+  save: (
+    <>
+      <path d="M4 3h13l3 3v15H4z" />
+      <path d="M8 3v6h8V3M8 21v-7h8v7" />
+    </>
+  ),
   eye: (
     <>
       <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" />

@@ -1,5 +1,5 @@
-import { ProcessView } from "@/components/workflow";
+import { redirect } from "next/navigation";
 
 export default function QualityControlPage() {
-  return <ProcessView processKey="quality-control" />;
+  redirect("/after-sample");
 }

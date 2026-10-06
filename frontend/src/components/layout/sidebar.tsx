@@ -55,8 +55,8 @@ export function Sidebar({ open, onClose, onLogout }: SidebarProps) {
             <span />
           </div>
           <div>
-            <strong>COTS</strong>
-            <small>Order Tracking</small>
+            <strong>DESIGN WORKLOAD</strong>
+            <small>SYSTEM</small>
           </div>
           <button
             type="button"
@@ -101,14 +101,14 @@ export function Sidebar({ open, onClose, onLogout }: SidebarProps) {
             </div>
             <Icon name="chevron" size={15} />
           </div>
-          <button
-            type="button"
+          <Link
+            href="/"
             className="nav-item logout"
             onClick={onLogout}
           >
             <Icon name="logout" />
             <span>Log out</span>
-          </button>
+          </Link>
         </div>
       </aside>
     </>

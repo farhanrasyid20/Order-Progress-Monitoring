@@ -1,5 +1,5 @@
-import { ProcessView } from "@/components/workflow";
+import { ReportsView } from "./components";
 
 export default function ReportsPage() {
-  return <ProcessView processKey="reports" />;
+  return <ReportsView />;
 }

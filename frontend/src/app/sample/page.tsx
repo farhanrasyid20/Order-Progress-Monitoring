@@ -1,5 +1,5 @@
-import { ProcessView } from "@/components/workflow";
+import { SampleView } from "./components";
 
 export default function SamplePage() {
-  return <ProcessView processKey="sample" />;
+  return <SampleView />;
 }

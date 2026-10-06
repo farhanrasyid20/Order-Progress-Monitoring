@@ -8,13 +8,13 @@ export type ProgressStage = {
 };
 
 const defaultStages: ProgressStage[] = [
-  { label: "New", value: 24, progress: 10 },
-  { label: "Design", value: 18, progress: 24 },
-  { label: "Review", value: 12, progress: 35 },
-  { label: "Approval", value: 9, progress: 45 },
-  { label: "Sample", value: 14, progress: 58 },
-  { label: "QC", value: 11, progress: 73 },
-  { label: "Completed", value: 159, progress: 100 },
+  { label: "Incoming Design", value: 18, progress: 15 },
+  { label: "Design Process", value: 7, progress: 28 },
+  { label: "Design Decision", value: 5, progress: 42 },
+  { label: "Tooling Progress", value: 6, progress: 56 },
+  { label: "Rubber Order", value: 5, progress: 70 },
+  { label: "Sample Progress", value: 6, progress: 85 },
+  { label: "Sample Completed", value: 12, progress: 100 },
 ];
 
 type OrderProgressProps = {
@@ -30,11 +30,11 @@ export function OrderProgress({
   return (
     <section className="card progress-card">
       <SectionHeader
-        title="Order Progress"
-        subtitle="Orders by current process stage"
+        title="Workflow Overview"
+        subtitle="Projects grouped by their current process stage"
         action={
           <Button type="button" variant="ghost" onClick={onViewOrders}>
-            View all
+            View All
           </Button>
         }
       />

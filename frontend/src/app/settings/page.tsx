@@ -1,5 +1,5 @@
-import { ProcessView } from "@/components/workflow";
+import { SettingsView } from "./components";
 
 export default function SettingsPage() {
-  return <ProcessView processKey="settings" />;
+  return <SettingsView />;
 }
