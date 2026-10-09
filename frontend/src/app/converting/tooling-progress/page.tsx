@@ -1,4 +1,4 @@
-import { ToolingProgressView } from "./components";
+import { ToolingProgressView } from "../components";
 
 export default function ToolingProgressPage() {
   return <ToolingProgressView />;

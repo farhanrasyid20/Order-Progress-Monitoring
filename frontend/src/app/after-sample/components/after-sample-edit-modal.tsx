@@ -17,9 +17,9 @@ export function AfterSampleEditModal({
   onClose,
 }: AfterSampleEditModalProps) {
   const titleId = useId();
-  const { advanceOrder, moveOrderToStage } = useWorkflowOrders();
+  const { cancelProject, moveOrderToStage } = useWorkflowOrders();
   const [pic, setPic] = useState(order.pic);
-  const [decision, setDecision] = useState("Lanjut ke Order");
+  const [decision, setDecision] = useState("Approve / Lanjut ke Order");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -38,10 +38,12 @@ export function AfterSampleEditModal({
       description: notes.trim() || `Keputusan: ${decision}`,
     };
 
-    if (decision === "Lanjut ke Order") {
+    if (decision === "Approve / Lanjut ke Order") {
       moveOrderToStage(order.no, "order-production", values);
+    } else if (decision === "Revision ke Design") {
+      moveOrderToStage(order.no, "design-progress", values);
     } else {
-      advanceOrder(order.no, values);
+      cancelProject(order.no, notes.trim() || "Sample cancelled.");
     }
     onClose();
   };
@@ -85,8 +87,9 @@ export function AfterSampleEditModal({
             <label className="modal-field">
               <span>Keputusan</span>
               <select value={decision} onChange={(event) => setDecision(event.target.value)}>
-                <option>Lanjut ke Order</option>
-                <option>Hanya Sample Saja</option>
+                <option>Approve / Lanjut ke Order</option>
+                <option>Revision ke Design</option>
+                <option>Cancel</option>
               </select>
             </label>
             <label className="modal-field modal-field-full">
@@ -94,7 +97,7 @@ export function AfterSampleEditModal({
               <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="Catatan akhir atau instruksi tindak lanjut"
+                placeholder="Alasan approval, revision, atau cancel"
                 rows={3}
               />
             </label>

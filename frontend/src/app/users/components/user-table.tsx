@@ -53,7 +53,7 @@ export function UserTable({ users, onEdit }: UserTableProps) {
             <th scope="col">Role</th>
             <th scope="col">Status</th>
             <th scope="col">Last active</th>
-            <th scope="col" aria-label="Actions" />
+            <th scope="col">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -80,15 +80,17 @@ export function UserTable({ users, onEdit }: UserTableProps) {
               </td>
               <td>{user.lastActive}</td>
               <td>
-                <button
-                  type="button"
-                  className="table-action user-edit-action"
-                  aria-label={`Edit ${user.name}`}
-                  title={`Edit ${user.name}`}
-                  onClick={() => onEdit(user)}
-                >
-                  <Icon name="pen" size={15} />
-                </button>
+                <div className="table-actions">
+                  <button
+                    type="button"
+                    className="table-action user-edit-action"
+                    aria-label={`Edit ${user.name}`}
+                    title={`Edit ${user.name}`}
+                    onClick={() => onEdit(user)}
+                  >
+                    <Icon name="pen" size={15} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

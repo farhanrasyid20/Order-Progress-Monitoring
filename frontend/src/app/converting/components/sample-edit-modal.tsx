@@ -6,20 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import type { Order } from "@/types/order";
 
-export type ToolingEditModalProps = {
+export type SampleEditModalProps = {
   order: Order;
   onClose: () => void;
 };
 
-/** Tooling Progress owns this edit form for projects received after approval. */
-export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
+/** Sample Progress handoff for Converting work that is ready for QC. */
+export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
   const titleId = useId();
   const { advanceOrder } = useWorkflowOrders();
-  const [tooling, setTooling] = useState("AUTO PEELING");
-  const [dateReceive, setDateReceive] = useState(order.deadline);
-  const [orderBy, setOrderBy] = useState(order.pic);
-  const [invoice, setInvoice] = useState("");
-  const [remark, setRemark] = useState(order.description === "-" ? "" : order.description);
+  const [pic, setPic] = useState(order.pic);
+  const [deadline, setDeadline] = useState(order.deadline);
+  const [sampleNumber, setSampleNumber] = useState(`${order.no}-SMP`);
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -32,11 +31,7 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    advanceOrder(order.no, {
-      pic: orderBy,
-      deadline: dateReceive,
-      description: remark || `Tooling: ${tooling}${invoice ? ` | Invoice: ${invoice}` : ""}`,
-    });
+    advanceOrder(order.no, { pic, deadline });
     onClose();
   };
 
@@ -56,13 +51,13 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
       >
         <header className="modal-header">
           <div>
-            <h2 id={titleId}>Update Tooling</h2>
-            <p>Simpan detail tooling {order.no} lalu kirim ke Rubber Order &amp; Setting.</p>
+            <h2 id={titleId}>Perbarui Sample</h2>
+            <p>Kirim sample yang selesai ke tahap QC Checking.</p>
           </div>
           <button
             type="button"
             className="modal-close"
-            aria-label="Tutup formulir tooling"
+            aria-label="Tutup formulir sample"
             onClick={onClose}
             autoFocus
           >
@@ -73,50 +68,32 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-form-grid">
             <label className="modal-field">
-              <span>Part Number / Code</span>
-              <input value={order.no} disabled />
+              <span>Sample PIC</span>
+              <input value={pic} onChange={(event) => setPic(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Tooling</span>
-              <select value={tooling} onChange={(event) => setTooling(event.target.value)}>
-                <option>AUTO PEELING</option>
-                <option>NIKKO</option>
-                <option>NIKKO PEELING</option>
-                <option>AUTO HAIDO</option>
-                <option>JINYA</option>
-                <option>TMZ</option>
-              </select>
-            </label>
-            <label className="modal-field">
-              <span>Date Receive</span>
+              <span>Target sample selesai</span>
               <input
-                value={dateReceive}
-                onChange={(event) => setDateReceive(event.target.value)}
-                required
-              />
-            </label>
-            <label className="modal-field">
-              <span>Order By</span>
-              <input
-                value={orderBy}
-                onChange={(event) => setOrderBy(event.target.value)}
+                value={deadline}
+                onChange={(event) => setDeadline(event.target.value)}
                 required
               />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Invoice Number Received</span>
+              <span>Nomor sample</span>
               <input
-                value={invoice}
-                onChange={(event) => setInvoice(event.target.value)}
-                placeholder="Nomor invoice penerimaan"
+                value={sampleNumber}
+                onChange={(event) => setSampleNumber(event.target.value)}
+                placeholder="ID sample atau nomor revisi"
+                required
               />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Remark</span>
+              <span>Catatan produksi</span>
               <textarea
-                value={remark}
-                onChange={(event) => setRemark(event.target.value)}
-                placeholder="Catatan tooling"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Catatan untuk proses finalisasi sample"
                 rows={3}
               />
             </label>
@@ -126,7 +103,7 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
               Batal
             </Button>
             <Button type="submit" icon="arrow">
-              Simpan &amp; Lanjut ke Rubber
+              Selesaikan &amp; Kirim ke QC
             </Button>
           </footer>
         </form>

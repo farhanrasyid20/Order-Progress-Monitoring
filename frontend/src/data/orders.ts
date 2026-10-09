@@ -14,6 +14,8 @@ type LegacyOrder = Omit<
   | "workflow"
   | "toolingOrders"
   | "rubberOrders"
+  | "materialRequests"
+  | "offsetSpks"
   | "processHistory"
   | "createdAt"
   | "updatedAt"
@@ -112,6 +114,8 @@ function createSeedProject(order: LegacyOrder): Order {
     },
     toolingOrders: [],
     rubberOrders: [],
+    materialRequests: [],
+    offsetSpks: [],
     processHistory: [
       {
         process: currentProcess,

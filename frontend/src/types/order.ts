@@ -95,6 +95,108 @@ export type ProjectCurrentStatus =
   | "completed"
   | "cancelled";
 
+export type RequirementStatus =
+  | "needed"
+  | "ordered"
+  | "received"
+  | "available"
+  | "on_hold"
+  | "cancelled"
+  | "repair"
+  | "issue";
+
+export type RequirementRecord = {
+  sequence: number;
+  requirementType: string;
+  status: RequirementStatus;
+  requestedBy: string;
+  supplier: string;
+  orderDate: string | null;
+  expectedDate: string | null;
+  arrivalDate: string | null;
+  invoiceNumber: string;
+  price: string;
+  remark: string;
+};
+
+export type RequirementUpdateValues = Omit<RequirementRecord, "sequence">;
+
+/**
+ * Identifies a requirement order that starts directly from its operational
+ * queue, without first creating an Incoming Design project.
+ */
+export type StandaloneRequirementKind = "tooling" | "rubber";
+
+/**
+ * The minimum project context required when Tooling or Rubber is ordered as a
+ * standalone request. The first requirement is saved atomically with it.
+ */
+export type StandaloneRequirementOrderValues = {
+  customer: string;
+  product: string;
+  partNo: string;
+  material: string;
+  priority: ProjectPriority;
+  pic: string;
+  projectDate: string;
+  deadline: string;
+  description: string;
+  requirement: RequirementUpdateValues;
+};
+
+export type MaterialRequestStatus =
+  | "draft"
+  | "requested"
+  | "released"
+  | "received"
+  | "on_hold";
+
+export type MaterialRequestRecord = {
+  sequence: number;
+  miNumber: string;
+  status: MaterialRequestStatus;
+  requestedBy: string;
+  requestDate: string;
+  material: string;
+  quantity: string;
+  unit: string;
+  remark: string;
+};
+
+export type MaterialRequestValues = Omit<MaterialRequestRecord, "sequence">;
+
+export type OffsetSpkStatus =
+  | "design_offset"
+  | "prepress"
+  | "material"
+  | "plate"
+  | "varnish"
+  | "press"
+  | "finishing"
+  | "qc";
+
+export type OffsetSpkRecord = {
+  id: string;
+  customer: string;
+  productName: string;
+  fgQuantity: string;
+  paperType: string;
+  grammage: string;
+  planoSize: string;
+  up: string;
+  waste: string;
+  planoSheets: string;
+  colors: string;
+  machine: string;
+  finishing: string;
+  deadline: string;
+  remark: string;
+  status: OffsetSpkStatus;
+  createdAt: string;
+};
+
+export type OffsetSpkValues = Omit<OffsetSpkRecord, "id" | "createdAt">;
+
 export type ProjectWorkflow = {
   preparationType: PreparationType;
   convertingRoute: ConvertingRoute | null;
@@ -108,14 +210,9 @@ export type ProjectWorkflow = {
   progress: number;
 };
 
-export type ToolingOrderRecord = {
-  sequence: number;
-  orderDate: string | null;
-  arrivalDate: string | null;
-  status: "ordered" | "arrived" | "rejected";
-};
+export type ToolingOrderRecord = RequirementRecord;
 
-export type RubberOrderRecord = ToolingOrderRecord;
+export type RubberOrderRecord = RequirementRecord;
 
 export type ProcessHistoryRecord = {
   process: string;
@@ -138,7 +235,17 @@ export type WorkflowStage =
   | "review-approval"
   | "tooling-progress"
   | "rubber-order-setting"
+  | "material-request"
+  | "offset-design"
+  | "offset-prepress"
+  | "offset-material-request"
+  | "offset-plate"
+  | "offset-varnish"
+  | "offset-press"
   | "sample-progress"
+  | "quality-control"
+  | "fa-report"
+  | "submit-sample"
   | "sample-completed"
   | "order-production"
   | "completed";
@@ -150,6 +257,8 @@ export type Order = {
   workflow: ProjectWorkflow;
   toolingOrders: ToolingOrderRecord[];
   rubberOrders: RubberOrderRecord[];
+  materialRequests: MaterialRequestRecord[];
+  offsetSpks: OffsetSpkRecord[];
   processHistory: ProcessHistoryRecord[];
   createdAt: string;
   updatedAt: string;

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { useTablePagination } from "@/components/ui/use-table-pagination";
 import type { Order } from "@/types/order";
 import { OrderCard } from "@/components/workflow/order-card";
 import { OrderFilters } from "./order-filters";
@@ -10,10 +12,7 @@ import { AddProjectModal } from "./add-project-modal";
 import { CancelProjectModal } from "./cancel-project-modal";
 import { IncomingOrdersTable } from "./incoming-orders-table";
 import { OrderHistoryModal } from "./order-history-modal";
-import { OrderPagination } from "./order-pagination";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
-
-const pageSize = 5;
 
 export type OrdersViewProps = {
   initialAddModalOpen?: boolean;
@@ -37,7 +36,6 @@ export function OrdersView({
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
   const [pic, setPic] = useState("");
-  const [page, setPage] = useState(1);
   const [isAddModalOpen, setIsAddModalOpen] = useState(initialAddModalOpen);
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
@@ -97,16 +95,13 @@ export function OrdersView({
     });
   }, [incomingOrders, pic, query, status]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
-  const currentPage = Math.min(page, pageCount);
-  const start = (currentPage - 1) * pageSize;
-  const pageOrders = filteredOrders.slice(start, start + pageSize);
+  const pagination = useTablePagination(filteredOrders);
   const updatedHistoryOrder = pendingHistoryOrderNo
     ? orders.find((order) => order.no === pendingHistoryOrderNo) ?? null
     : null;
   const visibleDetailOrder = detailOrder ?? updatedHistoryOrder;
 
-  const resetPage = () => setPage(1);
+  const resetPage = pagination.resetPage;
   const clearFilters = () => {
     setQuery("");
     setStatus("");
@@ -167,7 +162,7 @@ export function OrdersView({
         }
       >
         <IncomingOrdersTable
-          orders={pageOrders}
+          orders={pagination.pageItems}
           onShowDetails={(order) => {
             setPendingHistoryOrderNo(null);
             setDetailOrder(order);
@@ -197,12 +192,13 @@ export function OrdersView({
             window.setTimeout(() => setToastMessage(""), 3200);
           }}
         />
-        <OrderPagination
-          page={currentPage}
-          pageCount={pageCount}
-          totalItems={filteredOrders.length}
-          pageSize={pageSize}
-          onPageChange={setPage}
+        <TablePagination
+          page={pagination.page}
+          pageCount={pagination.pageCount}
+          totalItems={pagination.totalItems}
+          pageSize={pagination.pageSize}
+          itemLabel="projects"
+          onPageChange={pagination.goToPage}
         />
       </OrderCard>
 

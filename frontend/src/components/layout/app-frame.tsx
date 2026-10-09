@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
@@ -16,10 +16,21 @@ export type AppFrameProps = {
  */
 export default function AppFrame({ children, onLogout }: AppFrameProps) {
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 860px)");
+    const updateViewport = () => setIsMobileViewport(mediaQuery.matches);
+
+    updateViewport();
+    mediaQuery.addEventListener("change", updateViewport);
+    return () => mediaQuery.removeEventListener("change", updateViewport);
+  }, []);
 
   const handleLogout = () => {
-    setSidebarOpen(false);
+    setMobileSidebarOpen(false);
 
     if (onLogout) {
       onLogout();
@@ -31,14 +42,19 @@ export default function AppFrame({ children, onLogout }: AppFrameProps) {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${desktopSidebarCollapsed ? "sidebar-collapsed" : ""}`.trim()}>
       <Sidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        open={mobileSidebarOpen}
+        visible={isMobileViewport ? mobileSidebarOpen : !desktopSidebarCollapsed}
+        onClose={() => setMobileSidebarOpen(false)}
         onLogout={handleLogout}
       />
       <div className="main-shell">
-        <Header onOpenMenu={() => setSidebarOpen(true)} />
+        <Header
+          onOpenMenu={() => setMobileSidebarOpen(true)}
+          onToggleDesktopSidebar={() => setDesktopSidebarCollapsed((current) => !current)}
+          desktopSidebarCollapsed={desktopSidebarCollapsed}
+        />
         <main>{children}</main>
       </div>
     </div>

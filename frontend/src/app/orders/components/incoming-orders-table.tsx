@@ -169,7 +169,7 @@ export function IncomingOrdersTable({
             <th>Deadline</th>
             <th>Drawing Link</th>
             <th>Status</th>
-            <th>Actions</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody>

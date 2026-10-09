@@ -6,6 +6,8 @@ import { OrderTable } from "@/components/workflow/order-table";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { useTablePagination } from "@/components/ui/use-table-pagination";
 
 /** Read-only reporting feature. Records are edited in their workflow stage. */
 export function ReportsView() {
@@ -15,6 +17,7 @@ export function ReportsView() {
     () => orders.filter((order) => order.stage === "completed"),
     [orders],
   );
+  const pagination = useTablePagination(completedOrders);
 
   return (
     <>
@@ -55,7 +58,15 @@ export function ReportsView() {
         title="Completed Orders"
         subtitle="Read-only results; update an item in its active workflow stage"
       >
-        <OrderTable orders={completedOrders} />
+        <OrderTable orders={pagination.pageItems} />
+        <TablePagination
+          page={pagination.page}
+          pageCount={pagination.pageCount}
+          totalItems={pagination.totalItems}
+          pageSize={pagination.pageSize}
+          itemLabel="orders"
+          onPageChange={pagination.goToPage}
+        />
       </OrderCard>
     </>
   );

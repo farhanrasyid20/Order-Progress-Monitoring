@@ -6,18 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import type { Order } from "@/types/order";
 
-export type SampleEditModalProps = {
+export type OffsetStageModalProps = {
   order: Order;
   onClose: () => void;
+  title: string;
+  nextLabel: string;
 };
 
-/** Sample Progress's local handover form for work received from Rubber Order & Setting. */
-export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
+/** Generic completion handoff for the non-SPK Offset work queues. */
+export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetStageModalProps) {
   const titleId = useId();
   const { advanceOrder } = useWorkflowOrders();
-  const [pic, setPic] = useState(order.pic);
-  const [deadline, setDeadline] = useState(order.deadline);
-  const [sampleNumber, setSampleNumber] = useState(`${order.no}-SMP`);
+  const [pic, setPic] = useState(order.pic === "-" ? "" : order.pic);
+  const [deadline, setDeadline] = useState("");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -31,7 +32,11 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    advanceOrder(order.no, { pic, deadline });
+    advanceOrder(order.no, {
+      pic,
+      deadline: deadline || order.deadline,
+      description: notes.trim() || `${title} completed.`,
+    });
     onClose();
   };
 
@@ -43,21 +48,16 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <section
-        className="modal-dialog"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-      >
+      <section className="modal-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="modal-header">
           <div>
-            <h2 id={titleId}>Perbarui Sample</h2>
-            <p>Kirim sample yang selesai ke tahap Sample Selesai.</p>
+            <h2 id={titleId}>{title}</h2>
+            <p>Selesaikan tugas Offset {order.no} lalu teruskan ke {nextLabel}.</p>
           </div>
           <button
             type="button"
             className="modal-close"
-            aria-label="Tutup formulir sample"
+            aria-label={`Tutup formulir ${title}`}
             onClick={onClose}
             autoFocus
           >
@@ -68,33 +68,24 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-form-grid">
             <label className="modal-field">
-              <span>Sample PIC</span>
-              <input value={pic} onChange={(event) => setPic(event.target.value)} required />
+              <span>Part Number / Code</span>
+              <input value={order.no} disabled />
             </label>
             <label className="modal-field">
-              <span>Target sample selesai</span>
-              <input
-                value={deadline}
-                onChange={(event) => setDeadline(event.target.value)}
-                required
-              />
+              <span>PIC</span>
+              <input value={pic} onChange={(event) => setPic(event.target.value)} required />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Nomor sample</span>
-              <input
-                value={sampleNumber}
-                onChange={(event) => setSampleNumber(event.target.value)}
-                placeholder="ID sample atau nomor revisi"
-                required
-              />
+              <span>Target Selesai</span>
+              <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Catatan produksi</span>
+              <span>Catatan Proses</span>
               <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="Catatan untuk proses finalisasi sample"
-                rows={3}
+                placeholder="Masukkan hasil proses, hambatan, atau instruksi handoff"
+                rows={4}
               />
             </label>
           </div>
@@ -103,7 +94,7 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
               Batal
             </Button>
             <Button type="submit" icon="arrow">
-              Selesaikan &amp; Kirim ke Finalisasi
+              Selesai &amp; Lanjut
             </Button>
           </footer>
         </form>

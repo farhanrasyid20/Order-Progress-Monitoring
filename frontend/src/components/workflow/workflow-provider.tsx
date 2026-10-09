@@ -12,15 +12,21 @@ import { orders as initialOrders } from "@/data/orders";
 import type {
   DesignDecision,
   DrawingSubmission,
+  MaterialRequestValues,
   Order,
   OrderFormValues,
   OrderStatusTone,
+  OffsetSpkStatus,
+  OffsetSpkValues,
   ProjectCurrentStage,
   ProjectFormValues,
   ProjectLineage,
   ProjectMainData,
   ProjectWorkflow,
   PreparationWorkflowUpdate,
+  RequirementUpdateValues,
+  StandaloneRequirementKind,
+  StandaloneRequirementOrderValues,
   WorkflowStage,
 } from "@/types/order";
 
@@ -72,11 +78,71 @@ export const workflowStageDetails: Record<WorkflowStage, WorkflowStageDetails> =
     tone: "warning",
     progress: 70,
   },
+  "material-request": {
+    process: "Material Request / Create MI",
+    status: "Waiting for Material Request",
+    tone: "warning",
+    progress: 74,
+  },
+  "offset-design": {
+    process: "Design Offset",
+    status: "Waiting for Offset Design",
+    tone: "info",
+    progress: 52,
+  },
+  "offset-prepress": {
+    process: "Prepress / Pra-Cetak",
+    status: "Waiting for Prepress",
+    tone: "info",
+    progress: 62,
+  },
+  "offset-material-request": {
+    process: "Offset Material / Create MI",
+    status: "Waiting for Offset Material",
+    tone: "warning",
+    progress: 68,
+  },
+  "offset-plate": {
+    process: "Tooling / Plate",
+    status: "Waiting for Plate",
+    tone: "info",
+    progress: 75,
+  },
+  "offset-varnish": {
+    process: "Block / Spot Varnish",
+    status: "Waiting for Varnish Preparation",
+    tone: "warning",
+    progress: 82,
+  },
+  "offset-press": {
+    process: "Press / Cetak",
+    status: "Waiting for Press",
+    tone: "info",
+    progress: 88,
+  },
   "sample-progress": {
     process: "Sample Progress",
     status: "Sample In Progress",
     tone: "info",
     progress: 85,
+  },
+  "quality-control": {
+    process: "QC Checking",
+    status: "Waiting for QC",
+    tone: "warning",
+    progress: 92,
+  },
+  "fa-report": {
+    process: "FA Report",
+    status: "Waiting for FA Report",
+    tone: "info",
+    progress: 95,
+  },
+  "submit-sample": {
+    process: "Submit Sample",
+    status: "Waiting for Sample Submission",
+    tone: "info",
+    progress: 98,
   },
   "sample-completed": {
     process: "Sample Completed",
@@ -102,10 +168,19 @@ const nextWorkflowStage: Partial<Record<WorkflowStage, WorkflowStage>> = {
   order: "design-progress",
   "design-incoming": "design-progress",
   "design-progress": "review-approval",
-  "review-approval": "tooling-progress",
-  "tooling-progress": "rubber-order-setting",
-  "rubber-order-setting": "sample-progress",
-  "sample-progress": "sample-completed",
+  "tooling-progress": "material-request",
+  "rubber-order-setting": "material-request",
+  "material-request": "sample-progress",
+  "offset-design": "offset-prepress",
+  "offset-prepress": "offset-material-request",
+  "offset-material-request": "offset-plate",
+  "offset-plate": "offset-varnish",
+  "offset-varnish": "offset-press",
+  "offset-press": "quality-control",
+  "sample-progress": "quality-control",
+  "quality-control": "fa-report",
+  "fa-report": "submit-sample",
+  "submit-sample": "sample-completed",
   "sample-completed": "completed",
   "order-production": "completed",
 };
@@ -113,6 +188,11 @@ const nextWorkflowStage: Partial<Record<WorkflowStage, WorkflowStage>> = {
 export type WorkflowOrdersContextValue = {
   orders: Order[];
   addProject: (values: ProjectFormValues) => void;
+  createStandaloneRequirementOrder: (
+    kind: StandaloneRequirementKind,
+    values: StandaloneRequirementOrderValues,
+    continueWorkflow: boolean,
+  ) => void;
   completeIncomingPreparation: (
     orderNo: string,
     values: PreparationWorkflowUpdate,
@@ -120,7 +200,28 @@ export type WorkflowOrdersContextValue = {
   submitDrawing: (orderNo: string, values: DrawingSubmission) => void;
   completeDesignDecision: (orderNo: string, decision: DesignDecision) => void;
   cancelIncomingProject: (orderNo: string, reason: string) => void;
+  cancelProject: (orderNo: string, reason: string) => void;
   updateOrder: (orderNo: string, values: Partial<OrderFormValues>) => void;
+  saveToolingRequirement: (
+    orderNo: string,
+    values: RequirementUpdateValues,
+    continueWorkflow: boolean,
+  ) => void;
+  saveRubberRequirement: (
+    orderNo: string,
+    values: RequirementUpdateValues,
+    continueWorkflow: boolean,
+  ) => void;
+  saveMaterialRequest: (
+    orderNo: string,
+    values: MaterialRequestValues,
+    continueWorkflow: boolean,
+  ) => void;
+  saveOffsetSpk: (
+    orderNo: string,
+    values: OffsetSpkValues,
+    continueWorkflow: boolean,
+  ) => void;
   advanceOrder: (orderNo: string, values?: Partial<OrderFormValues>) => void;
   moveOrderToStage: (
     orderNo: string,
@@ -185,13 +286,66 @@ function displayDate(value: string) {
   }).format(parsedDate);
 }
 
+function createStandaloneRequirementMainData(
+  code: string,
+  values: StandaloneRequirementOrderValues,
+): ProjectMainData {
+  return {
+    mcNo: code,
+    component: values.product.trim(),
+    custName: values.customer.trim(),
+    partNo: values.partNo.trim(),
+    partNo2: "",
+    set: "",
+    sub: "",
+    singDoub: "",
+    width: "",
+    length: "",
+    dieCutSht: "",
+    boardQua: values.material.trim(),
+    corFlut: "",
+    creaseL: "",
+    creaseW: "",
+    slotting: "",
+    remark: values.description.trim(),
+    iSizeL: "",
+    iSizeW: "",
+    iSizeH: "",
+    printing: "",
+    colours: "",
+    dispFlag: "",
+    unit: "",
+    manfJoin1: "",
+    manfJoin2: "",
+    weight: "",
+    assembly: "",
+    colour2: "",
+    colour3: "",
+    colour4: "",
+    colour5: "",
+    finishing: "",
+    fgWeight: "",
+  };
+}
+
+function standaloneRequirementStage(kind: StandaloneRequirementKind): WorkflowStage {
+  return kind === "tooling" ? "tooling-progress" : "rubber-order-setting";
+}
+
 function currentStageForQueue(stage: WorkflowStage): ProjectCurrentStage {
   if (stage === "order" || stage === "design-incoming") return "order";
   if (stage === "design-progress") return "drawing";
   if (
     stage === "review-approval" ||
     stage === "tooling-progress" ||
-    stage === "rubber-order-setting"
+    stage === "rubber-order-setting" ||
+    stage === "material-request" ||
+    stage === "offset-design" ||
+    stage === "offset-prepress" ||
+    stage === "offset-material-request" ||
+    stage === "offset-plate" ||
+    stage === "offset-varnish" ||
+    stage === "offset-press"
   ) {
     return "preparation";
   }
@@ -224,6 +378,82 @@ function applyOrderValues(order: Order, values: Partial<OrderFormValues>): Order
     mainData: mergeMainData(order, values),
     updatedAt: new Date().toISOString(),
   };
+}
+
+function hasOrderValues(values: Partial<OrderFormValues>) {
+  return Object.values(values).some((value) => value !== undefined && value !== "");
+}
+
+function appendHistory(
+  order: Order,
+  entry: Pick<Order["processHistory"][number], "process" | "status" | "user" | "changeSummary" | "remark">,
+): Order {
+  const updatedAt = new Date().toISOString();
+
+  return {
+    ...order,
+    processHistory: [
+      ...order.processHistory,
+      {
+        ...entry,
+        date: updatedAt,
+      },
+    ],
+    updatedAt,
+  };
+}
+
+function firstStageAfterDesignApproval(order: Order): WorkflowStage {
+  if (order.workflow.preparationType === "offset") return "offset-design";
+
+  if (order.workflow.convertingRoute === "by_design") {
+    return "material-request";
+  }
+
+  return order.workflow.productionOrder === "rubber"
+    ? "rubber-order-setting"
+    : "tooling-progress";
+}
+
+function nextStageForOrder(order: Order): WorkflowStage | undefined {
+  if (order.stage === "review-approval") {
+    return firstStageAfterDesignApproval(order);
+  }
+
+  if (
+    order.stage === "tooling-progress" &&
+    order.workflow.productionOrder === "tooling_and_rubber"
+  ) {
+    return "rubber-order-setting";
+  }
+
+  return nextWorkflowStage[order.stage];
+}
+
+function isReadyToContinueRequirement(status: RequirementUpdateValues["status"]) {
+  return status === "received" || status === "available";
+}
+
+function nextSpkNumber(order: Order) {
+  const year = new Date().getFullYear();
+  const projectSequence = order.offsetSpks.length + 1;
+  const projectSuffix = order.no.replace(/[^0-9]/g, "").slice(-4) || "0000";
+
+  return `SPK-${year}-${projectSuffix}-${String(projectSequence).padStart(2, "0")}`;
+}
+
+function offsetSpkStatusForStage(stage: WorkflowStage): OffsetSpkStatus | null {
+  const statuses: Partial<Record<WorkflowStage, OffsetSpkStatus>> = {
+    "offset-design": "design_offset",
+    "offset-prepress": "prepress",
+    "offset-material-request": "material",
+    "offset-plate": "plate",
+    "offset-varnish": "varnish",
+    "offset-press": "press",
+    "quality-control": "qc",
+  };
+
+  return statuses[stage] ?? null;
 }
 
 function incomingPreparationLabel(values: PreparationWorkflowUpdate) {
@@ -399,6 +629,14 @@ function moveToStage(
   const updatedAt = new Date().toISOString();
   const status = options.preserveStatus ? order.status : details.status;
   const tone = options.preserveStatus ? order.tone : details.tone;
+  const spkStatus = offsetSpkStatusForStage(stage);
+  const latestSpkIndex = order.offsetSpks.length - 1;
+  const offsetSpks =
+    order.workflow.preparationType === "offset" && spkStatus && latestSpkIndex >= 0
+      ? order.offsetSpks.map((spk, index) =>
+          index === latestSpkIndex ? { ...spk, status: spkStatus } : spk,
+        )
+      : order.offsetSpks;
   const stageProcess =
     stage === "order"
       ? order.lineage.entryType === "version_up"
@@ -412,6 +650,7 @@ function moveToStage(
     status,
     tone,
     stage,
+    offsetSpks,
     workflow: {
       ...order.workflow,
       currentStage: currentStageForQueue(stage),
@@ -493,6 +732,8 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
           },
           toolingOrders: [],
           rubberOrders: [],
+          materialRequests: [],
+          offsetSpks: [],
           processHistory: [
             {
               process: isVersionUp ? "version_up" : "new_project",
@@ -528,6 +769,90 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
       ];
     });
   }, []);
+
+  const createStandaloneRequirementOrder = useCallback(
+    (
+      kind: StandaloneRequirementKind,
+      values: StandaloneRequirementOrderValues,
+      continueWorkflow: boolean,
+    ) => {
+      setOrders((currentOrders) => {
+        const createdAt = new Date().toISOString();
+        const code = nextOrderNumber(currentOrders);
+        const stage = standaloneRequirementStage(kind);
+        const details = workflowStageDetails[stage];
+        const mainData = createStandaloneRequirementMainData(code, values);
+        const requirement = {
+          ...values.requirement,
+          sequence: 1,
+        };
+        const kindLabel = kind === "tooling" ? "Tooling" : "Rubber";
+        const pic = values.pic.trim() || values.requirement.requestedBy.trim() || "-";
+        const initialOrder: Order = {
+          id: `standalone-${kind}-${Date.now()}-${code}`,
+          lineage: {
+            entryType: "new",
+            rootProjectNo: code,
+            sourceProjectNo: null,
+            versionNumber: 0,
+          },
+          mainData,
+          workflow: {
+            preparationType: "converting",
+            convertingRoute: "by_production",
+            productionOrder: kind,
+            materialRequested: false,
+            currentStage: currentStageForQueue(stage),
+            currentProcess: details.process,
+            currentStatus: currentStatusForQueue(stage, details.status),
+            drawingLink: null,
+            designDecision: null,
+            progress: details.progress,
+          },
+          toolingOrders: kind === "tooling" ? [requirement] : [],
+          rubberOrders: kind === "rubber" ? [requirement] : [],
+          materialRequests: [],
+          offsetSpks: [],
+          processHistory: [
+            {
+              process: `standalone_${kind}_order`,
+              status: requirement.status,
+              date: createdAt,
+              user: prototypeActor,
+              changeSummary: `Standalone ${kindLabel.toLowerCase()} order created for ${requirement.requirementType}.`,
+              remark: requirement.remark.trim(),
+            },
+          ],
+          createdAt,
+          updatedAt: createdAt,
+          no: code,
+          customer: mainData.custName || "-",
+          product: mainData.component || "-",
+          description: mainData.remark || "-",
+          material: mainData.boardQua || "-",
+          priority: values.priority,
+          process: details.process,
+          pic,
+          projectDate: displayDate(values.projectDate),
+          deadline: displayDate(values.deadline),
+          status: details.status,
+          tone: details.tone,
+          stage,
+          progress: details.progress,
+        };
+        const nextStage =
+          continueWorkflow && isReadyToContinueRequirement(requirement.status)
+            ? nextStageForOrder(initialOrder)
+            : undefined;
+        const completedOrder = nextStage
+          ? moveToStage(initialOrder, nextStage)
+          : initialOrder;
+
+        return [completedOrder, ...currentOrders];
+      });
+    },
+    [],
+  );
 
   const completeIncomingPreparation = useCallback(
     (orderNo: string, values: PreparationWorkflowUpdate) => {
@@ -594,8 +919,10 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
 
           return moveToStage(
             applyDesignDecision(order, decision),
-            decision === "approve" ? "tooling-progress" : "design-progress",
-            { preserveStatus: true },
+            decision === "approve"
+              ? firstStageAfterDesignApproval(order)
+              : "design-progress",
+            { preserveStatus: decision === "revision" },
           );
         }),
       );
@@ -612,7 +939,6 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
       currentOrders.map((order) => {
         if (
           order.no !== orderNo ||
-          order.stage !== "order" ||
           order.workflow.currentStatus === "cancelled"
         ) {
           return order;
@@ -622,11 +948,14 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
 
         return {
           ...order,
+          process: "Cancelled Project",
           status: "Cancelled",
           tone: "danger",
+          stage: "completed",
           workflow: {
             ...order.workflow,
-            currentStage: "order",
+            currentStage: "completed",
+            currentProcess: "project_cancelled",
             currentStatus: "cancelled",
           },
           processHistory: [
@@ -651,9 +980,190 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
       setOrders((currentOrders) =>
         currentOrders.map((order) =>
           order.no === orderNo && order.workflow.currentStatus !== "cancelled"
-            ? applyOrderValues(order, values)
+            ? appendHistory(applyOrderValues(order, values), {
+                process: "project_updated",
+                status: "updated",
+                user: prototypeActor,
+                changeSummary: "Project information updated.",
+                remark: values.description?.trim() ?? "",
+              })
             : order,
         ),
+      );
+    },
+    [],
+  );
+
+  const saveToolingRequirement = useCallback(
+    (
+      orderNo: string,
+      values: RequirementUpdateValues,
+      continueWorkflow: boolean,
+    ) => {
+      setOrders((currentOrders) =>
+        currentOrders.map((order) => {
+          if (
+            order.no !== orderNo ||
+            order.stage !== "tooling-progress" ||
+            order.workflow.currentStatus === "cancelled"
+          ) {
+            return order;
+          }
+
+          const record = {
+            ...values,
+            sequence: order.toolingOrders.length + 1,
+          };
+          const updated = appendHistory(
+            {
+              ...order,
+              toolingOrders: [...order.toolingOrders, record],
+            },
+            {
+              process: "tooling_requirement",
+              status: values.status,
+              user: prototypeActor,
+              changeSummary: `Tooling ${values.requirementType} updated to ${values.status}.`,
+              remark: values.remark.trim(),
+            },
+          );
+          const nextStage = continueWorkflow && isReadyToContinueRequirement(values.status)
+            ? nextStageForOrder(updated)
+            : undefined;
+
+          return nextStage ? moveToStage(updated, nextStage) : updated;
+        }),
+      );
+    },
+    [],
+  );
+
+  const saveRubberRequirement = useCallback(
+    (
+      orderNo: string,
+      values: RequirementUpdateValues,
+      continueWorkflow: boolean,
+    ) => {
+      setOrders((currentOrders) =>
+        currentOrders.map((order) => {
+          if (
+            order.no !== orderNo ||
+            order.stage !== "rubber-order-setting" ||
+            order.workflow.currentStatus === "cancelled"
+          ) {
+            return order;
+          }
+
+          const record = {
+            ...values,
+            sequence: order.rubberOrders.length + 1,
+          };
+          const updated = appendHistory(
+            {
+              ...order,
+              rubberOrders: [...order.rubberOrders, record],
+            },
+            {
+              process: "rubber_requirement",
+              status: values.status,
+              user: prototypeActor,
+              changeSummary: `Rubber ${values.requirementType} updated to ${values.status}.`,
+              remark: values.remark.trim(),
+            },
+          );
+          const nextStage = continueWorkflow && isReadyToContinueRequirement(values.status)
+            ? nextStageForOrder(updated)
+            : undefined;
+
+          return nextStage ? moveToStage(updated, nextStage) : updated;
+        }),
+      );
+    },
+    [],
+  );
+
+  const saveMaterialRequest = useCallback(
+    (orderNo: string, values: MaterialRequestValues, continueWorkflow: boolean) => {
+      setOrders((currentOrders) =>
+        currentOrders.map((order) => {
+          const isMaterialQueue =
+            order.stage === "material-request" || order.stage === "offset-material-request";
+          if (
+            order.no !== orderNo ||
+            !isMaterialQueue ||
+            order.workflow.currentStatus === "cancelled"
+          ) {
+            return order;
+          }
+
+          const record = {
+            ...values,
+            sequence: order.materialRequests.length + 1,
+          };
+          const updated = appendHistory(
+            {
+              ...order,
+              materialRequests: [...order.materialRequests, record],
+              workflow: {
+                ...order.workflow,
+                materialRequested: true,
+              },
+            },
+            {
+              process: "material_request",
+              status: values.status,
+              user: prototypeActor,
+              changeSummary: `Material request ${values.miNumber} updated to ${values.status}.`,
+              remark: values.remark.trim(),
+            },
+          );
+          const nextStage = continueWorkflow && (values.status === "released" || values.status === "received")
+            ? nextStageForOrder(updated)
+            : undefined;
+
+          return nextStage ? moveToStage(updated, nextStage) : updated;
+        }),
+      );
+    },
+    [],
+  );
+
+  const saveOffsetSpk = useCallback(
+    (orderNo: string, values: OffsetSpkValues, continueWorkflow: boolean) => {
+      setOrders((currentOrders) =>
+        currentOrders.map((order) => {
+          if (
+            order.no !== orderNo ||
+            order.workflow.preparationType !== "offset" ||
+            order.workflow.currentStatus === "cancelled"
+          ) {
+            return order;
+          }
+
+          const updated = appendHistory(
+            {
+              ...order,
+              offsetSpks: [
+                ...order.offsetSpks,
+                {
+                  ...values,
+                  id: nextSpkNumber(order),
+                  createdAt: new Date().toISOString(),
+                },
+              ],
+            },
+            {
+              process: "offset_spk",
+              status: values.status,
+              user: prototypeActor,
+              changeSummary: `Offset SPK created for ${values.productName}.`,
+              remark: values.remark.trim(),
+            },
+          );
+          const nextStage = continueWorkflow ? nextStageForOrder(updated) : undefined;
+
+          return nextStage ? moveToStage(updated, nextStage) : updated;
+        }),
       );
     },
     [],
@@ -667,8 +1177,16 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
             return order;
           }
 
-          const updatedOrder = applyOrderValues(order, values);
-          const nextStage = nextWorkflowStage[order.stage];
+          const updatedOrder = hasOrderValues(values)
+            ? appendHistory(applyOrderValues(order, values), {
+                process: "handoff_details_updated",
+                status: "updated",
+                user: prototypeActor,
+                changeSummary: "Task handoff details updated.",
+                remark: values.description?.trim() ?? "",
+              })
+            : applyOrderValues(order, values);
+          const nextStage = nextStageForOrder(order);
 
           return nextStage ? moveToStage(updatedOrder, nextStage) : updatedOrder;
         }),
@@ -686,7 +1204,18 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
       setOrders((currentOrders) =>
         currentOrders.map((order) =>
           order.no === orderNo && order.workflow.currentStatus !== "cancelled"
-            ? moveToStage(applyOrderValues(order, values), stage)
+            ? moveToStage(
+                hasOrderValues(values)
+                  ? appendHistory(applyOrderValues(order, values), {
+                      process: "project_details_updated",
+                      status: "updated",
+                      user: prototypeActor,
+                      changeSummary: "Project details updated with stage decision.",
+                      remark: values.description?.trim() ?? "",
+                    })
+                  : applyOrderValues(order, values),
+                stage,
+              )
             : order,
         ),
       );
@@ -698,11 +1227,17 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
     () => ({
       orders,
       addProject,
+      createStandaloneRequirementOrder,
       completeIncomingPreparation,
       submitDrawing,
       completeDesignDecision,
       cancelIncomingProject,
+      cancelProject: cancelIncomingProject,
       updateOrder,
+      saveToolingRequirement,
+      saveRubberRequirement,
+      saveMaterialRequest,
+      saveOffsetSpk,
       advanceOrder,
       moveOrderToStage,
     }),
@@ -712,8 +1247,13 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
       cancelIncomingProject,
       completeDesignDecision,
       completeIncomingPreparation,
+      createStandaloneRequirementOrder,
       moveOrderToStage,
       orders,
+      saveMaterialRequest,
+      saveOffsetSpk,
+      saveRubberRequirement,
+      saveToolingRequirement,
       submitDrawing,
       updateOrder,
     ],

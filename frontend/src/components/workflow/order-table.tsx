@@ -43,8 +43,7 @@ export function OrderTable({
   onEditOrder,
 }: OrderTableProps) {
   const visibleOrders = compact ? orders.slice(0, 5) : orders;
-  const onRowAction = onEditOrder ?? onViewOrder;
-  const actionLabel = onEditOrder ? "Edit" : "View";
+  const hasActions = Boolean(onEditOrder || onViewOrder);
 
   return (
     <div className="table-wrap">
@@ -63,7 +62,7 @@ export function OrderTable({
             {!compact ? <th>Priority</th> : null}
             {!compact ? <th>Progress</th> : null}
             <th>Status</th>
-            {onRowAction ? <th aria-label="Actions" /> : null}
+            {hasActions ? <th scope="col">Action</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -71,6 +70,9 @@ export function OrderTable({
             <tr key={order.no}>
               <td>
                 <strong className="order-number">{order.no}</strong>
+                {order.mainData.partNo && order.mainData.partNo !== order.no ? (
+                  <span>{order.mainData.partNo}</span>
+                ) : null}
               </td>
               <td>
                 <strong>{order.customer}</strong>
@@ -119,16 +121,30 @@ export function OrderTable({
               <td>
                 <Badge tone={order.tone}>{order.status}</Badge>
               </td>
-              {onRowAction ? (
+              {hasActions ? (
                 <td>
-                  <button
-                    type="button"
-                    className="table-action"
-                    aria-label={`${actionLabel} ${order.no}`}
-                    onClick={() => onRowAction(order)}
-                  >
-                    <Icon name={onEditOrder ? "pen" : "chevron"} size={16} />
-                  </button>
+                  <div className="table-actions">
+                    {onViewOrder ? (
+                      <button
+                        type="button"
+                        className="table-action"
+                        aria-label={`View details and history for ${order.no}`}
+                        onClick={() => onViewOrder(order)}
+                      >
+                        <Icon name="eye" size={16} />
+                      </button>
+                    ) : null}
+                    {onEditOrder ? (
+                      <button
+                        type="button"
+                        className="table-action"
+                        aria-label={`Edit ${order.no}`}
+                        onClick={() => onEditOrder(order)}
+                      >
+                        <Icon name="pen" size={16} />
+                      </button>
+                    ) : null}
+                  </div>
                 </td>
               ) : null}
             </tr>

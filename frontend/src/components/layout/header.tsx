@@ -6,10 +6,16 @@ import { getNavigationItem } from "@/lib/navigation";
 
 export type HeaderProps = {
   onOpenMenu: () => void;
+  onToggleDesktopSidebar: () => void;
+  desktopSidebarCollapsed: boolean;
 };
 
 /** Top bar whose breadcrumb follows the active App Router route. */
-export function Header({ onOpenMenu }: HeaderProps) {
+export function Header({
+  onOpenMenu,
+  onToggleDesktopSidebar,
+  desktopSidebarCollapsed,
+}: HeaderProps) {
   const pathname = usePathname();
   const activeItem = getNavigationItem(pathname);
   const activeLabel = activeItem?.label ?? "Workspace";
@@ -17,6 +23,17 @@ export function Header({ onOpenMenu }: HeaderProps) {
   return (
     <header className="header">
       <div className="header-left">
+        <button
+          type="button"
+          className="icon-button desktop-sidebar-toggle"
+          aria-label={desktopSidebarCollapsed ? "Buka navigasi" : "Tutup navigasi"}
+          title={desktopSidebarCollapsed ? "Buka navigasi" : "Tutup navigasi"}
+          aria-controls="main-navigation"
+          aria-expanded={!desktopSidebarCollapsed}
+          onClick={onToggleDesktopSidebar}
+        >
+          <Icon name="chevron" />
+        </button>
         <button
           type="button"
           className="icon-button menu-button"

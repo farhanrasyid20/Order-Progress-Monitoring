@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { TablePagination } from "@/components/ui/table-pagination";
+import { useTablePagination } from "@/components/ui/use-table-pagination";
 import { UserFormModal } from "./user-form-modal";
 import {
   UserTable,
@@ -61,6 +63,7 @@ export function UsersView({ initialData = initialUsers }: UsersViewProps) {
   const [users, setUsers] = useState<ManagedUser[]>(initialData);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const pagination = useTablePagination(users);
 
   const closeForm = () => {
     setIsFormOpen(false);
@@ -95,6 +98,7 @@ export function UsersView({ initialData = initialUsers }: UsersViewProps) {
       ]);
     }
 
+    pagination.resetPage();
     closeForm();
   };
 
@@ -121,7 +125,15 @@ export function UsersView({ initialData = initialUsers }: UsersViewProps) {
             </p>
           </div>
         </div>
-        <UserTable users={users} onEdit={openEditForm} />
+        <UserTable users={pagination.pageItems} onEdit={openEditForm} />
+        <TablePagination
+          page={pagination.page}
+          pageCount={pagination.pageCount}
+          totalItems={pagination.totalItems}
+          pageSize={pagination.pageSize}
+          itemLabel="users"
+          onPageChange={pagination.goToPage}
+        />
       </section>
 
       {isFormOpen ? (
