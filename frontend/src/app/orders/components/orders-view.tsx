@@ -30,7 +30,6 @@ export function OrdersView({
     orders,
     addProject,
     cancelIncomingProject,
-    completeDesignDecision,
     completeIncomingPreparation,
   } = useWorkflowOrders();
   const [query, setQuery] = useState("");
@@ -99,7 +98,9 @@ export function OrdersView({
   const updatedHistoryOrder = pendingHistoryOrderNo
     ? orders.find((order) => order.no === pendingHistoryOrderNo) ?? null
     : null;
-  const visibleDetailOrder = detailOrder ?? updatedHistoryOrder;
+  const visibleDetailOrder = detailOrder
+    ? orders.find((order) => order.no === detailOrder.no) ?? null
+    : updatedHistoryOrder;
 
   const resetPage = pagination.resetPage;
   const clearFilters = () => {
@@ -177,17 +178,6 @@ export function OrdersView({
             setPendingHistoryOrderNo(orderNo);
             setToastMessage(
               `Preparation for ${orderNo} was updated and moved to Design Process.`,
-            );
-            window.setTimeout(() => setToastMessage(""), 3200);
-          }}
-          onCompleteDesignDecision={(orderNo, decision) => {
-            completeDesignDecision(orderNo, decision);
-            resetPage();
-            setPendingHistoryOrderNo(orderNo);
-            setToastMessage(
-              `Design decision for ${orderNo} was set to ${
-                decision === "approve" ? "Approve" : "Revision"
-              }.`,
             );
             window.setTimeout(() => setToastMessage(""), 3200);
           }}

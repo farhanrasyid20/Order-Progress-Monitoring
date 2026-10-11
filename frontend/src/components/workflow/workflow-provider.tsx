@@ -4,7 +4,9 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -187,7 +189,9 @@ const nextWorkflowStage: Partial<Record<WorkflowStage, WorkflowStage>> = {
 
 export type WorkflowOrdersContextValue = {
   orders: Order[];
+  nextProjectCode: string;
   addProject: (values: ProjectFormValues) => void;
+  editProject: (orderNo: string, values: ProjectFormValues) => void;
   createStandaloneRequirementOrder: (
     kind: StandaloneRequirementKind,
     values: StandaloneRequirementOrderValues,
@@ -679,8 +683,20 @@ function moveToStage(
  */
 export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const designFileUrls = useRef<string[]>([]);
+
+  useEffect(() => () => {
+    designFileUrls.current.forEach((url) => URL.revokeObjectURL(url));
+    designFileUrls.current = [];
+  }, []);
 
   const addProject = useCallback((values: ProjectFormValues) => {
+    const drawingLink = values.designFile
+      ? URL.createObjectURL(values.designFile)
+      : normalizeDrawingLink(values.drawingLink);
+    if (values.designFile && drawingLink) {
+      designFileUrls.current.push(drawingLink);
+    }
     setOrders((currentOrders) => {
       const createdAt = new Date().toISOString();
       const code = nextOrderNumber(currentOrders);
@@ -706,7 +722,6 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
       const material = [mainData.boardQua, mainData.corFlut]
         .filter(Boolean)
         .join(" / ");
-      const drawingLink = normalizeDrawingLink(values.drawingLink);
 
       return [
         {
@@ -727,6 +742,7 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
               : "new_project",
             currentStatus: "new",
             drawingLink,
+            drawingFileName: values.designFile?.name,
             designDecision: null,
             progress: 0,
           },
@@ -743,7 +759,9 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
               changeSummary: isVersionUp
                 ? `Version Up ${lineage.versionNumber} created from ${lineage.sourceProjectNo}.`
                 : drawingLink
-                  ? "New project created with a design link."
+                  ? values.designFile
+                    ? `New project created with design file: ${values.designFile.name}.`
+                    : "New project created with a design link."
                   : "New project created.",
               remark: mainData.remark.trim(),
             },
@@ -973,6 +991,39 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
         };
       }),
     );
+  }, []);
+
+  const editProject = useCallback((orderNo: string, values: ProjectFormValues) => {
+    const fileUrl = values.designFile ? URL.createObjectURL(values.designFile) : null;
+    if (fileUrl) designFileUrls.current.push(fileUrl);
+    setOrders((currentOrders) => currentOrders.map((order) => {
+      if (order.no !== orderNo || order.workflow.currentStatus === "cancelled") return order;
+      return appendHistory({
+        ...order,
+        mainData: { ...values.mainData },
+        customer: values.mainData.custName || "-",
+        product: values.mainData.component || "-",
+        description: values.mainData.remark || "-",
+        material: [values.mainData.boardQua, values.mainData.corFlut].filter(Boolean).join(" / ") || "-",
+        pic: values.pic || "-",
+        projectDate: displayDate(values.projectDate),
+        deadline: displayDate(values.deadline),
+        workflow: {
+          ...order.workflow,
+          preparationType: values.preparationType,
+          convertingRoute: values.preparationType === "converting" ? values.convertingRoute || null : null,
+          productionOrder: values.preparationType === "converting" && values.convertingRoute === "by_production" ? order.workflow.productionOrder : null,
+          drawingLink: fileUrl ?? order.workflow.drawingLink,
+          drawingFileName: values.designFile?.name ?? order.workflow.drawingFileName,
+        },
+      }, {
+        process: "project_updated",
+        status: "updated",
+        user: prototypeActor,
+        changeSummary: "Project data edited from Incoming Design details.",
+        remark: values.mainData.remark.trim(),
+      });
+    }));
   }, []);
 
   const updateOrder = useCallback(
@@ -1226,7 +1277,9 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       orders,
+      nextProjectCode: nextOrderNumber(orders),
       addProject,
+      editProject,
       createStandaloneRequirementOrder,
       completeIncomingPreparation,
       submitDrawing,
@@ -1243,6 +1296,7 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
     }),
     [
       addProject,
+      editProject,
       advanceOrder,
       cancelIncomingProject,
       completeDesignDecision,

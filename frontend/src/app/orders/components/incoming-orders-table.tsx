@@ -4,16 +4,13 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import type {
-  DesignDecision,
   Order,
   PreparationOrderSelection,
   PreparationRoute,
   PreparationWorkflowUpdate,
 } from "@/types/order";
 
-type PreparationDraft = PreparationWorkflowUpdate & {
-  designDecision: DesignDecision | "";
-};
+type PreparationDraft = PreparationWorkflowUpdate;
 
 export type IncomingOrdersTableProps = {
   orders: Order[];
@@ -23,7 +20,6 @@ export type IncomingOrdersTableProps = {
     orderNo: string,
     values: PreparationWorkflowUpdate,
   ) => void;
-  onCompleteDesignDecision: (orderNo: string, decision: DesignDecision) => void;
 };
 
 const routeOptions: readonly { value: PreparationRoute; label: string }[] = [
@@ -44,14 +40,6 @@ const productionOrderOptions: readonly {
   },
 ];
 
-const designDecisionOptions: readonly {
-  value: DesignDecision;
-  label: string;
-}[] = [
-  { value: "approve", label: "Preparation: Design Approve" },
-  { value: "revision", label: "Preparation: Design Revision" },
-];
-
 function initials(name: string) {
   return name
     .split(" ")
@@ -69,7 +57,6 @@ function draftFromOrder(order: Order): PreparationDraft {
     productionOrder: order.workflow.productionOrder,
     materialRequested: order.workflow.materialRequested,
     remark: "",
-    designDecision: order.workflow.designDecision ?? "",
   };
 }
 
@@ -113,7 +100,6 @@ export function IncomingOrdersTable({
   onShowDetails,
   onCancel,
   onUpdatePreparation,
-  onCompleteDesignDecision,
 }: IncomingOrdersTableProps) {
   const [drafts, setDrafts] = useState<Record<string, PreparationDraft>>({});
 
@@ -137,11 +123,7 @@ export function IncomingOrdersTable({
   };
 
   const handleUpdate = (order: Order, draft: PreparationDraft) => {
-    if (order.stage === "review-approval" && draft.designDecision) {
-      onCompleteDesignDecision(order.no, draft.designDecision);
-    } else {
-      onUpdatePreparation(order.no, draft);
-    }
+    onUpdatePreparation(order.no, draft);
 
     setDrafts((current) => {
       const nextDrafts = { ...current };
@@ -156,6 +138,7 @@ export function IncomingOrdersTable({
         <thead>
           <tr>
             <th>PSR / Code</th>
+            <th>Current Process</th>
             <th>Customer &amp; Product</th>
             <th>Description</th>
             <th>Material</th>
@@ -163,8 +146,6 @@ export function IncomingOrdersTable({
             {hasMaterialRequestColumn ? <th>Next Preparation</th> : null}
             {hasProductionOrderColumn ? <th>Preparation Order</th> : null}
             {hasRemarkColumn ? <th>Remarks</th> : null}
-            <th>Design Decision</th>
-            <th>Current Process</th>
             <th>Designer</th>
             <th>Deadline</th>
             <th>Drawing Link</th>
@@ -177,9 +158,6 @@ export function IncomingOrdersTable({
             const draft = draftFor(order);
             const isCancelled = order.workflow.currentStatus === "cancelled";
             const isPreparation = isPreparationOrder(order);
-            const canMakeDesignDecision = Boolean(
-              order.stage === "review-approval" && order.workflow.drawingLink,
-            );
             const productionOrderAvailable =
               isPreparation && canSelectProductionOrder(draft);
             const remarkAvailable = isPreparation && canEnterRemark(draft);
@@ -190,9 +168,6 @@ export function IncomingOrdersTable({
               (draft.route !== "by_production" || Boolean(draft.productionOrder)) &&
               remarkAvailable &&
               Boolean(draft.remark.trim());
-            const canUpdateDesignDecision =
-              !isCancelled && canMakeDesignDecision && Boolean(draft.designDecision);
-            const canUpdate = canUpdatePreparation || canUpdateDesignDecision;
             const canCancel = !isCancelled && isPreparation;
 
             return (
@@ -200,6 +175,7 @@ export function IncomingOrdersTable({
                 <td>
                   <strong className="order-number">{order.no}</strong>
                 </td>
+                <td>{order.process}</td>
                 <td>
                   <strong>{order.customer}</strong>
                   <span>{order.product}</span>
@@ -302,27 +278,6 @@ export function IncomingOrdersTable({
                     )}
                   </td>
                 ) : null}
-                <td className="preparation-cell">
-                  <select
-                    className="preparation-select"
-                    value={draft.designDecision}
-                    aria-label={`Select design decision for ${order.no}`}
-                    disabled={!canMakeDesignDecision || isCancelled}
-                    onChange={(event) =>
-                      updateDraft(order, {
-                        designDecision: event.target.value as DesignDecision | "",
-                      })
-                    }
-                  >
-                    <option value="">Select a decision...</option>
-                    {designDecisionOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>{order.process}</td>
                 <td>
                   <div className="pic">
                     <span>{initials(order.pic)}</span>
@@ -360,15 +315,11 @@ export function IncomingOrdersTable({
                     <button
                       type="button"
                       className="table-update-button"
-                      disabled={!canUpdate}
+                      disabled={!canUpdatePreparation}
                       title={
-                        canUpdateDesignDecision
-                          ? "Save design decision and move the project forward"
-                          : canUpdatePreparation
+                        canUpdatePreparation
                           ? "Save preparation and move the project forward"
-                          : canMakeDesignDecision
-                            ? "Select Design Approve or Design Revision"
-                            : "Complete the required preparation steps and remarks first"
+                          : "Complete the required preparation steps and remarks first"
                       }
                       onClick={() => handleUpdate(order, draft)}
                     >

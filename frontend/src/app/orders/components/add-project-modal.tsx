@@ -3,8 +3,10 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import type {
   PreparationType,
+  Order,
   ProjectFormDraft,
   ProjectFormValues,
   ProjectMainDataKey,
@@ -20,6 +22,7 @@ import {
 } from "./project-form-config";
 
 type AddProjectModalProps = {
+  order?: Order;
   onClose: () => void;
   onSubmit: (values: ProjectFormValues) => void;
 };
@@ -62,11 +65,30 @@ function validateDraft(draft: ProjectFormDraft): ProjectFormErrors {
  * Large, feature-owned modal for creating a project. The field order and
  * conditional route behavior are entirely driven by projectFormConfig.
  */
-export function AddProjectModal({ onClose, onSubmit }: AddProjectModalProps) {
+function inputDate(value: string) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalProps) {
   const titleId = useId();
-  const [draft, setDraft] = useState<ProjectFormDraft>(createEmptyProjectFormDraft);
+  const { nextProjectCode } = useWorkflowOrders();
+  const [draft, setDraft] = useState<ProjectFormDraft>(() => order ? {
+    mainData: { ...order.mainData },
+    entryType: order.lineage.entryType,
+    previousProjectCode: order.lineage.sourceProjectNo ?? "",
+    preparationType: order.workflow.preparationType,
+    convertingRoute: order.workflow.convertingRoute ?? "",
+    pic: order.pic === "-" ? "" : order.pic,
+    projectDate: inputDate(order.projectDate),
+    deadline: inputDate(order.deadline),
+    drawingLink: order.workflow.drawingLink ?? "",
+  } : createEmptyProjectFormDraft());
   const [errors, setErrors] = useState<ProjectFormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [designFile, setDesignFile] = useState<File | null>(null);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -136,6 +158,7 @@ export function AddProjectModal({ onClose, onSubmit }: AddProjectModalProps) {
     window.setTimeout(() => {
       const sharedValues = {
         ...draft,
+        designFile: designFile ?? undefined,
         preparationType: draft.preparationType as PreparationType,
         convertingRoute:
           draft.preparationType === "converting" ? draft.convertingRoute : "",
@@ -169,7 +192,7 @@ export function AddProjectModal({ onClose, onSubmit }: AddProjectModalProps) {
     const sharedProps = {
       id: fieldId,
       value: getProjectFieldValue(draft, field),
-      disabled: isSaving || field.disabledWhen?.(draft),
+      disabled: isSaving || Boolean(order && (field.key === "entryType" || field.key === "previousProjectCode")) || field.disabledWhen?.(draft),
       "aria-invalid": Boolean(error),
       "aria-describedby": error ? `${fieldId}-error` : undefined,
       onChange: (
@@ -186,7 +209,29 @@ export function AddProjectModal({ onClose, onSubmit }: AddProjectModalProps) {
           {field.label}
           {required ? <b className="project-form-required"> *</b> : null}
         </span>
-        {field.type === "select" ? (
+        {field.type === "file" ? (
+          <span className={`project-file-picker${isSaving ? " is-disabled" : ""}`}>
+            <input
+              id={fieldId}
+              type="file"
+              disabled={isSaving}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${fieldId}-error` : undefined}
+              onChange={(event) => setDesignFile(event.target.files?.[0] ?? null)}
+            />
+            <span className="project-file-button" aria-hidden="true">
+              <Icon name="file" size={15} />
+              Pilih file
+            </span>
+            <span
+              className={`project-file-name${designFile ? " is-selected" : ""}`}
+              title={designFile?.name}
+              aria-hidden="true"
+            >
+              {designFile?.name ?? order?.workflow.drawingFileName ?? (order?.workflow.drawingLink ? "File desain saat ini (pilih untuk mengganti)" : "Belum ada file dipilih")}
+            </span>
+          </span>
+        ) : field.type === "select" ? (
           <select {...sharedProps}>
             {field.options?.map((option) => (
               <option key={option.value || "empty"} value={option.value}>
@@ -226,8 +271,8 @@ export function AddProjectModal({ onClose, onSubmit }: AddProjectModalProps) {
       >
         <header className="modal-header project-form-header">
           <div>
-            <h2 id={titleId}>Add New Project</h2>
-            <p>Enter the new project data. Fields can be adjusted as stakeholder needs evolve.</p>
+            <h2 id={titleId}>{order ? "Edit Project" : "Add New Project"}</h2>
+            <p>{order ? "Update project data. Required fields are marked with *." : "Enter the new project data. Fields can be adjusted as stakeholder needs evolve."}</p>
           </div>
           <button
             type="button"
@@ -249,6 +294,12 @@ export function AddProjectModal({ onClose, onSubmit }: AddProjectModalProps) {
                   {section.description ? <p>{section.description}</p> : null}
                 </div>
                 <div className="modal-form-grid project-form-grid">
+                  {section.id === "process-route" ? (
+                    <label className="modal-field">
+                      <span>PSR / Code</span>
+                      <input type="text" value={order?.no ?? nextProjectCode} readOnly />
+                    </label>
+                  ) : null}
                   {section.fields.map(renderField)}
                 </div>
               </section>
@@ -259,7 +310,7 @@ export function AddProjectModal({ onClose, onSubmit }: AddProjectModalProps) {
                 Cancel
               </Button>
               <Button type="submit" icon="save" disabled={isSaving}>
-                {isSaving ? "Saving..." : "Save Project"}
+                {isSaving ? "Saving..." : order ? "Save Changes" : "Save Project"}
               </Button>
             </footer>
           </form>

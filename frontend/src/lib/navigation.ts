@@ -71,20 +71,6 @@ export const navigationItems: readonly NavigationItem[] = [
     flow: "converting",
   },
   {
-    label: "Offset SPK Jobs",
-    href: "/offset",
-    icon: "file",
-    group: "workspace",
-    flow: "offset",
-  },
-  {
-    label: "Design Offset",
-    href: "/offset/design",
-    icon: "pen",
-    group: "workspace",
-    flow: "offset",
-  },
-  {
     label: "Prepress / Pra-Cetak",
     href: "/offset/prepress",
     icon: "pen",
@@ -135,19 +121,6 @@ export const navigationItems: readonly NavigationItem[] = [
     label: "Submit Sample",
     href: "/submit-sample",
     icon: "check",
-    group: "workspace",
-  },
-  {
-    label: "After Sample / Decision",
-    href: "/after-sample",
-    icon: "check",
-    count: 3,
-    group: "workspace",
-  },
-  {
-    label: "Order / Production",
-    href: "/order-production",
-    icon: "box",
     group: "workspace",
   },
   {

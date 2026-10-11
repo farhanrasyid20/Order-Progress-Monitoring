@@ -19,7 +19,7 @@ export type ProjectFormField = {
   key: ProjectFormFieldKey;
   source: "mainData" | "project";
   label: string;
-  type: "text" | "url" | "date" | "select" | "textarea";
+  type: "text" | "url" | "date" | "select" | "textarea" | "file";
   placeholder?: string;
   required?: boolean | ((draft: ProjectFormDraft) => boolean);
   options?: readonly { label: string; value: string }[];
@@ -144,7 +144,7 @@ export const projectFormConfig: readonly ProjectFormSection[] = [
       { key: "iSizeL", source: "mainData", label: "ISizeL", type: "text" },
       { key: "iSizeW", source: "mainData", label: "ISizeW", type: "text" },
       { key: "iSizeH", source: "mainData", label: "ISizeH", type: "text" },
-      { key: "weight", source: "mainData", label: "Weight", type: "text" },
+      { key: "weight", source: "mainData", label: "Weight", type: "text", required: true },
       { key: "fgWeight", source: "mainData", label: "FG Weight", type: "text" },
     ],
   },
@@ -200,9 +200,8 @@ export const projectFormConfig: readonly ProjectFormSection[] = [
       {
         key: "drawingLink",
         source: "project",
-        label: "Link Design",
-        type: "url",
-        placeholder: "https://...",
+        label: "File Design",
+        type: "file",
         fullWidth: true,
       },
     ],

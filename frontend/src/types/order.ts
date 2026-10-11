@@ -206,6 +206,7 @@ export type ProjectWorkflow = {
   currentProcess: string;
   currentStatus: ProjectCurrentStatus;
   drawingLink: string | null;
+  drawingFileName?: string;
   designDecision: DesignDecision | null;
   progress: number;
 };
@@ -309,6 +310,7 @@ type ProjectFormBaseValues = Omit<
   "entryType" | "previousProjectCode" | "preparationType"
 > & {
   preparationType: PreparationType;
+  designFile?: File;
 };
 
 export type ProjectFormValues =

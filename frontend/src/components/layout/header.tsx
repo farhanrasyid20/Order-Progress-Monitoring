@@ -50,11 +50,6 @@ export function Header({
       </div>
 
       <div className="header-actions">
-        <label className="global-search">
-          <Icon name="search" size={17} />
-          <input type="search" placeholder="Search projects..." />
-          <kbd>Ctrl K</kbd>
-        </label>
         <button
           type="button"
           className="icon-button notification"

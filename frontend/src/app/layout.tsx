@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AppFrame from "@/components/layout/app-frame";
+import { IssuesProvider } from "@/components/issues/issue-provider";
 import { WorkflowOrdersProvider } from "@/components/workflow/workflow-provider";
 import "./globals.css";
 
@@ -13,7 +14,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="id">
       <body>
         <WorkflowOrdersProvider>
-          <AppFrame>{children}</AppFrame>
+          <IssuesProvider>
+            <AppFrame>{children}</AppFrame>
+          </IssuesProvider>
         </WorkflowOrdersProvider>
       </body>
     </html>
