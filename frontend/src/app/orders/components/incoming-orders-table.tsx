@@ -4,8 +4,12 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { StandaloneRequirementModal } from "@/app/converting/components/standalone-requirement-modal";
+import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
+import { canUpdateDrawingStatus } from "@/lib/permissions";
+import { drawingStatusOptions, getDrawingStatus } from "@/lib/drawing-status";
 import type {
   Order,
+  DrawingStatus,
   PreparationOrderSelection,
   PreparationRoute,
   PreparationWorkflowUpdate,
@@ -102,6 +106,7 @@ export function IncomingOrdersTable({
   onCancel,
   onUpdatePreparation,
 }: IncomingOrdersTableProps) {
+  const { currentUserRole, updateDrawingStatus } = useWorkflowOrders();
   const [drafts, setDrafts] = useState<Record<string, PreparationDraft>>({});
   const [toolingProject, setToolingProject] = useState<Order | null>(null);
 
@@ -151,6 +156,7 @@ export function IncomingOrdersTable({
             <th>Designer</th>
             <th>Deadline</th>
             <th>Drawing Link</th>
+            <th>Drawing Status</th>
             <th>Status</th>
             <th>Action</th>
           </tr>
@@ -312,6 +318,15 @@ export function IncomingOrdersTable({
                     </a>
                   ) : (
                     <span className="preparation-empty">No drawing link</span>
+                  )}
+                </td>
+                <td>
+                  {canUpdateDrawingStatus(currentUserRole) ? (
+                    <select className="preparation-select" aria-label={`Drawing status for ${order.no}`} value={getDrawingStatus(order)} disabled={isCancelled} onChange={(event) => updateDrawingStatus(order.id, event.target.value as DrawingStatus)}>
+                      {drawingStatusOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  ) : (
+                    <Badge tone={drawingStatusOptions.find((option) => option.value === getDrawingStatus(order))?.tone}>{drawingStatusOptions.find((option) => option.value === getDrawingStatus(order))?.label}</Badge>
                   )}
                 </td>
                 <td>

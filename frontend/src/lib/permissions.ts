@@ -8,6 +8,11 @@ export type ProjectPermissions = {
 
 /** Central placeholder for the current prototype roles. */
 export const permissions: Record<ProjectRole, ProjectPermissions> = {
+  superadmin: {
+    canCreateProject: true,
+    canEditProject: true,
+    canUpdateWorkflow: true,
+  },
   admin: {
     canCreateProject: true,
     canEditProject: true,
@@ -24,3 +29,7 @@ export const permissions: Record<ProjectRole, ProjectPermissions> = {
     canUpdateWorkflow: false,
   },
 };
+
+export function canUpdateDrawingStatus(role: ProjectRole) {
+  return role === "superadmin";
+}

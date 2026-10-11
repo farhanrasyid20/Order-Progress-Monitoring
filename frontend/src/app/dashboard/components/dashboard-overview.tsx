@@ -1,11 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Icon } from "@/components/ui/icon";
-import { SectionHeader } from "@/components/ui/section-header";
-import { OrderTable } from "@/components/workflow/order-table";
+import { DesignerWorkload } from "./designer-workload";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import {
   DashboardSummaryCard,
@@ -15,7 +11,6 @@ import { OrderProgress } from "./order-progress";
 import { RecentActivity } from "./recent-activity";
 
 export type DashboardOverviewProps = {
-  onAddOrder?: () => void;
   onViewOrders?: () => void;
 };
 
@@ -59,16 +54,11 @@ const summaries: DashboardSummary[] = [
 
 /** Dashboard page content, assembled from independent dashboard components. */
 export function DashboardOverview({
-  onAddOrder,
   onViewOrders,
 }: DashboardOverviewProps) {
   const router = useRouter();
   const { orders } = useWorkflowOrders();
   const goToOrders = onViewOrders ?? (() => router.push("/orders"));
-  const activeOrders = orders.filter(
-    (order) =>
-      order.stage !== "completed" && order.workflow.currentStatus !== "cancelled",
-  );
 
   return (
     <>
@@ -77,14 +67,6 @@ export function DashboardOverview({
           <h1>Workload Design &amp; Tooling</h1>
           <p>Monitor projects from incoming design through sample completion.</p>
         </div>
-        <Link
-          href="/orders?create=1"
-          className="button button-primary"
-          onClick={onAddOrder}
-        >
-          <Icon name="plus" size={16} />
-          Add Project
-        </Link>
       </div>
 
       <div className="summary-grid">
@@ -96,18 +78,7 @@ export function DashboardOverview({
       <OrderProgress onViewOrders={goToOrders} />
 
       <div className="content-grid">
-        <section className="card orders-card">
-          <SectionHeader
-            title="Active Projects"
-            subtitle="Projects that need monitoring"
-            action={
-              <Button type="button" variant="ghost" onClick={goToOrders}>
-                View All
-              </Button>
-            }
-          />
-          <OrderTable orders={activeOrders} compact />
-        </section>
+        <DesignerWorkload orders={orders} />
         <RecentActivity />
       </div>
     </>

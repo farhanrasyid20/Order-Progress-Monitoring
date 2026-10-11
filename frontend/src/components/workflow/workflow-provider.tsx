@@ -11,9 +11,13 @@ import {
   type ReactNode,
 } from "react";
 import { orders as initialOrders } from "@/data/orders";
+import { canUpdateDrawingStatus } from "@/lib/permissions";
+import { drawingStatusOptions, getDrawingStatus } from "@/lib/drawing-status";
 import { isCombinedRequirement, isInRequirementQueue } from "@/lib/requirement-queue";
 import type {
   DesignDecision,
+  DrawingStatus,
+  ProjectRole,
   DrawingSubmission,
   MaterialRequestValues,
   Order,
@@ -189,6 +193,8 @@ const nextWorkflowStage: Partial<Record<WorkflowStage, WorkflowStage>> = {
 };
 
 export type WorkflowOrdersContextValue = {
+  currentUserRole: ProjectRole;
+  updateDrawingStatus: (projectId: string, status: DrawingStatus) => void;
   orders: Order[];
   nextProjectCode: string;
   addProject: (values: ProjectFormValues) => void;
@@ -709,7 +715,7 @@ function moveToStage(
  * Local state only. New records use the nested Project model, while the flat
  * display fields keep the existing dashboard and queue UI working unchanged.
  */
-export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
+export function WorkflowOrdersProvider({ children, currentUserRole = "design" }: { children: ReactNode; currentUserRole?: ProjectRole }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const designFileUrls = useRef<string[]>([]);
 
@@ -717,6 +723,20 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
     designFileUrls.current.forEach((url) => URL.revokeObjectURL(url));
     designFileUrls.current = [];
   }, []);
+
+  const updateDrawingStatus = useCallback((projectId: string, status: DrawingStatus) => {
+    if (!canUpdateDrawingStatus(currentUserRole) || !drawingStatusOptions.some((option) => option.value === status)) return;
+    setOrders((current) => current.map((order) => {
+      if (order.id !== projectId || order.workflow.currentStatus === "cancelled" || getDrawingStatus(order) === status) return order;
+      return appendHistory({ ...order, workflow: { ...order.workflow, drawingStatus: status } }, {
+        process: "drawing_status_updated",
+        status,
+        user: prototypeActor,
+        changeSummary: `Drawing status changed to ${drawingStatusOptions.find((option) => option.value === status)?.label}.`,
+        remark: "Updated by superadmin.",
+      });
+    }));
+  }, [currentUserRole]);
 
   const addProject = useCallback((values: ProjectFormValues) => {
     const drawingLink = values.designFile
@@ -1334,6 +1354,8 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
+      currentUserRole,
+      updateDrawingStatus,
       orders,
       nextProjectCode: nextOrderNumber(orders),
       addProject,
@@ -1353,6 +1375,8 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
       moveOrderToStage,
     }),
     [
+      currentUserRole,
+      updateDrawingStatus,
       addProject,
       editProject,
       advanceOrder,

@@ -1,7 +1,8 @@
 /** Status presentation remains separate from the workflow state. */
 export type OrderStatusTone = "info" | "success" | "warning" | "danger" | "neutral";
 export type ProjectPriority = "High" | "Medium" | "Low";
-export type ProjectRole = "admin" | "manager" | "design";
+export type ProjectRole = "superadmin" | "admin" | "manager" | "design";
+export type DrawingStatus = "no_drawing" | "drawing_available" | "reviewed_by_superior";
 export type ProjectEntryType = "new" | "version_up";
 
 /**
@@ -200,6 +201,7 @@ export type OffsetSpkRecord = {
 export type OffsetSpkValues = Omit<OffsetSpkRecord, "id" | "createdAt">;
 
 export type ProjectWorkflow = {
+  drawingStatus?: DrawingStatus;
   toolingReady?: boolean;
   rubberReady?: boolean;
   preparationType: PreparationType;
