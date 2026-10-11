@@ -47,13 +47,20 @@ export function UserTable({ users, onEdit }: UserTableProps) {
   return (
     <div className="table-wrap">
       <table className="users-table">
+        <colgroup>
+          <col className="users-identity-column" />
+          <col className="users-role-column" />
+          <col className="users-status-column" />
+          <col className="users-activity-column" />
+          <col className="users-action-column" />
+        </colgroup>
         <thead>
           <tr>
             <th scope="col">User</th>
             <th scope="col">Role</th>
             <th scope="col">Status</th>
-            <th scope="col">Last active</th>
-            <th scope="col">Action</th>
+            <th scope="col">Last Active</th>
+            <th scope="col" className="users-action-cell">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -79,7 +86,7 @@ export function UserTable({ users, onEdit }: UserTableProps) {
                 </Badge>
               </td>
               <td>{user.lastActive}</td>
-              <td>
+              <td className="users-action-cell">
                 <div className="table-actions">
                   <button
                     type="button"

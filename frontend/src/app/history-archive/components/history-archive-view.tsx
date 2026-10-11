@@ -24,13 +24,13 @@ export function HistoryArchiveView() {
       <div className="page-intro">
         <div>
           <h1>History &amp; Archive</h1>
-          <p>Riwayat proyek yang telah selesai atau ditutup.</p>
+          <p>View the history of completed or closed projects.</p>
         </div>
       </div>
 
       <OrderCard
-        title="Arsip Proyek"
-        subtitle={`${archivedOrders.length} proyek selesai atau dibatalkan`}
+        title="Project Archive"
+        subtitle={`${archivedOrders.length} completed or cancelled projects`}
       >
         <OrderTable orders={pagination.pageItems} onViewOrder={setHistoryOrder} />
         <TablePagination

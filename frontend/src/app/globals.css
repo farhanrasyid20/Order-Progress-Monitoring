@@ -353,8 +353,23 @@ select { min-width: 130px; height: 38px; padding: 0 30px 0 11px; border: 1px sol
 .toast-message { position: fixed; right: 24px; bottom: 24px; z-index: 80; padding: 12px 15px; border: 1px solid #cfe3d8; border-radius: var(--radius); background: var(--success-soft); color: #356b50; box-shadow: 0 12px 28px rgba(31, 41, 51, .14); font-size: 11px; font-weight: 700; animation: modal-slide-in .18s ease-out; }
 @keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes modal-slide-in { from { opacity: 0; transform: translateY(8px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.users-card { max-width: 1050px; }
-.users-table { min-width: 700px; }
+.users-card { width: 100%; max-width: none; overflow: hidden; }
+.users-card .section-head { padding: 20px 24px; margin-bottom: 0; border-bottom: 1px solid var(--border); }
+.users-card .users-table { min-width: 620px; table-layout: fixed; }
+.users-identity-column { width: 34%; }
+.users-role-column { width: 23%; }
+.users-status-column { width: 15%; }
+.users-activity-column { width: 18%; }
+.users-action-column { width: 10%; }
+.users-table th, .users-table td { padding: 16px 24px; vertical-align: middle; }
+.users-table td { white-space: normal; line-height: 1.5; }
+.users-table .user-name { font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.users-table .user-email { font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
+.users-table .badge { display: inline-flex; margin-top: 0; white-space: nowrap; }
+.users-table .users-action-cell { text-align: center; }
+.users-table .users-action-cell .table-actions { justify-content: center; }
+.users-table .user-edit-action { width: 32px; height: 32px; }
+.users-table .user-edit-action:hover { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
 .user-identity { display: flex; align-items: center; gap: 9px; }
 .user-avatar { width: 31px; height: 31px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; background: var(--primary-soft); color: var(--primary); font-size: 9px; font-weight: 700; }
 .user-identity div { min-width: 0; }

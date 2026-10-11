@@ -116,7 +116,7 @@ export function UsersView({ initialData = initialUsers }: UsersViewProps) {
         </Button>
       </div>
 
-      <section className="card full-orders users-card" aria-labelledby="users-table-title">
+      <section className="card users-card" aria-labelledby="users-table-title">
         <div className="section-head">
           <div>
             <h2 id="users-table-title">Workspace Users</h2>

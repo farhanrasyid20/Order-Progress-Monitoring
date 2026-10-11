@@ -89,7 +89,7 @@ export function UserFormModal({ user, onClose, onSave }: UserFormModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
       >
-        <div className="modal-header">
+        <header className="modal-header">
           <div>
             <h2 id={titleId}>{isEditing ? "Edit User" : "Add User"}</h2>
             <p>
@@ -106,16 +106,18 @@ export function UserFormModal({ user, onClose, onSave }: UserFormModalProps) {
           >
             <Icon name="close" size={18} />
           </button>
-        </div>
+        </header>
 
         <form className="modal-form" onSubmit={handleSubmit}>
+          <div className="modal-form-grid">
           <label className="modal-field">
-            <span>Full name</span>
+            <span>Full Name</span>
             <input
               ref={nameInputRef}
               type="text"
               value={draft.name}
               autoComplete="name"
+              placeholder="Enter full name"
               required
               onChange={(event) =>
                 setDraft((current) => ({
@@ -127,11 +129,12 @@ export function UserFormModal({ user, onClose, onSave }: UserFormModalProps) {
           </label>
 
           <label className="modal-field">
-            <span>Email address</span>
+            <span>Email Address</span>
             <input
               type="email"
               value={draft.email}
               autoComplete="email"
+              placeholder="name@company.com"
               required
               onChange={(event) =>
                 setDraft((current) => ({
@@ -142,7 +145,6 @@ export function UserFormModal({ user, onClose, onSave }: UserFormModalProps) {
             />
           </label>
 
-          <div className="modal-form-grid">
             <label className="modal-field">
               <span>Role</span>
               <select
@@ -179,14 +181,14 @@ export function UserFormModal({ user, onClose, onSave }: UserFormModalProps) {
             </label>
           </div>
 
-          <div className="modal-actions">
+          <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" icon={isEditing ? "pen" : "plus"}>
+            <Button type="submit" icon={isEditing ? "save" : "plus"}>
               {isEditing ? "Save Changes" : "Add User"}
             </Button>
-          </div>
+          </footer>
         </form>
       </section>
     </div>
