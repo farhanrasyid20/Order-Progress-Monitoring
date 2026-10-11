@@ -2,11 +2,12 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
-import type { Order } from "@/types/order";
+import type { Order, StandaloneRequirementKind } from "@/types/order";
 
 export type OrderTableProps = {
   orders: Order[];
   compact?: boolean;
+  requirementKind?: StandaloneRequirementKind;
   onViewOrder?: (order: Order) => void;
   onEditOrder?: (order: Order) => void;
 };
@@ -39,6 +40,7 @@ function routeLabel(order: Order) {
 export function OrderTable({
   orders,
   compact = false,
+  requirementKind,
   onViewOrder,
   onEditOrder,
 }: OrderTableProps) {
@@ -57,6 +59,7 @@ export function OrderTable({
             {!compact ? <th>Route</th> : null}
             <th>Current Process</th>
             <th>Designer</th>
+            {requirementKind ? <><th>Invoice Number</th><th>Price</th></> : null}
             <th>Deadline</th>
             {!compact ? <th>Drawing Link</th> : null}
             {!compact ? <th>Priority</th> : null}
@@ -88,6 +91,10 @@ export function OrderTable({
                   {order.pic}
                 </div>
               </td>
+              {requirementKind ? <>
+                <td>{(requirementKind === "tooling" ? order.toolingOrders : order.rubberOrders).at(-1)?.invoiceNumber || "-"}</td>
+                <td>{(requirementKind === "tooling" ? order.toolingOrders : order.rubberOrders).at(-1)?.price || "-"}</td>
+              </> : null}
               <td>{order.deadline}</td>
               {!compact ? (
                 <td>

@@ -15,15 +15,16 @@ export function ToolingProgressView() {
       <WorkflowStageView
         stage="tooling-progress"
         title="Tooling Progress"
-        copy="Kelola dan perbarui detail tooling, termasuk order mandiri tanpa Incoming Design."
+        copy="Manage tooling requirements for projects from Incoming Design."
         pageAction={
           <Button type="button" icon="plus" onClick={() => setIsAddModalOpen(true)}>
-            Tambah Tooling
+            Add Tooling
           </Button>
         }
         icon="settings"
-        queueTitle="Antrean Tooling"
-        queueCopy="Proyek hasil Design Approve dan order Tooling mandiri"
+        queueTitle="Tooling Queue"
+        summaryLanguage="en"
+        queueCopy="Approved projects and Order Tooling projects from Incoming Design"
         renderEditModal={({ order, onClose }) => (
           <ToolingEditModal order={order} onClose={onClose} />
         )}

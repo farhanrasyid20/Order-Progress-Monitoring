@@ -37,18 +37,19 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
   const titleId = useId();
   const submitMode = useRef<"save" | "continue">("save");
   const { saveRubberRequirement } = useWorkflowOrders();
+  const latest = order.rubberOrders.at(-1);
   const [requirementType, setRequirementType] = useState<(typeof rubberTypes)[number]>(
-    "Rubber 4MM",
+    (latest?.requirementType as (typeof rubberTypes)[number]) ?? "Rubber 4MM",
   );
-  const [status, setStatus] = useState<RequirementStatus>("needed");
-  const [orderDate, setOrderDate] = useState("");
-  const [expectedDate, setExpectedDate] = useState("");
-  const [arrivalDate, setArrivalDate] = useState("");
-  const [requestedBy, setRequestedBy] = useState(order.pic === "-" ? "" : order.pic);
-  const [supplier, setSupplier] = useState("");
-  const [invoiceNumber, setInvoiceNumber] = useState("");
-  const [price, setPrice] = useState("");
-  const [remark, setRemark] = useState("");
+  const [status, setStatus] = useState<RequirementStatus>(latest?.status ?? "needed");
+  const [orderDate, setOrderDate] = useState(latest?.orderDate ?? "");
+  const [expectedDate, setExpectedDate] = useState(latest?.expectedDate ?? "");
+  const [arrivalDate, setArrivalDate] = useState(latest?.arrivalDate ?? "");
+  const [requestedBy, setRequestedBy] = useState(latest?.requestedBy ?? (order.pic === "-" ? "" : order.pic));
+  const [supplier, setSupplier] = useState(latest?.supplier ?? "");
+  const [invoiceNumber, setInvoiceNumber] = useState(latest?.invoiceNumber ?? "");
+  const [price, setPrice] = useState(latest?.price ?? "");
+  const [remark, setRemark] = useState(latest?.remark ?? "");
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -96,12 +97,12 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
         <header className="modal-header">
           <div>
             <h2 id={titleId}>Rubber Order &amp; Setting</h2>
-            <p>Catat kebutuhan rubber, stencil, test run, atau MC untuk {order.no}.</p>
+            <p>Record rubber, stencil, test run, or MC requirements for {order.no}.</p>
           </div>
           <button
             type="button"
             className="modal-close"
-            aria-label="Tutup formulir rubber"
+            aria-label="Close rubber form"
             onClick={onClose}
             autoFocus
           >
@@ -111,7 +112,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
 
         {order.rubberOrders.length > 0 ? (
           <p className="modal-history-note">
-            {order.rubberOrders.length} kebutuhan rubber/setting sudah dicatat untuk proyek ini.
+            {order.rubberOrders.length} rubber/setting {order.rubberOrders.length === 1 ? "requirement has" : "requirements have"} been recorded for this project.
           </p>
         ) : null}
 
@@ -122,7 +123,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
               <input value={order.no} disabled />
             </label>
             <label className="modal-field">
-              <span>Jenis Requirement</span>
+              <span>Requirement Type</span>
               <select
                 value={requirementType}
                 onChange={(event) =>
@@ -152,15 +153,15 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
               <input value={requestedBy} onChange={(event) => setRequestedBy(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Tanggal Order</span>
+              <span>Order Date</span>
               <input type="date" value={orderDate} onChange={(event) => setOrderDate(event.target.value)} />
             </label>
             <label className="modal-field">
-              <span>Estimasi Datang</span>
+              <span>Expected Arrival Date</span>
               <input type="date" value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} />
             </label>
             <label className="modal-field">
-              <span>Tanggal Diterima</span>
+              <span>Received Date</span>
               <input type="date" value={arrivalDate} onChange={(event) => setArrivalDate(event.target.value)} />
             </label>
             <label className="modal-field">
@@ -172,22 +173,22 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
               <input value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} />
             </label>
             <label className="modal-field">
-              <span>Harga</span>
-              <input value={price} onChange={(event) => setPrice(event.target.value)} placeholder="Rp / nominal" />
+              <span>Price</span>
+              <input value={price} onChange={(event) => setPrice(event.target.value)} placeholder="Amount in IDR" />
             </label>
             <label className="modal-field modal-field-full">
               <span>Remark</span>
               <textarea
                 value={remark}
                 onChange={(event) => setRemark(event.target.value)}
-                placeholder="Contoh: waiting check, test run gagal, atau setting ulang"
+                placeholder="Pending inspection, failed test run, or setup adjustments"
                 rows={3}
               />
             </label>
           </div>
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Batal
+              Cancel
             </Button>
             <Button
               type="submit"
@@ -196,18 +197,18 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
                 submitMode.current = "save";
               }}
             >
-              Simpan Requirement
+              Save Requirement
             </Button>
             <Button
               type="submit"
               icon="arrow"
               disabled={!canContinue}
-              title={canContinue ? undefined : "Status harus Received atau Available untuk melanjutkan"}
+              title={canContinue ? undefined : "Status must be Received or Available to continue"}
               onClick={() => {
                 submitMode.current = "continue";
               }}
             >
-              Simpan &amp; Lanjut
+              Save &amp; Continue
             </Button>
           </footer>
         </form>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
+import { StandaloneRequirementModal } from "@/app/converting/components/standalone-requirement-modal";
 import type {
   Order,
   PreparationOrderSelection,
@@ -102,6 +103,7 @@ export function IncomingOrdersTable({
   onUpdatePreparation,
 }: IncomingOrdersTableProps) {
   const [drafts, setDrafts] = useState<Record<string, PreparationDraft>>({});
+  const [toolingProject, setToolingProject] = useState<Order | null>(null);
 
   const draftFor = (order: Order) => drafts[order.no] ?? draftFromOrder(order);
   const hasProductionOrderColumn = orders.some(
@@ -194,6 +196,8 @@ export function IncomingOrdersTable({
                           route: event.target.value as PreparationRoute,
                           productionOrder: null,
                           materialRequested: false,
+                          toolingRequirement: undefined,
+                          rubberRequirement: undefined,
                           remark: "",
                         })
                       }
@@ -220,6 +224,8 @@ export function IncomingOrdersTable({
                           updateDraft(order, {
                             materialRequested: event.target.value === "requested",
                             productionOrder: null,
+                            toolingRequirement: undefined,
+                            rubberRequirement: undefined,
                             remark: "",
                           })
                         }
@@ -235,6 +241,7 @@ export function IncomingOrdersTable({
                 {hasProductionOrderColumn ? (
                   <td className="preparation-cell">
                     {productionOrderAvailable ? (
+                      <div className="preparation-order-controls">
                       <select
                         className="preparation-select"
                         value={draft.productionOrder ?? ""}
@@ -245,6 +252,8 @@ export function IncomingOrdersTable({
                             productionOrder:
                               (event.target.value as PreparationOrderSelection) || null,
                             remark: "",
+                            toolingRequirement: undefined,
+                            rubberRequirement: undefined,
                           })
                         }
                       >
@@ -255,6 +264,12 @@ export function IncomingOrdersTable({
                           </option>
                         ))}
                       </select>
+                      {draft.productionOrder === "tooling" || draft.productionOrder === "rubber" || draft.productionOrder === "tooling_and_rubber" ? (
+                        <button type="button" className="table-action" disabled={isCancelled} aria-label={`Add ${draft.productionOrder} for ${order.no}`} title={`Add or edit ${draft.productionOrder} details`} onClick={() => setToolingProject(order)}>
+                          <Icon name={(draft.productionOrder === "tooling_and_rubber" ? draft.toolingRequirement && draft.rubberRequirement : draft.productionOrder === "tooling" ? draft.toolingRequirement : draft.rubberRequirement) ? "check" : "plus"} size={16} />
+                        </button>
+                      ) : null}
+                      </div>
                     ) : (
                       <span className="preparation-empty">Complete Request Material first</span>
                     )}
@@ -358,6 +373,18 @@ export function IncomingOrdersTable({
           <h3>No projects found</h3>
           <p>Try adjusting the search or filters.</p>
         </div>
+      ) : null}
+      {toolingProject ? (
+        <StandaloneRequirementModal
+          kind={draftFor(toolingProject).productionOrder === "rubber" ? "rubber" : "tooling"}
+          project={toolingProject}
+          combined={draftFor(toolingProject).productionOrder === "tooling_and_rubber"}
+          initialRubberRequirement={draftFor(toolingProject).rubberRequirement}
+          onSaveCombined={(toolingRequirement, rubberRequirement) => updateDraft(toolingProject, { toolingRequirement, rubberRequirement })}
+          initialRequirement={draftFor(toolingProject).productionOrder === "rubber" ? draftFor(toolingProject).rubberRequirement : draftFor(toolingProject).toolingRequirement}
+          onSaveRequirement={(requirement) => updateDraft(toolingProject, draftFor(toolingProject).productionOrder === "rubber" ? { rubberRequirement: requirement } : { toolingRequirement: requirement })}
+          onClose={() => setToolingProject(null)}
+        />
       ) : null}
     </div>
   );

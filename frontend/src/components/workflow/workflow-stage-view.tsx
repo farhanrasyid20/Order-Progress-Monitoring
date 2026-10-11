@@ -8,6 +8,7 @@ import { ProjectHistoryModal } from "@/components/workflow/project-history-modal
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useTablePagination } from "@/components/ui/use-table-pagination";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
+import { isInRequirementQueue, requirementQueueDisplay } from "@/lib/requirement-queue";
 import type { IconName } from "@/components/ui/icon";
 import type { Order, WorkflowStage } from "@/types/order";
 
@@ -24,6 +25,7 @@ export type WorkflowStageViewProps = {
   icon: IconName;
   queueTitle: string;
   queueCopy: string;
+  summaryLanguage?: "id" | "en";
   renderEditModal: (props: WorkflowEditModalRenderProps) => ReactNode;
 };
 
@@ -39,13 +41,17 @@ export function WorkflowStageView({
   icon,
   queueTitle,
   queueCopy,
+  summaryLanguage,
   renderEditModal,
 }: WorkflowStageViewProps) {
   const { orders } = useWorkflowOrders();
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [historyOrder, setHistoryOrder] = useState<Order | null>(null);
   const queueOrders = useMemo(
-    () => orders.filter((order) => order.stage === stage),
+    () => stage === "tooling-progress" || stage === "rubber-order-setting"
+      ? orders.filter((order) => isInRequirementQueue(order, stage === "tooling-progress" ? "tooling" : "rubber"))
+        .map((order) => requirementQueueDisplay(order, stage === "tooling-progress" ? "tooling" : "rubber"))
+      : orders.filter((order) => order.stage === stage),
     [orders, stage],
   );
   const pagination = useTablePagination(queueOrders);
@@ -60,11 +66,12 @@ export function WorkflowStageView({
         {pageAction}
       </div>
 
-      <ProcessSummary icon={icon} />
+      <ProcessSummary icon={icon} language={summaryLanguage} />
 
       <OrderCard title={queueTitle} subtitle={queueCopy}>
         <OrderTable
           orders={pagination.pageItems}
+          requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined}
           onViewOrder={setHistoryOrder}
           onEditOrder={setEditingOrder}
         />

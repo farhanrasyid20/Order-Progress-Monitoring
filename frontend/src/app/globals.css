@@ -213,6 +213,9 @@ select { min-width: 130px; height: 38px; padding: 0 30px 0 11px; border: 1px sol
 .issue-filters input, .issue-filters select { height: 34px; min-width: 130px; padding: 0 9px; border: 1px solid var(--border-dark); border-radius: 6px; background: var(--surface); color: var(--text); font-size: 10px; }
 .issue-filters input { min-width: 180px; }
 .issue-actions { display: flex; gap: 6px; }
+.preparation-order-controls { display: flex; align-items: center; gap: 8px; }
+.preparation-order-controls .preparation-select { flex: 1; min-width: 0; }
+.preparation-order-controls .table-action { flex-shrink: 0; }
 .issue-log-card .issue-table { min-width: 1000px; table-layout: fixed; }
 .issue-col-source { width: calc(28% - 84px); }
 .issue-col-code { width: calc(16% - 48px); }

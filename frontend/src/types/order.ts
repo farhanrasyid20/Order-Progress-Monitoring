@@ -74,6 +74,8 @@ export type PreparationWorkflowUpdate = {
   productionOrder: PreparationOrderSelection | null;
   materialRequested: boolean;
   remark: string;
+  toolingRequirement?: RequirementUpdateValues;
+  rubberRequirement?: RequirementUpdateValues;
 };
 export type DrawingSubmission = {
   pic: string;
@@ -198,6 +200,8 @@ export type OffsetSpkRecord = {
 export type OffsetSpkValues = Omit<OffsetSpkRecord, "id" | "createdAt">;
 
 export type ProjectWorkflow = {
+  toolingReady?: boolean;
+  rubberReady?: boolean;
   preparationType: PreparationType;
   convertingRoute: ConvertingRoute | null;
   productionOrder: PreparationOrderSelection | null;

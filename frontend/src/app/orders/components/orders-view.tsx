@@ -177,7 +177,7 @@ export function OrdersView({
             resetPage();
             setPendingHistoryOrderNo(orderNo);
             setToastMessage(
-              `Preparation for ${orderNo} was updated and moved to Design Process.`,
+              `Preparation for ${orderNo} was updated and moved to ${values.route === "by_production" && values.productionOrder === "tooling_and_rubber" ? "Tooling Progress and Rubber Order & Setting" : values.route === "by_production" && values.productionOrder === "tooling" ? "Tooling Progress" : values.route === "by_production" && values.productionOrder === "rubber" ? "Rubber Order & Setting" : "Design Process"}.`,
             );
             window.setTimeout(() => setToastMessage(""), 3200);
           }}

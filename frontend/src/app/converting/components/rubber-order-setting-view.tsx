@@ -15,15 +15,16 @@ export function RubberOrderSettingView() {
       <WorkflowStageView
         stage="rubber-order-setting"
         title="Rubber Order & Setting"
-        copy="Kelola progress rubber dan setting, termasuk order mandiri tanpa Incoming Design."
+        copy="Manage rubber requirements and setting for projects from Incoming Design."
+        summaryLanguage="en"
         pageAction={
           <Button type="button" icon="plus" onClick={() => setIsAddModalOpen(true)}>
-            Tambah Rubber
+            Add Rubber
           </Button>
         }
         icon="box"
-        queueTitle="Antrean Rubber Order & Setting"
-        queueCopy="Proyek hasil proses sebelumnya dan order Rubber mandiri"
+        queueTitle="Rubber Order & Setting Queue"
+        queueCopy="Approved projects and Order Rubber projects from Incoming Design"
         renderEditModal={({ order, onClose }) => (
           <RubberEditModal order={order} onClose={onClose} />
         )}

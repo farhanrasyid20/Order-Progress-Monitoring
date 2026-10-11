@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { orders as initialOrders } from "@/data/orders";
+import { isCombinedRequirement, isInRequirementQueue } from "@/lib/requirement-queue";
 import type {
   DesignDecision,
   DrawingSubmission,
@@ -624,6 +625,33 @@ function applyDesignDecision(order: Order, decision: DesignDecision): Order {
   };
 }
 
+function withToolingDetailsStatus(order: Order): Order {
+  return withRequirementDetailsStatus(order, "tooling");
+}
+
+function saveCombinedRequirementProgress(order: Order, kind: StandaloneRequirementKind, ready: boolean): Order {
+  const updated: Order = {
+    ...order,
+    workflow: { ...order.workflow, [kind === "tooling" ? "toolingReady" : "rubberReady"]: ready },
+  };
+  if (updated.workflow.toolingReady && updated.workflow.rubberReady) return moveToStage(updated, "material-request");
+  return withRequirementDetailsStatus(updated, updated.workflow.toolingReady ? "rubber" : "tooling");
+}
+
+function withRequirementDetailsStatus(order: Order, kind: StandaloneRequirementKind): Order {
+  const hasDetails = (kind === "tooling" ? order.toolingOrders : order.rubberOrders).length > 0;
+  const label = kind === "tooling" ? "Tooling" : "Rubber";
+  return {
+    ...order,
+    status: `${label} Details ${hasDetails ? "Added" : "Required"}`,
+    tone: hasDetails ? "info" : "warning",
+    workflow: {
+      ...order.workflow,
+      currentStatus: hasDetails ? "in_progress" : "waiting",
+    },
+  };
+}
+
 function moveToStage(
   order: Order,
   stage: WorkflowStage,
@@ -885,11 +913,39 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
             return order;
           }
 
-          return moveToStage(
-            applyIncomingPreparation(order, values),
-            "design-progress",
-            { preserveStatus: true },
-          );
+          const isCombined = values.route === "by_production" && values.productionOrder === "tooling_and_rubber";
+          const isToolingOrder = values.route === "by_production" && (values.productionOrder === "tooling" || isCombined);
+          const isRubberOrder = values.route === "by_production" && (values.productionOrder === "rubber" || isCombined);
+          let prepared = applyIncomingPreparation(order, values);
+          if (isToolingOrder && values.toolingRequirement) {
+            prepared = appendHistory({
+              ...prepared,
+              toolingOrders: [...prepared.toolingOrders, {
+                ...values.toolingRequirement,
+                sequence: prepared.toolingOrders.length + 1,
+              }],
+            }, {
+              process: "tooling_requirement",
+              status: values.toolingRequirement.status,
+              user: prototypeActor,
+              changeSummary: "Tooling requirement added from Incoming Design.",
+              remark: values.toolingRequirement.remark,
+            });
+          }
+          if (isRubberOrder && values.rubberRequirement) {
+            prepared = appendHistory({
+              ...prepared,
+              rubberOrders: [...prepared.rubberOrders, { ...values.rubberRequirement, sequence: prepared.rubberOrders.length + 1 }],
+            }, {
+              process: "rubber_requirement",
+              status: values.rubberRequirement.status,
+              user: prototypeActor,
+              changeSummary: "Rubber requirement added from Incoming Design.",
+              remark: values.rubberRequirement.remark,
+            });
+          }
+          const moved = moveToStage(prepared, isToolingOrder ? "tooling-progress" : isRubberOrder ? "rubber-order-setting" : "design-progress", { preserveStatus: !isToolingOrder && !isRubberOrder });
+          return isToolingOrder ? withToolingDetailsStatus(moved) : isRubberOrder ? withRequirementDetailsStatus(moved, "rubber") : moved;
         }),
       );
     },
@@ -1055,7 +1111,7 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
         currentOrders.map((order) => {
           if (
             order.no !== orderNo ||
-            order.stage !== "tooling-progress" ||
+            !isInRequirementQueue(order, "tooling") ||
             order.workflow.currentStatus === "cancelled"
           ) {
             return order;
@@ -1078,11 +1134,12 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
               remark: values.remark.trim(),
             },
           );
+          if (isCombinedRequirement(updated)) return saveCombinedRequirementProgress(updated, "tooling", continueWorkflow && isReadyToContinueRequirement(values.status));
           const nextStage = continueWorkflow && isReadyToContinueRequirement(values.status)
             ? nextStageForOrder(updated)
             : undefined;
 
-          return nextStage ? moveToStage(updated, nextStage) : updated;
+          return nextStage ? moveToStage(updated, nextStage) : withToolingDetailsStatus(updated);
         }),
       );
     },
@@ -1099,7 +1156,7 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
         currentOrders.map((order) => {
           if (
             order.no !== orderNo ||
-            order.stage !== "rubber-order-setting" ||
+            !isInRequirementQueue(order, "rubber") ||
             order.workflow.currentStatus === "cancelled"
           ) {
             return order;
@@ -1122,11 +1179,12 @@ export function WorkflowOrdersProvider({ children }: { children: ReactNode }) {
               remark: values.remark.trim(),
             },
           );
+          if (isCombinedRequirement(updated)) return saveCombinedRequirementProgress(updated, "rubber", continueWorkflow && isReadyToContinueRequirement(values.status));
           const nextStage = continueWorkflow && isReadyToContinueRequirement(values.status)
             ? nextStageForOrder(updated)
             : undefined;
 
-          return nextStage ? moveToStage(updated, nextStage) : updated;
+          return nextStage ? moveToStage(updated, nextStage) : withRequirementDetailsStatus(updated, "rubber");
         }),
       );
     },
