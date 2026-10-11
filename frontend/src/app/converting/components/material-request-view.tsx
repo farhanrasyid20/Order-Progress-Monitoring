@@ -9,10 +9,11 @@ export function MaterialRequestView() {
     <WorkflowStageView
       stage="material-request"
       title="Material Request / Create MI"
-      copy="Catat kebutuhan material dan nomor MI sebelum proyek masuk ke Sample Process."
+      copy="Record material requirements and MI numbers before moving projects to Sample Progress."
       icon="box"
-      queueTitle="Antrean Material Converting"
-      queueCopy="Proyek Converting yang menunggu material request atau MI"
+      summaryLanguage="en"
+      queueTitle="Converting Material Queue"
+      queueCopy="Converting projects awaiting material requests or MI creation"
       renderEditModal={({ order, onClose }) => (
         <MaterialRequestModal order={order} onClose={onClose} />
       )}

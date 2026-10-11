@@ -51,13 +51,13 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
       >
         <header className="modal-header">
           <div>
-            <h2 id={titleId}>Perbarui Sample</h2>
-            <p>Kirim sample yang selesai ke tahap QC Checking.</p>
+            <h2 id={titleId}>Update Sample</h2>
+            <p>Send the completed sample to QC Checking.</p>
           </div>
           <button
             type="button"
             className="modal-close"
-            aria-label="Tutup formulir sample"
+            aria-label="Close sample form"
             onClick={onClose}
             autoFocus
           >
@@ -72,7 +72,7 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
               <input value={pic} onChange={(event) => setPic(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Target sample selesai</span>
+              <span>Target Completion Date</span>
               <input
                 value={deadline}
                 onChange={(event) => setDeadline(event.target.value)}
@@ -80,30 +80,30 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
               />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Nomor sample</span>
+              <span>Sample Number</span>
               <input
                 value={sampleNumber}
                 onChange={(event) => setSampleNumber(event.target.value)}
-                placeholder="ID sample atau nomor revisi"
+                placeholder="Sample ID or revision number"
                 required
               />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Catatan produksi</span>
+              <span>Production Notes</span>
               <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="Catatan untuk proses finalisasi sample"
+                placeholder="Notes for sample finalization"
                 rows={3}
               />
             </label>
           </div>
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Batal
+              Cancel
             </Button>
             <Button type="submit" icon="arrow">
-              Selesaikan &amp; Kirim ke QC
+              Complete &amp; Send to QC
             </Button>
           </footer>
         </form>

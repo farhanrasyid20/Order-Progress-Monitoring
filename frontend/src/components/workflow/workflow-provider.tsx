@@ -13,7 +13,7 @@ import {
 import { orders as initialOrders } from "@/data/orders";
 import { canUpdateDrawingStatus } from "@/lib/permissions";
 import { drawingStatusOptions, getDrawingStatus } from "@/lib/drawing-status";
-import { isCombinedRequirement, isInRequirementQueue } from "@/lib/requirement-queue";
+import { isInRequirementQueue } from "@/lib/requirement-queue";
 import type {
   DesignDecision,
   DrawingStatus,
@@ -635,15 +635,6 @@ function withToolingDetailsStatus(order: Order): Order {
   return withRequirementDetailsStatus(order, "tooling");
 }
 
-function saveCombinedRequirementProgress(order: Order, kind: StandaloneRequirementKind, ready: boolean): Order {
-  const updated: Order = {
-    ...order,
-    workflow: { ...order.workflow, [kind === "tooling" ? "toolingReady" : "rubberReady"]: ready },
-  };
-  if (updated.workflow.toolingReady && updated.workflow.rubberReady) return moveToStage(updated, "material-request");
-  return withRequirementDetailsStatus(updated, updated.workflow.toolingReady ? "rubber" : "tooling");
-}
-
 function withRequirementDetailsStatus(order: Order, kind: StandaloneRequirementKind): Order {
   const hasDetails = (kind === "tooling" ? order.toolingOrders : order.rubberOrders).length > 0;
   const label = kind === "tooling" ? "Tooling" : "Rubber";
@@ -1154,12 +1145,13 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.remark.trim(),
             },
           );
-          if (isCombinedRequirement(updated)) return saveCombinedRequirementProgress(updated, "tooling", continueWorkflow && isReadyToContinueRequirement(values.status));
-          const nextStage = continueWorkflow && isReadyToContinueRequirement(values.status)
-            ? nextStageForOrder(updated)
-            : undefined;
-
-          return nextStage ? moveToStage(updated, nextStage) : withToolingDetailsStatus(updated);
+          if (continueWorkflow) {
+            return moveToStage({
+              ...updated,
+              workflow: { ...updated.workflow, toolingReady: isReadyToContinueRequirement(values.status) },
+            }, "material-request");
+          }
+          return withToolingDetailsStatus(updated);
         }),
       );
     },
@@ -1199,12 +1191,13 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.remark.trim(),
             },
           );
-          if (isCombinedRequirement(updated)) return saveCombinedRequirementProgress(updated, "rubber", continueWorkflow && isReadyToContinueRequirement(values.status));
-          const nextStage = continueWorkflow && isReadyToContinueRequirement(values.status)
-            ? nextStageForOrder(updated)
-            : undefined;
-
-          return nextStage ? moveToStage(updated, nextStage) : withRequirementDetailsStatus(updated, "rubber");
+          if (continueWorkflow) {
+            return moveToStage({
+              ...updated,
+              workflow: { ...updated.workflow, rubberReady: isReadyToContinueRequirement(values.status) },
+            }, "material-request");
+          }
+          return withRequirementDetailsStatus(updated, "rubber");
         }),
       );
     },
@@ -1246,7 +1239,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.remark.trim(),
             },
           );
-          const nextStage = continueWorkflow && (values.status === "released" || values.status === "received")
+          const nextStage = continueWorkflow && (order.stage === "material-request" || values.status === "released" || values.status === "received")
             ? nextStageForOrder(updated)
             : undefined;
 

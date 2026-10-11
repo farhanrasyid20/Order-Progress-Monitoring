@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -38,6 +39,7 @@ const requirementStatuses: readonly { value: RequirementStatus; label: string }[
 /** Records a tooling requirement before handing an eligible project onward. */
 export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
   const titleId = useId();
+  const router = useRouter();
   const submitMode = useRef<"save" | "continue">("save");
   const { saveToolingRequirement } = useWorkflowOrders();
   const latest = order.toolingOrders.at(-1);
@@ -63,11 +65,9 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
 
-  const canContinue = status === "received" || status === "available";
-
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const continueWorkflow = submitMode.current === "continue" && canContinue;
+    const continueWorkflow = submitMode.current === "continue";
 
     saveToolingRequirement(
       order.no,
@@ -86,6 +86,7 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
       continueWorkflow,
     );
     onClose();
+    if (continueWorkflow) router.push("/converting/material-request");
   };
 
   return (
@@ -208,8 +209,6 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
             <Button
               type="submit"
               icon="arrow"
-              disabled={!canContinue}
-              title={canContinue ? undefined : "Status must be Received or Available to continue"}
               onClick={() => {
                 submitMode.current = "continue";
               }}

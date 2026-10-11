@@ -15,6 +15,7 @@ export type ClosingStageViewProps = {
   referenceLabel: string;
   referencePrefix: string;
   icon: IconName;
+  language?: "id" | "en";
 };
 
 /** Shared closing queues used by both Converting and Offset flows. */
@@ -28,6 +29,7 @@ export function ClosingStageView({
   referenceLabel,
   referencePrefix,
   icon,
+  language = "id",
 }: ClosingStageViewProps) {
   return (
     <WorkflowStageView
@@ -35,11 +37,13 @@ export function ClosingStageView({
       title={title}
       copy={copy}
       icon={icon}
+      summaryLanguage={language}
       queueTitle={queueTitle}
       queueCopy={queueCopy}
       renderEditModal={({ order, onClose }) => (
         <HandoffModal
           order={order}
+          language={language}
           onClose={onClose}
           title={title}
           copy={copy}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -21,19 +22,35 @@ const statuses: readonly { value: MaterialRequestStatus; label: string }[] = [
 ];
 
 export function MaterialRequestModal({ order, onClose, offset = false }: MaterialRequestModalProps) {
+  const { orders } = useWorkflowOrders();
+  const currentOrder = orders.find((item) => item.id === order.id) ?? order;
+
+  return (
+    <MaterialRequestForm
+      key={`${currentOrder.id}-${currentOrder.materialRequests.length}`}
+      order={currentOrder}
+      onClose={onClose}
+      offset={offset}
+    />
+  );
+}
+
+function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequestModalProps) {
   const titleId = useId();
+  const router = useRouter();
   const submitMode = useRef<"save" | "continue">("save");
   const { saveMaterialRequest } = useWorkflowOrders();
+  const latest = order.materialRequests.at(-1);
   const [miNumber, setMiNumber] = useState(
-    `${offset ? "OMI" : "MI"}-${order.no.replace("#", "-")}-${order.materialRequests.length + 1}`,
+    latest?.miNumber ?? `${offset ? "OMI" : "MI"}-${order.no.replace("#", "-")}-${order.materialRequests.length + 1}`,
   );
-  const [status, setStatus] = useState<MaterialRequestStatus>("draft");
-  const [requestedBy, setRequestedBy] = useState(order.pic === "-" ? "" : order.pic);
-  const [requestDate, setRequestDate] = useState("");
-  const [material, setMaterial] = useState(order.material === "-" ? "" : order.material);
-  const [quantity, setQuantity] = useState("");
-  const [unit, setUnit] = useState("sheet");
-  const [remark, setRemark] = useState("");
+  const [status, setStatus] = useState<MaterialRequestStatus>(latest?.status ?? "draft");
+  const [requestedBy, setRequestedBy] = useState(latest?.requestedBy ?? (order.pic === "-" ? "" : order.pic));
+  const [requestDate, setRequestDate] = useState(latest?.requestDate ?? "");
+  const [material, setMaterial] = useState(latest?.material ?? (order.material === "-" ? "" : order.material));
+  const [quantity, setQuantity] = useState(latest?.quantity ?? "");
+  const [unit, setUnit] = useState(latest?.unit ?? "sheet");
+  const [remark, setRemark] = useState(latest?.remark ?? "");
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -44,10 +61,11 @@ export function MaterialRequestModal({ order, onClose, offset = false }: Materia
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
 
-  const canContinue = status === "released" || status === "received";
+  const canContinue = !offset || status === "released" || status === "received";
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const continueWorkflow = submitMode.current === "continue" && canContinue;
     saveMaterialRequest(
       order.no,
       {
@@ -60,9 +78,10 @@ export function MaterialRequestModal({ order, onClose, offset = false }: Materia
         unit,
         remark,
       },
-      submitMode.current === "continue" && canContinue,
+      continueWorkflow,
     );
     onClose();
+    if (continueWorkflow && !offset) router.push("/converting/sample");
   };
 
   return (
@@ -77,12 +96,13 @@ export function MaterialRequestModal({ order, onClose, offset = false }: Materia
         <header className="modal-header">
           <div>
             <h2 id={titleId}>{offset ? "Offset Material / Create MI" : "Material Request / Create MI"}</h2>
-            <p>Dokumentasikan material dan MI untuk proyek {order.no}.</p>
+            <p>Record material and MI details for project {order.no}.</p>
+            <p>Use Save MI to save a draft. Complete all required fields before Save &amp; Continue.</p>
           </div>
           <button
             type="button"
             className="modal-close"
-            aria-label="Tutup formulir material"
+            aria-label="Close material request form"
             onClick={onClose}
             autoFocus
           >
@@ -97,11 +117,11 @@ export function MaterialRequestModal({ order, onClose, offset = false }: Materia
               <input value={order.no} disabled />
             </label>
             <label className="modal-field">
-              <span>Nomor MI</span>
+              <span>MI Number</span>
               <input value={miNumber} onChange={(event) => setMiNumber(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Status MI</span>
+              <span>MI Status</span>
               <select
                 value={status}
                 onChange={(event) => setStatus(event.target.value as MaterialRequestStatus)}
@@ -114,11 +134,11 @@ export function MaterialRequestModal({ order, onClose, offset = false }: Materia
               </select>
             </label>
             <label className="modal-field">
-              <span>Request By</span>
+              <span>Requested By</span>
               <input value={requestedBy} onChange={(event) => setRequestedBy(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Tanggal Request</span>
+              <span>Request Date</span>
               <input type="date" value={requestDate} onChange={(event) => setRequestDate(event.target.value)} required />
             </label>
             <label className="modal-field">
@@ -138,34 +158,35 @@ export function MaterialRequestModal({ order, onClose, offset = false }: Materia
               <textarea
                 value={remark}
                 onChange={(event) => setRemark(event.target.value)}
-                placeholder="Spesifikasi, prioritas, atau catatan pengeluaran material"
+                placeholder="Specifications, priority, or material release notes"
                 rows={3}
               />
             </label>
           </div>
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Batal
+              Cancel
             </Button>
             <Button
               type="submit"
               variant="secondary"
+              formNoValidate
               onClick={() => {
                 submitMode.current = "save";
               }}
             >
-              Simpan MI
+              Save MI
             </Button>
             <Button
               type="submit"
               icon="arrow"
               disabled={!canContinue}
-              title={canContinue ? undefined : "Status MI harus Released atau Received untuk melanjutkan"}
+              title={canContinue ? undefined : "MI status must be Released or Received to continue"}
               onClick={() => {
                 submitMode.current = "continue";
               }}
             >
-              Simpan &amp; Lanjut
+              Save &amp; Continue
             </Button>
           </footer>
         </form>

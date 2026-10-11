@@ -22,6 +22,7 @@ export type IconName =
   | "download"
   | "save"
   | "eye"
+  | "eye-off"
   | "file"
   | "close";
 
@@ -114,6 +115,11 @@ const paths: Record<IconName, ReactNode> = {
     <>
       <path d="M4 3h13l3 3v15H4z" />
       <path d="M8 3v6h8V3M8 21v-7h8v7" />
+    </>
+  ),
+  "eye-off": (
+    <>
+      <path d="m3 3 18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.2A11 11 0 0 1 12 5c7 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.2 6.2A17 17 0 0 0 2 12s3 7 10 7a11 11 0 0 0 5.8-1.8" />
     </>
   ),
   eye: (

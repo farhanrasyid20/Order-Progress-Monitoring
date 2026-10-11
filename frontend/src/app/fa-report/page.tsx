@@ -5,11 +5,12 @@ export default function FaReportPage() {
     <ClosingStageView
       stage="fa-report"
       title="FA Report"
-      copy="Lengkapi laporan First Article sebelum sample dikirim atau disubmit."
-      queueTitle="Antrean FA Report"
-      queueCopy="Proyek yang telah melewati QC Checking"
+      copy="Complete the First Article report before sending or submitting the sample."
+      queueTitle="FA Report Queue"
+      queueCopy="Projects that have completed QC Checking"
+      language="en"
       nextLabel="Submit Sample"
-      referenceLabel="Nomor FA Report"
+      referenceLabel="FA Report Number"
       referencePrefix="FA"
       icon="file"
     />

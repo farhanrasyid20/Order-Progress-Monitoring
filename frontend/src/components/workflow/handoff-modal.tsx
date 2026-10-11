@@ -14,6 +14,7 @@ export type HandoffModalProps = {
   nextLabel: string;
   referenceLabel: string;
   referencePrefix: string;
+  language?: "id" | "en";
 };
 
 /** Reusable completion form for shared QC and closing work queues. */
@@ -25,6 +26,7 @@ export function HandoffModal({
   nextLabel,
   referenceLabel,
   referencePrefix,
+  language = "id",
 }: HandoffModalProps) {
   const titleId = useId();
   const { advanceOrder } = useWorkflowOrders();
@@ -67,7 +69,7 @@ export function HandoffModal({
           <button
             type="button"
             className="modal-close"
-            aria-label={`Tutup formulir ${title}`}
+            aria-label={language === "en" ? `Close ${title} form` : `Tutup formulir ${title}`}
             onClick={onClose}
             autoFocus
           >
@@ -86,21 +88,21 @@ export function HandoffModal({
               <input value={reference} onChange={(event) => setReference(event.target.value)} required />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Catatan</span>
+              <span>{language === "en" ? "Notes" : "Catatan"}</span>
               <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="Masukkan hasil pemeriksaan atau catatan handoff"
+                placeholder={language === "en" ? "Enter inspection results or handoff notes" : "Masukkan hasil pemeriksaan atau catatan handoff"}
                 rows={4}
               />
             </label>
           </div>
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Batal
+              {language === "en" ? "Cancel" : "Batal"}
             </Button>
             <Button type="submit" icon="arrow">
-              Simpan &amp; Lanjut ke {nextLabel}
+              {language === "en" ? "Save & Continue to" : "Simpan & Lanjut ke"} {nextLabel}
             </Button>
           </footer>
         </form>

@@ -5,11 +5,12 @@ export default function SubmitSamplePage() {
     <ClosingStageView
       stage="submit-sample"
       title="Submit Sample"
-      copy="Catat pengiriman sample sebelum masuk ke keputusan akhir sample."
-      queueTitle="Antrean Submit Sample"
-      queueCopy="FA Report yang siap dikirim untuk keputusan sample"
+      copy="Record sample submissions before moving to the final sample decision."
+      queueTitle="Submit Sample Queue"
+      queueCopy="Projects with completed FA Reports ready for sample submission"
+      language="en"
       nextLabel="After Sample / Decision"
-      referenceLabel="Nomor Submit Sample"
+      referenceLabel="Sample Submission Number"
       referencePrefix="SUB"
       icon="check"
     />

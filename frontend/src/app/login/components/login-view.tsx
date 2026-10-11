@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Icon } from "@/components/ui/icon";
 
 export type LoginCredentials = {
   email: string;
@@ -17,6 +18,7 @@ export type LoginViewProps = {
 export function LoginView() {
   const [email, setEmail] = useState("admin@company.com");
   const [password, setPassword] = useState("password");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(true);
 
   return (
@@ -52,13 +54,24 @@ export function LoginView() {
           </label>
           <label className="form-field">
             <span>Password</span>
+            <span className="password-input-wrapper">
             <input
-              type="password"
+              type={passwordVisible ? "text" : "password"}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter your password"
               autoComplete="current-password"
             />
+            <button
+              type="button"
+              className="password-visibility-toggle"
+              aria-label={passwordVisible ? "Hide password" : "Show password"}
+              aria-pressed={passwordVisible}
+              onClick={() => setPasswordVisible((visible) => !visible)}
+            >
+              <Icon name={passwordVisible ? "eye" : "eye-off"} size={18} />
+            </button>
+            </span>
           </label>
           <div className="login-options">
             <label>

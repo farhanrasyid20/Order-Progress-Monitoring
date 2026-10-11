@@ -81,12 +81,47 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .icon-button { width: 36px; height: 36px; border: 0; background: transparent; display: grid; place-items: center; border-radius: var(--radius-sm); color: var(--text-muted); }
 .icon-button:hover { background: var(--background); color: var(--text); }
 .notification { position: relative; }
+.notification-menu { position: relative; }
+.notification-dropdown { position: absolute; top: calc(100% + 12px); right: 0; z-index: 40; width: min(300px, calc(100vw - 28px)); max-height: calc(100dvh - 100px); overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: 0 8px 24px rgba(31, 41, 51, .12); }
+.notification-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; }
+.notification-heading strong { font-size: 13px; }
+.notification-heading small { margin-left: 5px; color: var(--text-muted); font-size: 10px; font-weight: 400; }
+.notification-heading button { padding: 0; border: 0; background: transparent; color: var(--primary); font-size: 10px; }
+.notification-heading button:disabled { color: var(--text-muted); cursor: default; }
+.notification-demo { margin: 0; padding: 0 16px 12px; color: var(--text-muted); font-size: 10px; }
+.notification-list { padding: 0; margin: 0; list-style: none; }
+.notification-item { display: flex; align-items: flex-start; gap: 10px; padding: 15px 16px; border-top: 1px solid var(--border); text-decoration: none; color: var(--text); }
+.notification-item.unread { background: var(--primary-soft); }
+.notification-item:hover { background: var(--background); }
+.notification-item-icon { display: grid; place-items: center; flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--surface); color: var(--primary); }
+.notification-item-copy { flex: 1; min-width: 0; }
+.notification-item-copy strong, .notification-item-copy > span, .notification-item-copy small { display: block; }
+.notification-item-copy strong { font-size: 11px; }
+.notification-item-copy > span { margin-top: 5px; font-size: 11px; line-height: 1.5; color: var(--text-muted); }
+.notification-item-copy small { margin-top: 8px; color: var(--text-muted); font-size: 9px; }
+.notification-unread-dot { flex-shrink: 0; width: 6px; height: 6px; margin-top: 5px; border-radius: 50%; background: var(--primary); }
+@media (max-width: 600px) { .notification-dropdown { position: fixed; top: 68px; right: 14px; } }
 .notification span { position: absolute; top: 7px; right: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--surface); }
 .profile { display: flex; align-items: center; gap: 9px; padding-left: 14px; border-left: 1px solid var(--border); }
 .avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--primary); color: var(--surface); font-size: 11px; font-weight: 700; }
 .profile-copy strong, .profile-copy small { display: block; }
 .profile-copy strong { font-size: 11px; }
 .profile-copy small { margin-top: 3px; font-size: 9px; color: var(--text-muted); }
+.profile-menu { position: relative; }
+.profile-trigger { border-top: 0; border-right: 0; border-bottom: 0; background: transparent; color: var(--text); text-align: left; }
+.profile-trigger > svg { transform: rotate(90deg); }
+.profile-dropdown { position: absolute; top: calc(100% + 12px); right: 0; z-index: 40; width: 190px; padding: 5px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: 0 8px 24px rgba(31, 41, 51, .12); }
+.profile-dropdown button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 12px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); text-align: left; font-size: 12px; }
+.profile-dropdown button:hover { background: var(--primary-soft); }
+.change-password-dialog { width: min(440px, 100%); }
+.change-password-fields { display: grid; gap: 16px; }
+.modal-field > .password-input-wrapper, .form-field > .password-input-wrapper { position: relative; display: block; margin-bottom: 0; }
+.modal-field .password-input-wrapper input, .form-field .password-input-wrapper input { padding-right: 44px; }
+.password-visibility-toggle { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); }
+.password-visibility-toggle:hover { background: var(--primary-soft); color: var(--primary); }
+.password-notice, .password-error { margin: 0; font-size: 11px; line-height: 1.6; }
+.password-notice { color: var(--text-muted); }
+.password-error { color: var(--danger); }
 .header-left { display: flex; align-items: center; gap: 8px; }
 .desktop-sidebar-toggle { display: grid; }
 .desktop-sidebar-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }

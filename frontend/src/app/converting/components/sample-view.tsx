@@ -9,10 +9,11 @@ export function SampleView() {
     <WorkflowStageView
       stage="sample-progress"
       title="Sample Progress"
-      copy="Pantau pembuatan sample Converting sebelum masuk ke QC Checking."
+      copy="Track Converting sample production before moving to QC Checking."
       icon="flask"
-      queueTitle="Antrean Sample Progress"
-      queueCopy="Proyek Converting yang telah menyelesaikan Material Request / Create MI"
+      summaryLanguage="en"
+      queueTitle="Sample Progress Queue"
+      queueCopy="Converting projects that have completed Material Request / Create MI"
       renderEditModal={({ order, onClose }) => (
         <SampleEditModal order={order} onClose={onClose} />
       )}

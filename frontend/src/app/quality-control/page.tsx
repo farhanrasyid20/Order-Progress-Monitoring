@@ -5,11 +5,12 @@ export default function QualityControlPage() {
     <ClosingStageView
       stage="quality-control"
       title="QC Checking"
-      copy="Periksa hasil Sample atau Press Offset sebelum dibuatkan FA Report."
-      queueTitle="Antrean QC Checking"
-      queueCopy="Hasil Converting dan Offset yang menunggu pemeriksaan kualitas"
+      copy="Inspect Sample or Offset Press results before creating an FA Report."
+      queueTitle="QC Checking Queue"
+      queueCopy="Converting and Offset results awaiting quality inspection"
+      language="en"
       nextLabel="FA Report"
-      referenceLabel="Nomor QC"
+      referenceLabel="QC Number"
       referencePrefix="QC"
       icon="shield"
     />
