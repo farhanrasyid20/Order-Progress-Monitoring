@@ -61,7 +61,8 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
 
-  const canContinue = !offset || status === "released" || status === "received";
+  const canContinue =
+    !offset || true;
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -81,7 +82,6 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
       continueWorkflow,
     );
     onClose();
-    if (continueWorkflow && !offset) router.push("/converting/sample");
   };
 
   return (

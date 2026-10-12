@@ -508,8 +508,8 @@ function finalPreparationStatus(values: PreparationWorkflowUpdate) {
 function isCompleteIncomingPreparation(values: PreparationWorkflowUpdate) {
   return Boolean(
     values.materialRequested &&
-      values.remark.trim() &&
-      (values.route !== "by_production" || values.productionOrder),
+    values.remark.trim() &&
+    (values.route !== "by_production" || values.productionOrder),
   );
 }
 
@@ -663,8 +663,8 @@ function moveToStage(
   const offsetSpks =
     order.workflow.preparationType === "offset" && spkStatus && latestSpkIndex >= 0
       ? order.offsetSpks.map((spk, index) =>
-          index === latestSpkIndex ? { ...spk, status: spkStatus } : spk,
-        )
+        index === latestSpkIndex ? { ...spk, status: spkStatus } : spk,
+      )
       : order.offsetSpks;
   const stageProcess =
     stage === "order"
@@ -743,11 +743,11 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         values.entryType === "version_up"
           ? createVersionUpLineage(currentOrders, values.previousProjectCode)
           : {
-              entryType: "new",
-              rootProjectNo: code,
-              sourceProjectNo: null,
-              versionNumber: 0,
-            };
+            entryType: "new",
+            rootProjectNo: code,
+            sourceProjectNo: null,
+            versionNumber: 0,
+          };
       const mainData = {
         ...values.mainData,
         mcNo: values.mainData.mcNo.trim() || code,
@@ -955,8 +955,29 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.rubberRequirement.remark,
             });
           }
-          const moved = moveToStage(prepared, isToolingOrder ? "tooling-progress" : isRubberOrder ? "rubber-order-setting" : "design-progress", { preserveStatus: !isToolingOrder && !isRubberOrder });
-          return isToolingOrder ? withToolingDetailsStatus(moved) : isRubberOrder ? withRequirementDetailsStatus(moved, "rubber") : moved;
+
+          const targetStage =
+            values.route === "offset"
+              ? "offset-prepress"
+              : isToolingOrder
+                ? "tooling-progress"
+                : isRubberOrder
+                  ? "rubber-order-setting"
+                  : "design-progress";
+
+          const moved = moveToStage(prepared, targetStage, {
+            preserveStatus:
+              values.route !== "offset" &&
+              !isToolingOrder &&
+              !isRubberOrder,
+          });
+
+          return isToolingOrder
+            ? withToolingDetailsStatus(moved)
+            : isRubberOrder
+              ? withRequirementDetailsStatus(moved, "rubber")
+              : moved;
+
         }),
       );
     },
@@ -1099,12 +1120,12 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         currentOrders.map((order) =>
           order.no === orderNo && order.workflow.currentStatus !== "cancelled"
             ? appendHistory(applyOrderValues(order, values), {
-                process: "project_updated",
-                status: "updated",
-                user: prototypeActor,
-                changeSummary: "Project information updated.",
-                remark: values.description?.trim() ?? "",
-              })
+              process: "project_updated",
+              status: "updated",
+              user: prototypeActor,
+              changeSummary: "Project information updated.",
+              remark: values.description?.trim() ?? "",
+            })
             : order,
         ),
       );
@@ -1239,11 +1260,20 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.remark.trim(),
             },
           );
-          const nextStage = continueWorkflow && (order.stage === "material-request" || values.status === "released" || values.status === "received")
-            ? nextStageForOrder(updated)
-            : undefined;
+
+          const canMoveToNextStage =
+            order.stage === "material-request" ||
+            order.stage === "offset-material-request" ||
+            values.status === "released" ||
+            values.status === "received";
+
+          const nextStage =
+            continueWorkflow && canMoveToNextStage
+              ? nextStageForOrder(updated)
+              : undefined;
 
           return nextStage ? moveToStage(updated, nextStage) : updated;
+
         }),
       );
     },
@@ -1301,12 +1331,12 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
 
           const updatedOrder = hasOrderValues(values)
             ? appendHistory(applyOrderValues(order, values), {
-                process: "handoff_details_updated",
-                status: "updated",
-                user: prototypeActor,
-                changeSummary: "Task handoff details updated.",
-                remark: values.description?.trim() ?? "",
-              })
+              process: "handoff_details_updated",
+              status: "updated",
+              user: prototypeActor,
+              changeSummary: "Task handoff details updated.",
+              remark: values.description?.trim() ?? "",
+            })
             : applyOrderValues(order, values);
           const nextStage = nextStageForOrder(order);
 
@@ -1327,17 +1357,17 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         currentOrders.map((order) =>
           order.no === orderNo && order.workflow.currentStatus !== "cancelled"
             ? moveToStage(
-                hasOrderValues(values)
-                  ? appendHistory(applyOrderValues(order, values), {
-                      process: "project_details_updated",
-                      status: "updated",
-                      user: prototypeActor,
-                      changeSummary: "Project details updated with stage decision.",
-                      remark: values.description?.trim() ?? "",
-                    })
-                  : applyOrderValues(order, values),
-                stage,
-              )
+              hasOrderValues(values)
+                ? appendHistory(applyOrderValues(order, values), {
+                  process: "project_details_updated",
+                  status: "updated",
+                  user: prototypeActor,
+                  changeSummary: "Project details updated with stage decision.",
+                  remark: values.description?.trim() ?? "",
+                })
+                : applyOrderValues(order, values),
+              stage,
+            )
             : order,
         ),
       );

@@ -83,7 +83,6 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
       continueWorkflow,
     );
     onClose();
-    if (continueWorkflow) router.push("/converting/material-request");
   };
 
   return (

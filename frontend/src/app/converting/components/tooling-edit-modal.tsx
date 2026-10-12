@@ -86,7 +86,6 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
       continueWorkflow,
     );
     onClose();
-    if (continueWorkflow) router.push("/converting/material-request");
   };
 
   return (

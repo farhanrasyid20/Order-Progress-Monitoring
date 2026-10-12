@@ -176,9 +176,25 @@ export function OrdersView({
             completeIncomingPreparation(orderNo, values);
             resetPage();
             setPendingHistoryOrderNo(orderNo);
+
+            const destination =
+              values.route === "offset"
+                ? "Prepress / Pra-Cetak"
+                : values.route === "by_production" &&
+                  values.productionOrder === "tooling_and_rubber"
+                  ? "Tooling Progress and Rubber Order & Setting"
+                  : values.route === "by_production" &&
+                    values.productionOrder === "tooling"
+                    ? "Tooling Progress"
+                    : values.route === "by_production" &&
+                      values.productionOrder === "rubber"
+                      ? "Rubber Order & Setting"
+                      : "Design Process";
+
             setToastMessage(
-              `Preparation for ${orderNo} was updated and moved to ${values.route === "by_production" && values.productionOrder === "tooling_and_rubber" ? "Tooling Progress and Rubber Order & Setting" : values.route === "by_production" && values.productionOrder === "tooling" ? "Tooling Progress" : values.route === "by_production" && values.productionOrder === "rubber" ? "Rubber Order & Setting" : "Design Process"}.`,
+              `Preparation for ${orderNo} was updated and moved to ${destination}.`,
             );
+
             window.setTimeout(() => setToastMessage(""), 3200);
           }}
         />
