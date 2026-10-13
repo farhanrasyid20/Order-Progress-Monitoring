@@ -3,11 +3,17 @@
 import { useEffect, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import type { Order, ProcessHistoryRecord } from "@/types/order";
+import type { Order, ProcessHistoryRecord, StandaloneRequirementKind } from "@/types/order";
+import { RequirementDetails } from "./requirement-details";
+import { MaterialRequestDetails } from "./material-request-details";
+import { SampleProgressDetails } from "./sample-progress-details";
 
 export type ProjectHistoryModalProps = {
   order: Order;
   onClose: () => void;
+  requirementKind?: StandaloneRequirementKind;
+  materialRequest?: boolean;
+  sampleProgress?: boolean;
 };
 
 function displayHistoryTime(value: string) {
@@ -36,6 +42,7 @@ function historyActivity(record: ProcessHistoryRecord) {
     standalone_tooling_order: "Standalone tooling order created",
     standalone_rubber_order: "Standalone rubber order created",
     material_request: "Material request / MI updated",
+    sample_progress: "Sample progress updated",
     offset_spk: "Offset SPK created",
     handoff_details_updated: "Handoff details updated",
     project_details_updated: "Project decision details updated",
@@ -57,7 +64,7 @@ function historyChange(record: ProcessHistoryRecord) {
 }
 
 /** Shared audit detail for records after they move beyond Incoming Design. */
-export function ProjectHistoryModal({ order, onClose }: ProjectHistoryModalProps) {
+export function ProjectHistoryModal({ order, onClose, requirementKind, materialRequest = false, sampleProgress = false }: ProjectHistoryModalProps) {
   const titleId = useId();
   const history = [...order.processHistory].reverse();
 
@@ -79,14 +86,14 @@ export function ProjectHistoryModal({ order, onClose }: ProjectHistoryModalProps
       }}
     >
       <section
-        className="modal-dialog history-dialog"
+        className={`modal-dialog history-dialog${requirementKind || materialRequest || sampleProgress ? " incoming-detail-dialog" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
       >
         <header className="modal-header">
           <div>
-            <h2 id={titleId}>Project Details &amp; History</h2>
+            <h2 id={titleId}>{sampleProgress ? "Sample Progress Details & History" : materialRequest ? "Material Request / MI Details & History" : requirementKind ? `${requirementKind === "tooling" ? "Tooling" : "Rubber"} Details & History` : "Project Details & History"}</h2>
             <p>{order.no} / {order.customer} / {order.product}</p>
           </div>
           <button
@@ -116,6 +123,9 @@ export function ProjectHistoryModal({ order, onClose }: ProjectHistoryModalProps
             </div>
           </div>
 
+          {requirementKind ? <RequirementDetails order={order} kind={requirementKind} /> : null}
+          {materialRequest ? <MaterialRequestDetails order={order} /> : null}
+          {sampleProgress ? <SampleProgressDetails order={order} /> : null}
           <div className="table-wrap history-table-wrap">
             <table className="history-table">
               <thead>

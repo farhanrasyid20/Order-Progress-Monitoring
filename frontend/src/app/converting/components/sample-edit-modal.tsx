@@ -17,8 +17,8 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
   const { advanceOrder } = useWorkflowOrders();
   const [pic, setPic] = useState(order.pic);
   const [deadline, setDeadline] = useState(order.deadline);
-  const [sampleNumber, setSampleNumber] = useState(`${order.no}-SMP`);
-  const [notes, setNotes] = useState("");
+  const [sampleNumber, setSampleNumber] = useState(order.sampleProgress?.at(-1)?.sampleNumber ?? `${order.no}-SMP`);
+  const [notes, setNotes] = useState(order.sampleProgress?.at(-1)?.notes ?? "");
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -31,7 +31,7 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    advanceOrder(order.no, { pic, deadline });
+    advanceOrder(order.no, { pic, deadline }, { pic, deadline, sampleNumber, notes });
     onClose();
   };
 

@@ -127,7 +127,6 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
             </label>
             <label className="modal-field"><span>Customer</span><input value={order.customer} readOnly /></label>
             <label className="modal-field"><span>Product / Component</span><input value={order.product} readOnly /></label>
-            <label className="modal-field"><span>Part Number</span><input value={order.mainData.partNo} readOnly /></label>
             <label className="modal-field">
               <span>Tooling Type</span>
               <select

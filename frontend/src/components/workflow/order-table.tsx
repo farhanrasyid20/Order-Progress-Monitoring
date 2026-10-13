@@ -70,9 +70,10 @@ export function OrderTable({
         </thead>
         <tbody>
           {visibleOrders.map((order) => (
-            <tr key={order.no}>
+            <tr key={`${order.no}-${order.materialRequestSource ?? "project"}`}>
               <td>
                 <strong className="order-number">{order.no}</strong>
+                {order.materialRequestSource ? <span>{order.materialRequestSource === "tooling" ? "Tooling" : "Rubber"}</span> : null}
                 {order.mainData.partNo && order.mainData.partNo !== order.no ? (
                   <span>{order.mainData.partNo}</span>
                 ) : null}

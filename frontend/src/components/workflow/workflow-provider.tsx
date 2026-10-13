@@ -13,13 +13,14 @@ import {
 import { orders as initialOrders } from "@/data/orders";
 import { canUpdateDrawingStatus } from "@/lib/permissions";
 import { drawingStatusOptions, getDrawingStatus } from "@/lib/drawing-status";
-import { isInRequirementQueue } from "@/lib/requirement-queue";
+import { isInRequirementQueue, shouldAdvanceRequirementStage, isCombinedRequirement, materialRequestQueueEntries } from "@/lib/requirement-queue";
 import type {
   DesignDecision,
   DrawingStatus,
   ProjectRole,
   DrawingSubmission,
   MaterialRequestValues,
+  SampleProgressValues,
   Order,
   OrderFormValues,
   OrderStatusTone,
@@ -233,7 +234,7 @@ export type WorkflowOrdersContextValue = {
     values: OffsetSpkValues,
     continueWorkflow: boolean,
   ) => void;
-  advanceOrder: (orderNo: string, values?: Partial<OrderFormValues>) => void;
+  advanceOrder: (orderNo: string, values?: Partial<OrderFormValues>, sample?: SampleProgressValues) => void;
   moveOrderToStage: (
     orderNo: string,
     stage: WorkflowStage,
@@ -1167,12 +1168,15 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             },
           );
           if (continueWorkflow) {
-            return moveToStage({
+            const forwarded = {
               ...updated,
-              workflow: { ...updated.workflow, toolingReady: isReadyToContinueRequirement(values.status) },
-            }, "material-request");
+              workflow: { ...updated.workflow, toolingReady: isReadyToContinueRequirement(values.status), toolingForwarded: true },
+            };
+            return shouldAdvanceRequirementStage(updated)
+              ? moveToStage(forwarded, "material-request")
+              : forwarded;
           }
-          return withToolingDetailsStatus(updated);
+          return shouldAdvanceRequirementStage(updated) ? withToolingDetailsStatus(updated) : updated;
         }),
       );
     },
@@ -1213,12 +1217,15 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             },
           );
           if (continueWorkflow) {
-            return moveToStage({
+            const forwarded = {
               ...updated,
-              workflow: { ...updated.workflow, rubberReady: isReadyToContinueRequirement(values.status) },
-            }, "material-request");
+              workflow: { ...updated.workflow, rubberReady: isReadyToContinueRequirement(values.status), rubberForwarded: true },
+            };
+            return shouldAdvanceRequirementStage(updated)
+              ? moveToStage(forwarded, "material-request")
+              : forwarded;
           }
-          return withRequirementDetailsStatus(updated, "rubber");
+          return shouldAdvanceRequirementStage(updated) ? withRequirementDetailsStatus(updated, "rubber") : updated;
         }),
       );
     },
@@ -1230,7 +1237,9 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
           const isMaterialQueue =
-            order.stage === "material-request" || order.stage === "offset-material-request";
+            isCombinedRequirement(order)
+              ? Boolean(values.source && materialRequestQueueEntries(order).some((entry) => entry.materialRequestSource === values.source))
+              : order.stage === "material-request" || order.stage === "offset-material-request";
           if (
             order.no !== orderNo ||
             !isMaterialQueue ||
@@ -1250,6 +1259,9 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               workflow: {
                 ...order.workflow,
                 materialRequested: true,
+                materialForwarded: continueWorkflow && values.source
+                  ? { ...order.workflow.materialForwarded, [values.source]: true }
+                  : order.workflow.materialForwarded,
               },
             },
             {
@@ -1268,7 +1280,8 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             values.status === "received";
 
           const nextStage =
-            continueWorkflow && canMoveToNextStage
+            continueWorkflow && canMoveToNextStage &&
+              (order.stage === "material-request" || order.stage === "offset-material-request")
               ? nextStageForOrder(updated)
               : undefined;
 
@@ -1322,14 +1335,14 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
   );
 
   const advanceOrder = useCallback(
-    (orderNo: string, values: Partial<OrderFormValues> = {}) => {
+    (orderNo: string, values: Partial<OrderFormValues> = {}, sample?: SampleProgressValues) => {
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
           if (order.no !== orderNo || order.workflow.currentStatus === "cancelled") {
             return order;
           }
 
-          const updatedOrder = hasOrderValues(values)
+          let updatedOrder = hasOrderValues(values)
             ? appendHistory(applyOrderValues(order, values), {
               process: "handoff_details_updated",
               status: "updated",
@@ -1339,6 +1352,20 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             })
             : applyOrderValues(order, values);
           const nextStage = nextStageForOrder(order);
+
+          if (sample && order.stage === "sample-progress") {
+            updatedOrder = appendHistory({
+              ...updatedOrder,
+              sampleProgress: [...(order.sampleProgress ?? []), {
+                ...sample, sequence: (order.sampleProgress?.length ?? 0) + 1,
+                recordedAt: new Date().toISOString(),
+              }],
+            }, {
+              process: "sample_progress", status: "completed", user: prototypeActor,
+              changeSummary: `Sample ${sample.sampleNumber} completed and sent to QC.`,
+              remark: sample.notes.trim(),
+            });
+          }
 
           return nextStage ? moveToStage(updatedOrder, nextStage) : updatedOrder;
         }),

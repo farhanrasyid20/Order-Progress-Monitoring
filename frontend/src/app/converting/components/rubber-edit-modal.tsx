@@ -122,6 +122,8 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
               <span>Part Number / Code</span>
               <input value={order.no} disabled />
             </label>
+            <label className="modal-field"><span>Customer</span><input value={order.customer} readOnly /></label>
+            <label className="modal-field"><span>Product / Component</span><input value={order.product} readOnly /></label>
             <label className="modal-field">
               <span>Requirement Type</span>
               <select

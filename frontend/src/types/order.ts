@@ -156,6 +156,7 @@ export type MaterialRequestStatus =
 
 export type MaterialRequestRecord = {
   sequence: number;
+  source?: StandaloneRequirementKind;
   miNumber: string;
   status: MaterialRequestStatus;
   requestedBy: string;
@@ -167,6 +168,15 @@ export type MaterialRequestRecord = {
 };
 
 export type MaterialRequestValues = Omit<MaterialRequestRecord, "sequence">;
+
+export type SampleProgressValues = {
+  pic: string;
+  deadline: string;
+  sampleNumber: string;
+  notes: string;
+};
+
+export type SampleProgressRecord = SampleProgressValues & { sequence: number; recordedAt: string };
 
 export type OffsetSpkStatus =
   | "design_offset"
@@ -204,6 +214,9 @@ export type ProjectWorkflow = {
   drawingStatus?: DrawingStatus;
   toolingReady?: boolean;
   rubberReady?: boolean;
+  toolingForwarded?: boolean;
+  rubberForwarded?: boolean;
+  materialForwarded?: Partial<Record<StandaloneRequirementKind, boolean>>;
   preparationType: PreparationType;
   convertingRoute: ConvertingRoute | null;
   productionOrder: PreparationOrderSelection | null;
@@ -258,6 +271,8 @@ export type WorkflowStage =
   | "completed";
 
 export type Order = {
+  sampleProgress?: SampleProgressRecord[];
+  materialRequestSource?: StandaloneRequirementKind;
   id: string;
   lineage: ProjectLineage;
   mainData: ProjectMainData;

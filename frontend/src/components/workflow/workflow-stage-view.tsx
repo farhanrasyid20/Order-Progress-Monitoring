@@ -8,7 +8,7 @@ import { ProjectHistoryModal } from "@/components/workflow/project-history-modal
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useTablePagination } from "@/components/ui/use-table-pagination";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
-import { isInRequirementQueue, requirementQueueDisplay } from "@/lib/requirement-queue";
+import { isInRequirementQueue, requirementQueueDisplay, materialRequestQueueEntries } from "@/lib/requirement-queue";
 import type { IconName } from "@/components/ui/icon";
 import type { Order, WorkflowStage } from "@/types/order";
 
@@ -51,6 +51,7 @@ export function WorkflowStageView({
     () => stage === "tooling-progress" || stage === "rubber-order-setting"
       ? orders.filter((order) => isInRequirementQueue(order, stage === "tooling-progress" ? "tooling" : "rubber"))
         .map((order) => requirementQueueDisplay(order, stage === "tooling-progress" ? "tooling" : "rubber"))
+      : stage === "material-request" ? orders.flatMap(materialRequestQueueEntries)
       : orders.filter((order) => order.stage === stage),
     [orders, stage],
   );
@@ -92,7 +93,7 @@ export function WorkflowStageView({
           })
         : null}
       {historyOrder ? (
-        <ProjectHistoryModal order={historyOrder} onClose={() => setHistoryOrder(null)} />
+        <ProjectHistoryModal order={historyOrder} onClose={() => setHistoryOrder(null)} requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined} materialRequest={stage === "material-request" || stage === "offset-material-request"} sampleProgress={stage === "sample-progress"} />
       ) : null}
     </>
   );

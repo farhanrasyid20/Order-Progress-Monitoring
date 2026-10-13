@@ -23,11 +23,11 @@ const statuses: readonly { value: MaterialRequestStatus; label: string }[] = [
 
 export function MaterialRequestModal({ order, onClose, offset = false }: MaterialRequestModalProps) {
   const { orders } = useWorkflowOrders();
-  const currentOrder = orders.find((item) => item.id === order.id) ?? order;
+  const currentOrder = { ...(orders.find((item) => item.id === order.id) ?? order), materialRequestSource: order.materialRequestSource };
 
   return (
     <MaterialRequestForm
-      key={`${currentOrder.id}-${currentOrder.materialRequests.length}`}
+      key={`${currentOrder.id}-${currentOrder.materialRequestSource ?? "project"}-${currentOrder.materialRequests.length}`}
       order={currentOrder}
       onClose={onClose}
       offset={offset}
@@ -40,7 +40,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
   const router = useRouter();
   const submitMode = useRef<"save" | "continue">("save");
   const { saveMaterialRequest } = useWorkflowOrders();
-  const latest = order.materialRequests.at(-1);
+  const latest = order.materialRequests.filter((record) => record.source === order.materialRequestSource).at(-1);
   const [miNumber, setMiNumber] = useState(
     latest?.miNumber ?? `${offset ? "OMI" : "MI"}-${order.no.replace("#", "-")}-${order.materialRequests.length + 1}`,
   );
@@ -70,6 +70,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
     saveMaterialRequest(
       order.no,
       {
+        source: order.materialRequestSource,
         miNumber,
         status,
         requestedBy,
@@ -97,6 +98,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
           <div>
             <h2 id={titleId}>{offset ? "Offset Material / Create MI" : "Material Request / Create MI"}</h2>
             <p>Record material and MI details for project {order.no}.</p>
+            {order.materialRequestSource ? <p>Source: {order.materialRequestSource === "tooling" ? "Tooling" : "Rubber"}</p> : null}
             <p>Use Save MI to save a draft. Complete all required fields before Save &amp; Continue.</p>
           </div>
           <button
