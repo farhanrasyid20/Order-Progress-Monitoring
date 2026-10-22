@@ -8,11 +8,12 @@ export function OffsetDesignView() {
   return (
     <WorkflowStageView
       stage="offset-design"
-      title="Design Offset & SPK"
-      copy="Buat SPK dan detail produksi Offset sebelum proyek masuk ke Prepress."
+      title="Offset Design & SPK"
+      copy="Create the SPK and Offset production details before moving projects to Prepress."
       icon="pen"
-      queueTitle="Antrean Design Offset"
-      queueCopy="Proyek Offset yang telah disetujui pada Review Drawing"
+      summaryLanguage="en"
+      queueTitle="Offset Design Queue"
+      queueCopy="Offset projects approved during Drawing Review"
       renderEditModal={({ order, onClose }) => (
         <OffsetDesignModal order={order} onClose={onClose} />
       )}

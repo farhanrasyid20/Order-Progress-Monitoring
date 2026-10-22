@@ -96,7 +96,7 @@ export function WorkflowStageView({
           })
         : null}
       {historyOrder ? (
-        <ProjectHistoryModal order={historyOrder} onClose={() => setHistoryOrder(null)} requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined} materialRequest={stage === "material-request" || stage === "offset-material-request"} sampleProgress={stage === "sample-progress"} />
+        <ProjectHistoryModal order={historyOrder} onClose={() => setHistoryOrder(null)} offsetDetails={stage.startsWith("offset-")} requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined} materialRequest={stage === "material-request" || stage === "offset-material-request"} sampleProgress={stage === "sample-progress"} />
       ) : null}
     </>
   );

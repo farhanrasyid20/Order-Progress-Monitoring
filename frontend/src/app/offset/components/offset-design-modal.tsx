@@ -84,13 +84,13 @@ export function OffsetDesignModal({ order, onClose }: OffsetDesignModalProps) {
       <section className="modal-dialog modal-dialog-wide" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="modal-header">
           <div>
-            <h2 id={titleId}>Buat SPK Offset</h2>
-            <p>Lengkapi data work order produksi untuk {order.no} sebelum masuk Prepress.</p>
+            <h2 id={titleId}>Create Offset SPK</h2>
+            <p>Complete the production work order for {order.no} before moving to Prepress.</p>
           </div>
           <button
             type="button"
             className="modal-close"
-            aria-label="Tutup formulir SPK"
+            aria-label="Close SPK form"
             onClick={onClose}
             autoFocus
           >
@@ -126,11 +126,11 @@ export function OffsetDesignModal({ order, onClose }: OffsetDesignModalProps) {
             </label>
             <label className="modal-field">
               <span>Grammage</span>
-              <input value={grammage} onChange={(event) => setGrammage(event.target.value)} placeholder="Contoh: 350 gsm" required />
+              <input value={grammage} onChange={(event) => setGrammage(event.target.value)} placeholder="Example: 350 gsm" required />
             </label>
             <label className="modal-field">
               <span>Plano Size</span>
-              <input value={planoSize} onChange={(event) => setPlanoSize(event.target.value)} placeholder="Contoh: 65 x 100 cm" required />
+              <input value={planoSize} onChange={(event) => setPlanoSize(event.target.value)} placeholder="Example: 65 x 100 cm" required />
             </label>
             <label className="modal-field">
               <span>UP</span>
@@ -153,7 +153,7 @@ export function OffsetDesignModal({ order, onClose }: OffsetDesignModalProps) {
                   setWaste(event.target.value);
                   recalculatePlano(fgQuantity, up, event.target.value);
                 }}
-                placeholder="Jumlah lembar allowance"
+                placeholder="Number of allowance sheets"
               />
             </label>
             <label className="modal-field">
@@ -162,18 +162,18 @@ export function OffsetDesignModal({ order, onClose }: OffsetDesignModalProps) {
             </label>
             <label className="modal-field">
               <span>Colors</span>
-              <input value={colors} onChange={(event) => setColors(event.target.value)} placeholder="Contoh: 4C (CMYK)" required />
+              <input value={colors} onChange={(event) => setColors(event.target.value)} placeholder="Example: 4C (CMYK)" required />
             </label>
             <label className="modal-field">
               <span>Machine</span>
-              <input value={machine} onChange={(event) => setMachine(event.target.value)} placeholder="Contoh: CD102" required />
+              <input value={machine} onChange={(event) => setMachine(event.target.value)} placeholder="Example: CD102" required />
             </label>
             <label className="modal-field">
               <span>Finishing</span>
-              <input value={finishing} onChange={(event) => setFinishing(event.target.value)} placeholder="Contoh: Spot Varnish" required />
+              <input value={finishing} onChange={(event) => setFinishing(event.target.value)} placeholder="Example: Spot Varnish" required />
             </label>
             <label className="modal-field">
-              <span>Deadline SPK</span>
+              <span>SPK Deadline</span>
               <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} required />
             </label>
             <label className="modal-field modal-field-full">
@@ -181,17 +181,17 @@ export function OffsetDesignModal({ order, onClose }: OffsetDesignModalProps) {
               <textarea
                 value={remark}
                 onChange={(event) => setRemark(event.target.value)}
-                placeholder="Instruksi cetak, rerun, perubahan warna, atau catatan produksi"
+                placeholder="Printing instructions, reruns, color changes, or production notes"
                 rows={3}
               />
             </label>
           </div>
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Batal
+              Cancel
             </Button>
             <Button type="submit" icon="arrow">
-              Buat SPK &amp; Lanjut ke Prepress
+              Create SPK &amp; Continue to Prepress
             </Button>
           </footer>
         </form>

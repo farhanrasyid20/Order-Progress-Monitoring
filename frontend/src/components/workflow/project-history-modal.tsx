@@ -3,6 +3,7 @@
 import { useEffect, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { englishOffsetLabel } from "@/lib/offset-labels";
 import type { Order, ProcessHistoryRecord, StandaloneRequirementKind } from "@/types/order";
 import { RequirementDetails } from "./requirement-details";
 import { MaterialRequestDetails } from "./material-request-details";
@@ -16,6 +17,7 @@ export type ProjectHistoryModalProps = {
   materialRequest?: boolean;
   sampleProgress?: boolean;
   archiveDetails?: boolean;
+  offsetDetails?: boolean;
 };
 
 function displayHistoryTime(value: string) {
@@ -66,7 +68,7 @@ function historyChange(record: ProcessHistoryRecord) {
 }
 
 /** Shared audit detail for records after they move beyond Incoming Design. */
-export function ProjectHistoryModal({ order, onClose, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false }: ProjectHistoryModalProps) {
+export function ProjectHistoryModal({ order, onClose, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false, offsetDetails = false }: ProjectHistoryModalProps) {
   const titleId = useId();
   const history = [...order.processHistory].reverse();
 
@@ -88,7 +90,7 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
       }}
     >
       <section
-        className={`modal-dialog history-dialog${requirementKind || materialRequest || sampleProgress || archiveDetails ? " incoming-detail-dialog" : ""}${archiveDetails ? " archive-detail-dialog" : ""}`}
+        className={`modal-dialog history-dialog${requirementKind || materialRequest || sampleProgress || archiveDetails || offsetDetails ? " incoming-detail-dialog" : ""}${archiveDetails || offsetDetails ? " archive-detail-dialog" : ""}${offsetDetails ? " offset-detail-dialog" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -113,7 +115,7 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
           <div className="history-project-summary">
             <div>
               <span>Current Process</span>
-              <strong>{order.process}</strong>
+              <strong>{englishOffsetLabel(order.process)}</strong>
             </div>
             <div>
               <span>Status</span>
@@ -126,10 +128,11 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
           </div>
 
           {archiveDetails ? <ArchiveProjectDetails order={order} /> : null}
+          {offsetDetails ? <ArchiveProjectDetails order={order} offsetOnly /> : null}
           {requirementKind ? <RequirementDetails order={order} kind={requirementKind} /> : null}
-          {materialRequest ? <MaterialRequestDetails order={order} /> : null}
+          {materialRequest && !offsetDetails ? <MaterialRequestDetails order={order} /> : null}
           {sampleProgress ? <SampleProgressDetails order={order} /> : null}
-          {archiveDetails ? <div className="archive-activity-heading"><h3>Activity History</h3><p>All recorded project updates, from latest to earliest.</p></div> : null}
+          {archiveDetails || offsetDetails ? <div className="archive-activity-heading"><h3>Activity History</h3><p>All recorded project updates, from latest to earliest.</p></div> : null}
           <div className="table-wrap history-table-wrap">
             <table className="history-table">
               <thead>
@@ -146,8 +149,8 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
                   <tr key={`${record.date}-${record.process}-${index}`}>
                     <td>{displayHistoryTime(record.date)}</td>
                     <td>{record.user || "System"}</td>
-                    <td>{historyActivity(record)}</td>
-                    <td>{historyChange(record)}</td>
+                    <td>{englishOffsetLabel(historyActivity(record))}</td>
+                    <td>{englishOffsetLabel(historyChange(record))}</td>
                     <td>{record.remark || "-"}</td>
                   </tr>
                 ))}

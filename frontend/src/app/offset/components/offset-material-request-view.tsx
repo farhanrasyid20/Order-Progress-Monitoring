@@ -9,10 +9,11 @@ export function OffsetMaterialRequestView() {
     <WorkflowStageView
       stage="offset-material-request"
       title="Offset Material / Create MI"
-      copy="Kelola MI dan kesiapan material khusus sebelum proses plate Offset."
+      copy="Manage MI records and material readiness before Offset plate preparation."
       icon="box"
-      queueTitle="Antrean Material Offset"
-      queueCopy="Proyek Offset yang telah menyelesaikan Prepress"
+      summaryLanguage="en"
+      queueTitle="Offset Material Queue"
+      queueCopy="Offset projects that have completed Prepress"
       renderEditModal={({ order, onClose }) => (
         <MaterialRequestModal order={order} onClose={onClose} offset />
       )}

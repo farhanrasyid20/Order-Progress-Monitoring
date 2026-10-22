@@ -93,13 +93,13 @@ export const workflowStageDetails: Record<WorkflowStage, WorkflowStageDetails> =
     progress: 74,
   },
   "offset-design": {
-    process: "Design Offset",
+    process: "Offset Design",
     status: "Waiting for Offset Design",
     tone: "info",
     progress: 52,
   },
   "offset-prepress": {
-    process: "Prepress / Pra-Cetak",
+    process: "Prepress",
     status: "Waiting for Prepress",
     tone: "info",
     progress: 62,
@@ -123,7 +123,7 @@ export const workflowStageDetails: Record<WorkflowStage, WorkflowStageDetails> =
     progress: 82,
   },
   "offset-press": {
-    process: "Press / Cetak",
+    process: "Press / Printing",
     status: "Waiting for Press",
     tone: "info",
     progress: 88,
@@ -399,7 +399,7 @@ function hasOrderValues(values: Partial<OrderFormValues>) {
 
 function appendHistory(
   order: Order,
-  entry: Pick<Order["processHistory"][number], "process" | "status" | "user" | "changeSummary" | "remark">,
+  entry: Pick<Order["processHistory"][number], "process" | "status" | "user" | "changeSummary" | "remark" | "stage" | "pic" | "deadline">,
 ): Order {
   const updatedAt = new Date().toISOString();
 
@@ -1411,6 +1411,9 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           let updatedOrder = hasOrderValues(values)
             ? appendHistory(applyOrderValues(order, values), {
               process: "handoff_details_updated",
+              stage: order.stage,
+              pic: values.pic ?? order.pic,
+              deadline: values.deadline || order.deadline,
               status: "updated",
               user: prototypeActor,
               changeSummary: "Task handoff details updated.",

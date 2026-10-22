@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
+import { englishOffsetLabel } from "@/lib/offset-labels";
 import type { Order, StandaloneRequirementKind } from "@/types/order";
 
 export type OrderTableProps = {
@@ -87,7 +88,7 @@ export function OrderTable({
               {!compact ? <td>{order.description}</td> : null}
               {!compact ? <td>{order.material}</td> : null}
               {!compact ? <td>{routeLabel(order)}</td> : null}
-              <td>{order.process}</td>
+              <td>{englishOffsetLabel(order.process)}</td>
               <td>
                 <div className="pic">
                   <span>{initials(order.pic)}</span>

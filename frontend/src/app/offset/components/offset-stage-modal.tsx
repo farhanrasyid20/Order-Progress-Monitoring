@@ -52,12 +52,12 @@ export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetSta
         <header className="modal-header">
           <div>
             <h2 id={titleId}>{title}</h2>
-            <p>Selesaikan tugas Offset {order.no} lalu teruskan ke {nextLabel}.</p>
+            <p>Complete the Offset task for {order.no}, then continue to {nextLabel}.</p>
           </div>
           <button
             type="button"
             className="modal-close"
-            aria-label={`Tutup formulir ${title}`}
+            aria-label={`Close ${title} form`}
             onClick={onClose}
             autoFocus
           >
@@ -76,25 +76,25 @@ export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetSta
               <input value={pic} onChange={(event) => setPic(event.target.value)} required />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Target Selesai</span>
+              <span>Target Completion Date</span>
               <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Catatan Proses</span>
+              <span>Process Notes</span>
               <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="Masukkan hasil proses, hambatan, atau instruksi handoff"
+                placeholder="Enter process results, issues, or handoff instructions"
                 rows={4}
               />
             </label>
           </div>
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Batal
+              Cancel
             </Button>
             <Button type="submit" icon="arrow">
-              Selesai &amp; Lanjut
+              Complete &amp; Continue
             </Button>
           </footer>
         </form>

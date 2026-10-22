@@ -65,7 +65,7 @@ export const navigationItems: readonly NavigationItem[] = [
     flow: "converting",
   },
   {
-    label: "Prepress / Pra-Cetak",
+    label: "Prepress",
     href: "/offset/prepress",
     icon: "pen",
     group: "workspace",
@@ -93,7 +93,7 @@ export const navigationItems: readonly NavigationItem[] = [
     flow: "offset",
   },
   {
-    label: "Press / Cetak",
+    label: "Press / Printing",
     href: "/offset/press",
     icon: "box",
     group: "workspace",

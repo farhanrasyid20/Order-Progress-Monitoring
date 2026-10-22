@@ -34,6 +34,7 @@ export function OffsetStageView({
       title={title}
       copy={copy}
       icon={icon}
+      summaryLanguage="en"
       queueTitle={queueTitle}
       queueCopy={queueCopy}
       renderEditModal={({ order, onClose }) => (

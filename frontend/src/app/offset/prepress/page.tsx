@@ -4,10 +4,10 @@ export default function OffsetPrepressPage() {
   return (
     <OffsetStageView
       stage="offset-prepress"
-      title="Prepress / Pra-Cetak"
-      copy="Pastikan file, separasi warna, dan kesiapan pra-cetak sebelum material Offset diminta."
-      queueTitle="Antrean Prepress Offset"
-      queueCopy="SPK Offset yang telah dibuat dari Design Offset"
+      title="Prepress"
+      copy="Check files, color separations, and prepress readiness before requesting Offset materials."
+      queueTitle="Offset Prepress Queue"
+      queueCopy="Offset SPKs created during Offset Design"
       nextLabel="Offset Material / Create MI"
       icon="pen"
     />

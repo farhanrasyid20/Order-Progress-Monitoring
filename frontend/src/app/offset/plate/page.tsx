@@ -5,9 +5,9 @@ export default function OffsetPlatePage() {
     <OffsetStageView
       stage="offset-plate"
       title="Tooling / Plate"
-      copy="Pantau kebutuhan plate dan tooling khusus untuk pekerjaan Offset."
-      queueTitle="Antrean Tooling / Plate"
-      queueCopy="Material Offset sudah dirilis dan menunggu plate"
+      copy="Track plate and tooling requirements for Offset jobs."
+      queueTitle="Tooling / Plate Queue"
+      queueCopy="Offset materials released and awaiting plate preparation"
       nextLabel="Block / Spot Varnish"
     />
   );

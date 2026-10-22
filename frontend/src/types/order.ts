@@ -235,6 +235,9 @@ export type ToolingOrderRecord = RequirementRecord;
 export type RubberOrderRecord = RequirementRecord;
 
 export type ProcessHistoryRecord = {
+  stage?: WorkflowStage;
+  pic?: string;
+  deadline?: string;
   process: string;
   status: string;
   date: string;

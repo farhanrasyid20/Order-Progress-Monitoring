@@ -5,10 +5,10 @@ export default function OffsetVarnishPage() {
     <OffsetStageView
       stage="offset-varnish"
       title="Block / Spot Varnish"
-      copy="Siapkan block atau spot varnish sebelum job masuk ke mesin press."
-      queueTitle="Antrean Block / Spot Varnish"
-      queueCopy="Plate Offset yang sudah siap diproses"
-      nextLabel="Press / Cetak"
+      copy="Prepare blocks or spot varnish before jobs move to the printing press."
+      queueTitle="Block / Spot Varnish Queue"
+      queueCopy="Offset plates ready for varnish preparation"
+      nextLabel="Press / Printing"
     />
   );
 }

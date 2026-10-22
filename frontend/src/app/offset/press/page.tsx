@@ -4,10 +4,10 @@ export default function OffsetPressPage() {
   return (
     <OffsetStageView
       stage="offset-press"
-      title="Press / Cetak"
-      copy="Kelola proses cetak Offset sebelum hasilnya diperiksa oleh QC."
-      queueTitle="Antrean Press / Cetak"
-      queueCopy="Job Offset yang sudah menyelesaikan plate dan varnish"
+      title="Press / Printing"
+      copy="Manage Offset printing before quality control inspection."
+      queueTitle="Press / Printing Queue"
+      queueCopy="Offset jobs with completed plate and varnish preparation"
       nextLabel="QC Checking"
     />
   );
