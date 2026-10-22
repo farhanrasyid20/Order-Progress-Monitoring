@@ -1,5 +1,5 @@
-import { DesignDrawingView } from "./components";
+import { redirect } from "next/navigation";
 
 export default function DesignDrawingPage() {
-  return <DesignDrawingView />;
+  redirect("/orders");
 }

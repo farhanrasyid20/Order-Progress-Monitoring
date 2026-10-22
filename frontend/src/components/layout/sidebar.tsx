@@ -98,7 +98,7 @@ export function Sidebar({ open, visible, onClose, onLogout }: SidebarProps) {
   const sharedDesignItems = workspaceNavigationItems.filter(
     (item) =>
       item.flow === undefined &&
-      ["/dashboard", "/orders", "/design-drawing", "/issue-log"].includes(item.href),
+      ["/dashboard", "/orders", "/issue-log"].includes(item.href),
   );
   const downstreamItems = workspaceNavigationItems.filter(
     (item) => item.flow === undefined && !sharedDesignItems.includes(item),

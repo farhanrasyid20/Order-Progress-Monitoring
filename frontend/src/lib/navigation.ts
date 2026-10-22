@@ -31,26 +31,20 @@ export const navigationItems: readonly NavigationItem[] = [
     group: "workspace",
   },
   {
-    label: "Design Process",
-    href: "/design-drawing",
-    icon: "pen",
-    group: "workspace",
-  },
-  {
     label: "Issue Log",
     href: "/issue-log",
     icon: "alert",
     group: "workspace",
   },
   {
-    label: "Tooling Progress",
+    label: "Order Tooling",
     href: "/converting/tooling-progress",
     icon: "settings",
     group: "workspace",
     flow: "converting",
   },
   {
-    label: "Rubber Order & Setting",
+    label: "Order Rubber",
     href: "/converting/rubber-order-setting",
     icon: "box",
     group: "workspace",

@@ -2,6 +2,9 @@
 
 import { useEffect, useId, useState } from "react";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
+import { IncomingPreparationDetails } from "./incoming-preparation-details";
+import type { PreparationWorkflowUpdate } from "@/types/order";
+import { DrawingEditModal } from "@/app/design-drawing/components/drawing-edit-modal";
 import { AddProjectModal } from "./add-project-modal";
 import { IssueFormModal } from "@/components/issues/issue-form-modal";
 import { isActiveProject } from "@/lib/active-project";
@@ -17,6 +20,8 @@ import {
 export type OrderHistoryModalProps = {
   order: Order;
   onClose: () => void;
+  onCancel: (order: Order) => void;
+  onUpdatePreparation: (orderNo: string, values: PreparationWorkflowUpdate) => void;
 };
 
 function displayHistoryTime(value: string) {
@@ -66,9 +71,10 @@ function historyRemark(record: ProcessHistoryRecord) {
 }
 
 /** Feature-owned audit detail for every project update from the incoming queue. */
-export function OrderHistoryModal({ order, onClose }: OrderHistoryModalProps) {
+export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparation }: OrderHistoryModalProps) {
   const titleId = useId();
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingDrawing, setIsEditingDrawing] = useState(false);
   const [isAddingIssue, setIsAddingIssue] = useState(false);
   const [issueSaved, setIssueSaved] = useState(false);
   const { editProject } = useWorkflowOrders();
@@ -87,18 +93,22 @@ export function OrderHistoryModal({ order, onClose }: OrderHistoryModalProps) {
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !isEditing && !isAddingIssue) onClose();
+      if (event.key === "Escape" && !isEditing && !isEditingDrawing && !isAddingIssue && document.querySelectorAll('[role="dialog"]').length === 1) onClose();
     };
 
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [onClose, isEditing, isAddingIssue]);
+  }, [onClose, isEditing, isEditingDrawing, isAddingIssue]);
 
   useEffect(() => {
     if (!issueSaved) return;
     const timer = window.setTimeout(() => setIssueSaved(false), 3200);
     return () => window.clearTimeout(timer);
   }, [issueSaved]);
+
+  if (isEditingDrawing) {
+    return <DrawingEditModal order={order} onClose={() => setIsEditingDrawing(false)} />;
+  }
 
   if (isAddingIssue) {
     return <IssueFormModal projectId={order.id} onClose={() => setIsAddingIssue(false)} onSaved={() => setIssueSaved(true)} />;
@@ -159,6 +169,8 @@ export function OrderHistoryModal({ order, onClose }: OrderHistoryModalProps) {
               <strong>{displayHistoryTime(order.updatedAt)}</strong>
             </div>
           </div>
+
+          <IncomingPreparationDetails key={order.id} order={order} onCancel={onCancel} onUpdatePreparation={onUpdatePreparation} />
 
           {projectFormConfig.map((section) => (
             <section className="project-form-section" key={section.id}>
@@ -234,6 +246,11 @@ export function OrderHistoryModal({ order, onClose }: OrderHistoryModalProps) {
           <Button type="button" icon="plus" variant="secondary" onClick={() => setIsAddingIssue(true)} disabled={!isActiveProject(order)}>
             Add Issue
           </Button>
+          {order.stage === "design-progress" && order.workflow.currentStatus !== "cancelled" ? (
+            <Button type="button" icon="pen" onClick={() => setIsEditingDrawing(true)}>
+              Submit Drawing
+            </Button>
+          ) : null}
           <Button type="button" icon="pen" onClick={() => setIsEditing(true)} disabled={order.workflow.currentStatus === "cancelled"}>
             Edit
           </Button>

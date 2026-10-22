@@ -211,7 +211,8 @@ td > span { color: var(--text-muted); font-size: 9px; margin-top: 4px; }
 .badge-warning { background: var(--warning-soft); color: var(--warning); }
 .badge-danger { background: var(--danger-soft); color: var(--danger); }
 .table-action { width: 27px; height: 27px; border: 1px solid var(--border); display: grid; place-items: center; border-radius: 6px; color: var(--text-muted); background: var(--surface); }
-.incoming-orders-table { min-width: 1700px; }
+.full-orders .incoming-orders-table { min-width: 850px; }
+.incoming-detail-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .preparation-cell { min-width: 195px; }
 .preparation-select { width: 100%; min-width: 185px; height: 33px; padding: 0 28px 0 9px; font-size: 10px; }
 .preparation-remark { width: 100%; min-width: 185px; height: 33px; padding: 0 9px; border: 1px solid var(--border-dark); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: 10px; }

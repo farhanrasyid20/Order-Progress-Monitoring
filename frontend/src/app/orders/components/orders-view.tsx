@@ -65,7 +65,8 @@ export function OrdersView({
     () =>
       orders.filter(
         (order) =>
-          order.stage === "order" || order.stage === "review-approval",
+          order.stage !== "completed" ||
+          order.workflow.currentStatus === "cancelled",
       ),
     [orders],
   );
@@ -168,35 +169,6 @@ export function OrdersView({
             setPendingHistoryOrderNo(null);
             setDetailOrder(order);
           }}
-          onCancel={(order) => {
-            setPendingHistoryOrderNo(null);
-            setCancellingOrder(order);
-          }}
-          onUpdatePreparation={(orderNo, values) => {
-            completeIncomingPreparation(orderNo, values);
-            resetPage();
-            setPendingHistoryOrderNo(orderNo);
-
-            const destination =
-              values.route === "offset"
-                ? "Prepress / Pra-Cetak"
-                : values.route === "by_production" &&
-                  values.productionOrder === "tooling_and_rubber"
-                  ? "Tooling Progress and Rubber Order & Setting"
-                  : values.route === "by_production" &&
-                    values.productionOrder === "tooling"
-                    ? "Tooling Progress"
-                    : values.route === "by_production" &&
-                      values.productionOrder === "rubber"
-                      ? "Rubber Order & Setting"
-                      : "Design Process";
-
-            setToastMessage(
-              `Preparation for ${orderNo} was updated and moved to ${destination}.`,
-            );
-
-            window.setTimeout(() => setToastMessage(""), 3200);
-          }}
         />
         <TablePagination
           page={pagination.page}
@@ -223,7 +195,10 @@ export function OrdersView({
 
       {cancellingOrder ? (
         <CancelProjectModal
-          onClose={() => setCancellingOrder(null)}
+          onClose={() => {
+            setDetailOrder(cancellingOrder);
+            setCancellingOrder(null);
+          }}
           onConfirm={(reason) => {
             cancelIncomingProject(cancellingOrder.no, reason);
             setCancellingOrder(null);
@@ -238,6 +213,36 @@ export function OrdersView({
       {visibleDetailOrder ? (
         <OrderHistoryModal
           order={visibleDetailOrder}
+          onCancel={(order) => {
+            setPendingHistoryOrderNo(null);
+            setDetailOrder(null);
+            setCancellingOrder(order);
+          }}
+          onUpdatePreparation={(orderNo, values) => {
+            completeIncomingPreparation(orderNo, values);
+            resetPage();
+            setPendingHistoryOrderNo(orderNo);
+
+            const destination =
+              values.route === "offset"
+                ? "Prepress / Pra-Cetak"
+                : values.route === "by_production" &&
+                  values.productionOrder === "tooling_and_rubber"
+                  ? "Order Tooling and Order Rubber"
+                  : values.route === "by_production" &&
+                    values.productionOrder === "tooling"
+                    ? "Order Tooling"
+                    : values.route === "by_production" &&
+                      values.productionOrder === "rubber"
+                      ? "Order Rubber"
+                      : "Incoming Design (Drawing)";
+
+            setToastMessage(
+              `Preparation for ${orderNo} was updated and moved to ${destination}.`,
+            );
+
+            window.setTimeout(() => setToastMessage(""), 3200);
+          }}
           onClose={() => {
             setDetailOrder(null);
             setPendingHistoryOrderNo(null);

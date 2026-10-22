@@ -75,13 +75,13 @@ export const workflowStageDetails: Record<WorkflowStage, WorkflowStageDetails> =
     progress: 42,
   },
   "tooling-progress": {
-    process: "Tooling Progress",
+    process: "Order Tooling",
     status: "Waiting for Tooling",
     tone: "info",
     progress: 56,
   },
   "rubber-order-setting": {
-    process: "Rubber Order & Setting",
+    process: "Order Rubber",
     status: "Waiting for Rubber",
     tone: "warning",
     progress: 70,

@@ -96,7 +96,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
       <section className="modal-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="modal-header">
           <div>
-            <h2 id={titleId}>Rubber Order &amp; Setting</h2>
+            <h2 id={titleId}>Order Rubber</h2>
             <p>Record rubber, stencil, test run, or MC requirements for {order.no}.</p>
           </div>
           <button

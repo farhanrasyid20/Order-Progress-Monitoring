@@ -44,5 +44,5 @@ export function requirementQueueDisplay(order: Order, kind: StandaloneRequiremen
   if (!isCombinedRequirement(order)) return order;
   const hasDetails = (kind === "tooling" ? order.toolingOrders : order.rubberOrders).length > 0;
   const label = kind === "tooling" ? "Tooling" : "Rubber";
-  return { ...order, process: kind === "tooling" ? "Tooling Progress" : "Rubber Order & Setting", status: `${label} Details ${hasDetails ? "Added" : "Required"}`, tone: hasDetails ? "info" : "warning" };
+  return { ...order, process: kind === "tooling" ? "Order Tooling" : "Order Rubber", status: `${label} Details ${hasDetails ? "Added" : "Required"}`, tone: hasDetails ? "info" : "warning" };
 }

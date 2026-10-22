@@ -14,7 +14,7 @@ export function RubberOrderSettingView() {
     <>
       <WorkflowStageView
         stage="rubber-order-setting"
-        title="Rubber Order & Setting"
+        title="Order Rubber"
         copy="Manage rubber requirements and setting for projects from Incoming Design."
         summaryLanguage="en"
         pageAction={
@@ -23,7 +23,7 @@ export function RubberOrderSettingView() {
           </Button>
         }
         icon="box"
-        queueTitle="Rubber Order & Setting Queue"
+        queueTitle="Order Rubber Queue"
         queueCopy="Approved projects and Order Rubber projects from Incoming Design"
         renderEditModal={({ order, onClose }) => (
           <RubberEditModal order={order} onClose={onClose} />

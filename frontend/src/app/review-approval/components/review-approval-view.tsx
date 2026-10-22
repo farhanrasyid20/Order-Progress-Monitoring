@@ -9,7 +9,7 @@ export function ReviewApprovalView() {
     <WorkflowStageView
       stage="review-approval"
       title="Review & Approval"
-      copy="Tinjau desain yang masuk sebelum diteruskan ke Tooling Progress."
+      copy="Tinjau desain yang masuk sebelum diteruskan ke Order Tooling."
       icon="check"
       queueTitle="Antrean Review & Approval"
       queueCopy="Hanya desain yang telah menyelesaikan tahap Proses Desain"

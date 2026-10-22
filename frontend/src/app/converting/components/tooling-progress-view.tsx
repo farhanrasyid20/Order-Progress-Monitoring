@@ -14,7 +14,7 @@ export function ToolingProgressView() {
     <>
       <WorkflowStageView
         stage="tooling-progress"
-        title="Tooling Progress"
+        title="Order Tooling"
         copy="Manage tooling requirements for projects from Incoming Design."
         pageAction={
           <Button type="button" icon="plus" onClick={() => setIsAddModalOpen(true)}>
@@ -22,7 +22,7 @@ export function ToolingProgressView() {
           </Button>
         }
         icon="settings"
-        queueTitle="Tooling Queue"
+        queueTitle="Order Tooling Queue"
         summaryLanguage="en"
         queueCopy="Approved projects and Order Tooling projects from Incoming Design"
         renderEditModal={({ order, onClose }) => (

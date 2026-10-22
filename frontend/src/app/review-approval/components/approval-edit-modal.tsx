@@ -52,7 +52,7 @@ export function ApprovalEditModal({ order, onClose }: ApprovalEditModalProps) {
         <header className="modal-header">
           <div>
             <h2 id={titleId}>Review &amp; Approval</h2>
-            <p>Setujui {order.no} dan teruskan ke Tooling Progress.</p>
+            <p>Setujui {order.no} dan teruskan ke Order Tooling.</p>
           </div>
           <button
             type="button"

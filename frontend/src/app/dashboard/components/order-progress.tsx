@@ -11,8 +11,8 @@ const defaultStages: ProgressStage[] = [
   { label: "Incoming Design", value: 18, progress: 15 },
   { label: "Design Process", value: 7, progress: 28 },
   { label: "Design Decision", value: 5, progress: 42 },
-  { label: "Tooling Progress", value: 6, progress: 56 },
-  { label: "Rubber Order", value: 5, progress: 70 },
+  { label: "Order Tooling", value: 6, progress: 56 },
+  { label: "Order Rubber", value: 5, progress: 70 },
   { label: "Sample Progress", value: 6, progress: 85 },
   { label: "Sample Completed", value: 12, progress: 100 },
 ];
