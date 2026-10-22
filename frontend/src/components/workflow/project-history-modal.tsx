@@ -7,6 +7,7 @@ import type { Order, ProcessHistoryRecord, StandaloneRequirementKind } from "@/t
 import { RequirementDetails } from "./requirement-details";
 import { MaterialRequestDetails } from "./material-request-details";
 import { SampleProgressDetails } from "./sample-progress-details";
+import { ArchiveProjectDetails } from "./archive-project-details";
 
 export type ProjectHistoryModalProps = {
   order: Order;
@@ -14,6 +15,7 @@ export type ProjectHistoryModalProps = {
   requirementKind?: StandaloneRequirementKind;
   materialRequest?: boolean;
   sampleProgress?: boolean;
+  archiveDetails?: boolean;
 };
 
 function displayHistoryTime(value: string) {
@@ -64,7 +66,7 @@ function historyChange(record: ProcessHistoryRecord) {
 }
 
 /** Shared audit detail for records after they move beyond Incoming Design. */
-export function ProjectHistoryModal({ order, onClose, requirementKind, materialRequest = false, sampleProgress = false }: ProjectHistoryModalProps) {
+export function ProjectHistoryModal({ order, onClose, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false }: ProjectHistoryModalProps) {
   const titleId = useId();
   const history = [...order.processHistory].reverse();
 
@@ -86,7 +88,7 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
       }}
     >
       <section
-        className={`modal-dialog history-dialog${requirementKind || materialRequest || sampleProgress ? " incoming-detail-dialog" : ""}`}
+        className={`modal-dialog history-dialog${requirementKind || materialRequest || sampleProgress || archiveDetails ? " incoming-detail-dialog" : ""}${archiveDetails ? " archive-detail-dialog" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -123,9 +125,11 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
             </div>
           </div>
 
+          {archiveDetails ? <ArchiveProjectDetails order={order} /> : null}
           {requirementKind ? <RequirementDetails order={order} kind={requirementKind} /> : null}
           {materialRequest ? <MaterialRequestDetails order={order} /> : null}
           {sampleProgress ? <SampleProgressDetails order={order} /> : null}
+          {archiveDetails ? <div className="archive-activity-heading"><h3>Activity History</h3><p>All recorded project updates, from latest to earliest.</p></div> : null}
           <div className="table-wrap history-table-wrap">
             <table className="history-table">
               <thead>

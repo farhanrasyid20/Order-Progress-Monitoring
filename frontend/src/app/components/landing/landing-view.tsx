@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
@@ -20,7 +20,7 @@ const landingWorkflowColumns: readonly LandingWorkflowColumn[] = [
   {
     id: "drawing",
     title: "Drawing",
-    subtitle: "Desain masuk, proses, dan keputusan desain",
+    subtitle: "Incoming designs, progress, and approvals",
     icon: "pen",
     tone: "blue",
     stages: ["order", "design-incoming", "design-progress", "review-approval"],
@@ -28,15 +28,25 @@ const landingWorkflowColumns: readonly LandingWorkflowColumn[] = [
   {
     id: "preparation",
     title: "Preparation",
-    subtitle: "Tooling dan setting",
+    subtitle: "Tooling, materials, and offset preparation",
     icon: "settings",
     tone: "amber",
-    stages: ["tooling-progress", "rubber-order-setting"],
+    stages: [
+      "tooling-progress",
+      "rubber-order-setting",
+      "material-request",
+      "offset-design",
+      "offset-prepress",
+      "offset-material-request",
+      "offset-plate",
+      "offset-varnish",
+      "offset-press",
+    ],
   },
   {
     id: "sample",
-    title: "Sample Proses",
-    subtitle: "Pengerjaan dan evaluasi sample",
+    title: "Sample Process",
+    subtitle: "Sample preparation and evaluation",
     icon: "flask",
     tone: "violet",
     stages: ["sample-progress"],
@@ -44,10 +54,16 @@ const landingWorkflowColumns: readonly LandingWorkflowColumn[] = [
   {
     id: "closing",
     title: "Closing",
-    subtitle: "Finalisasi sample dan produksi",
+    subtitle: "Quality control, sample finalization, and production",
     icon: "check",
     tone: "green",
-    stages: ["sample-completed", "order-production"],
+    stages: [
+      "quality-control",
+      "fa-report",
+      "submit-sample",
+      "sample-completed",
+      "order-production",
+    ],
   },
 ];
 
@@ -55,6 +71,17 @@ type LandingWorkflowCardProps = {
   column: LandingWorkflowColumn;
   orders: Order[];
 };
+
+function currentMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function projectMonth(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
 
 function LandingWorkflowCard({ column, orders }: LandingWorkflowCardProps) {
   return (
@@ -67,7 +94,7 @@ function LandingWorkflowCard({ column, orders }: LandingWorkflowCardProps) {
           <h2>{column.title}</h2>
           <p>{column.subtitle}</p>
         </div>
-        <span className="landing-card-count" aria-label={`${orders.length} order aktif`}>
+        <span className="landing-card-count" aria-label={`${orders.length} active ${orders.length === 1 ? "order" : "orders"}`}>
           {orders.length}
         </span>
       </header>
@@ -82,11 +109,11 @@ function LandingWorkflowCard({ column, orders }: LandingWorkflowCardProps) {
               </div>
               <dl className="landing-order-details">
                 <div>
-                  <dt>Kode</dt>
+                  <dt>Order code</dt>
                   <dd className="landing-order-code">{order.no}</dd>
                 </div>
                 <div>
-                  <dt>Nama cust.</dt>
+                  <dt>Customer</dt>
                   <dd>{order.customer}</dd>
                 </div>
                 <div>
@@ -94,7 +121,7 @@ function LandingWorkflowCard({ column, orders }: LandingWorkflowCardProps) {
                   <dd>{order.deadline}</dd>
                 </div>
                 <div>
-                  <dt>Tanggal proyek</dt>
+                  <dt>Project date</dt>
                   <dd>{order.projectDate}</dd>
                 </div>
                 <div>
@@ -113,7 +140,7 @@ function LandingWorkflowCard({ column, orders }: LandingWorkflowCardProps) {
         ) : (
           <div className="landing-empty-card">
             <Icon name={column.icon} size={20} />
-            <p>Belum ada order aktif.</p>
+            <p>No active orders match the selected months.</p>
           </div>
         )}
       </div>
@@ -124,13 +151,21 @@ function LandingWorkflowCard({ column, orders }: LandingWorkflowCardProps) {
 /** Public, live overview of every project that has not reached the final archive. */
 export function LandingView() {
   const { orders } = useWorkflowOrders();
+  const [openMonth, setOpenMonth] = useState(currentMonth);
+  const [closeMonth, setCloseMonth] = useState(currentMonth);
   const activeOrders = useMemo(
     () =>
       orders.filter(
-        (order) =>
-          order.stage !== "completed" && order.workflow.currentStatus !== "cancelled",
+        (order) => {
+          const month = projectMonth(order.projectDate);
+          return order.stage !== "completed" &&
+            order.workflow.currentStatus !== "cancelled" &&
+            Boolean(month) &&
+            (!openMonth || month >= openMonth) &&
+            (!closeMonth || month <= closeMonth);
+        },
       ),
-    [orders],
+    [orders, openMonth, closeMonth],
   );
   const columnsWithOrders = useMemo(
     () =>
@@ -168,10 +203,10 @@ export function LandingView() {
               <span aria-hidden="true" />
               LIVE ORDER BOARD
             </span>
-            <h1 id="landing-title">Pantau order yang sedang berjalan.</h1>
+            <h1 id="landing-title">Track orders in progress.</h1>
             <p>
-              Semua order aktif ditampilkan berdasarkan tahap pekerjaan saat ini,
-              dari drawing hingga closing.
+              All active orders are organized by their current workflow stage,
+              from drawing to closing.
             </p>
           </div>
           <div className="landing-live-summary">
@@ -180,18 +215,41 @@ export function LandingView() {
             </span>
             <div>
               <strong>{activeOrders.length}</strong>
-              <small>Order aktif saat ini</small>
+              <small>Active orders in selected months</small>
             </div>
           </div>
         </section>
 
         <section className="landing-board" aria-labelledby="active-orders-title">
-          <div className="landing-section-heading">
-            <div>
-              <h2 id="active-orders-title">Order sedang berjalan</h2>
-              <p>Order selesai tidak ditampilkan pada halaman ini.</p>
-            </div>
-            <span className="landing-board-note">4 tahap aktif</span>
+
+          <div className="landing-month-filters" role="group" aria-label="Filter by project month">
+            <label>
+              <span>Open Month</span>
+              <input
+                type="month"
+                value={openMonth}
+                max={closeMonth || undefined}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setOpenMonth(value);
+                  if (value && closeMonth && value > closeMonth) setCloseMonth(value);
+                }}
+              />
+            </label>
+            <label>
+              <span>Close Month</span>
+              <input
+                type="month"
+                value={closeMonth}
+                min={openMonth || undefined}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setCloseMonth(value);
+                  if (value && openMonth && value < openMonth) setOpenMonth(value);
+                }}
+              />
+            </label>
+            <p>Filter by project date, including both selected months.</p>
           </div>
 
           <div className="landing-board-scroll">

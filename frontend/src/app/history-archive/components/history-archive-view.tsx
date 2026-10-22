@@ -84,7 +84,7 @@ export function HistoryArchiveView() {
         />
       </OrderCard>
       {historyOrder ? (
-        <ProjectHistoryModal order={historyOrder} onClose={() => setHistoryOrder(null)} />
+        <ProjectHistoryModal order={historyOrder} archiveDetails onClose={() => setHistoryOrder(null)} />
       ) : null}
     </>
   );

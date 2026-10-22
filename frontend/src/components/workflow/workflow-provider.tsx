@@ -705,12 +705,43 @@ function moveToStage(
 }
 
 /**
- * Local state only. New records use the nested Project model, while the flat
+ * Browser-persisted prototype state. New records use the nested Project model, while the flat
  * display fields keep the existing dashboard and queue UI working unchanged.
  */
 export function WorkflowOrdersProvider({ children, currentUserRole = "design" }: { children: ReactNode; currentUserRole?: ProjectRole }) {
   const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [storageReady, setStorageReady] = useState(false);
   const designFileUrls = useRef<string[]>([]);
+
+  useEffect(() => {
+    // Restore browser data after hydration so the server and initial client render agree.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    try {
+      const saved = window.localStorage.getItem("cots-workflow-orders-v1");
+      if (saved) {
+        const parsed: unknown = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.every((order) =>
+          order && typeof order.id === "string" && typeof order.projectDate === "string" &&
+          order.workflow && order.mainData && order.lineage && Array.isArray(order.processHistory),
+        )) {
+          setOrders(parsed as Order[]);
+        }
+      }
+    } catch {
+      // Keep the initial data if storage is unavailable or invalid.
+    }
+    setStorageReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+
+  useEffect(() => {
+    if (!storageReady) return;
+    try {
+      window.localStorage.setItem("cots-workflow-orders-v1", JSON.stringify(orders));
+    } catch {
+      // In-memory updates still work when browser storage is unavailable or full.
+    }
+  }, [orders, storageReady]);
 
   useEffect(() => () => {
     designFileUrls.current.forEach((url) => URL.revokeObjectURL(url));
@@ -817,7 +848,9 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           priority: "Medium",
           process,
           pic: values.pic || "-",
-          projectDate: displayDate(values.projectDate),
+          projectDate: values.projectDate
+            ? displayDate(values.projectDate)
+            : new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(createdAt)),
           deadline: displayDate(values.deadline),
           status: details.status,
           tone: details.tone,
@@ -965,7 +998,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
                 ? "tooling-progress"
                 : isRubberOrder
                   ? "rubber-order-setting"
-                  : "design-progress";
+                  : "material-request";
 
           const moved = moveToStage(prepared, targetStage, {
             preserveStatus:

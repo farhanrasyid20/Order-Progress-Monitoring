@@ -264,6 +264,8 @@ export function createEmptyProjectMainData(): ProjectMainData {
 }
 
 export function createEmptyProjectFormDraft(): ProjectFormDraft {
+  const today = new Date();
+  const projectDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   return {
     mainData: createEmptyProjectMainData(),
     entryType: "new",
@@ -271,7 +273,7 @@ export function createEmptyProjectFormDraft(): ProjectFormDraft {
     preparationType: "",
     convertingRoute: "",
     pic: "",
-    projectDate: "",
+    projectDate,
     deadline: "",
     drawingLink: "",
   };
