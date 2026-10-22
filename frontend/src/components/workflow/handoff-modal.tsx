@@ -47,7 +47,7 @@ export function HandoffModal({
     event.preventDefault();
     advanceOrder(order.no, {
       pic,
-      description: notes.trim() || `${title}: ${reference}`,
+      description: `${title}: ${reference}${notes.trim() ? ` - ${notes.trim()}` : ""}`,
     });
     onClose();
   };

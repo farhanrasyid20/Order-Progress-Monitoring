@@ -271,6 +271,7 @@ export type WorkflowStage =
   | "completed";
 
 export type Order = {
+  sampleSubmissions?: { submittedDate: string; recordedAt: string }[];
   sampleProgress?: SampleProgressRecord[];
   materialRequestSource?: StandaloneRequirementKind;
   id: string;

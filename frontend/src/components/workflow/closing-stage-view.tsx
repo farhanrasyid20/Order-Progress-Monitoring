@@ -34,6 +34,7 @@ export function ClosingStageView({
   return (
     <WorkflowStageView
       stage={stage}
+      editActionLabel={stage === "quality-control" ? "Complete QC" : "Complete FA Report"}
       title={title}
       copy={copy}
       icon={icon}

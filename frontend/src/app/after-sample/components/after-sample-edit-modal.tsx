@@ -17,9 +17,9 @@ export function AfterSampleEditModal({
   onClose,
 }: AfterSampleEditModalProps) {
   const titleId = useId();
-  const { cancelProject, moveOrderToStage } = useWorkflowOrders();
+  const { completeSampleDecision } = useWorkflowOrders();
   const [pic, setPic] = useState(order.pic);
-  const [decision, setDecision] = useState("Approve / Lanjut ke Order");
+  const [decision, setDecision] = useState("Sample Approve / Continue to Production");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -33,18 +33,7 @@ export function AfterSampleEditModal({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const values = {
-      pic,
-      description: notes.trim() || `Keputusan: ${decision}`,
-    };
-
-    if (decision === "Approve / Lanjut ke Order") {
-      moveOrderToStage(order.no, "order-production", values);
-    } else if (decision === "Revision ke Design") {
-      moveOrderToStage(order.no, "design-progress", values);
-    } else {
-      cancelProject(order.no, notes.trim() || "Sample cancelled.");
-    }
+    completeSampleDecision(order.no, decision === "Sample Approve / Continue to Production" ? "approve" : decision === "Revision / Return to Design" ? "revision" : "cancel", pic, notes);
     onClose();
   };
 
@@ -65,12 +54,12 @@ export function AfterSampleEditModal({
         <header className="modal-header">
           <div>
             <h2 id={titleId}>After Sample / Decision</h2>
-            <p>Tentukan tindak lanjut setelah sample {order.no} selesai.</p>
+            <p>Choose the next step for sample {order.no}. Approved samples are marked Completed and moved to History &amp; Archive.</p>
           </div>
           <button
             type="button"
             className="modal-close"
-            aria-label="Tutup formulir keputusan"
+            aria-label="Close sample decision form"
             onClick={onClose}
             autoFocus
           >
@@ -85,29 +74,29 @@ export function AfterSampleEditModal({
               <input value={pic} onChange={(event) => setPic(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Keputusan</span>
+              <span>Decision</span>
               <select value={decision} onChange={(event) => setDecision(event.target.value)}>
-                <option>Approve / Lanjut ke Order</option>
-                <option>Revision ke Design</option>
+                <option>Sample Approve / Continue to Production</option>
+                <option>Revision / Return to Design</option>
                 <option>Cancel</option>
               </select>
             </label>
             <label className="modal-field modal-field-full">
-              <span>Catatan</span>
+              <span>Notes</span>
               <textarea
                 value={notes}
                 onChange={(event) => setNotes(event.target.value)}
-                placeholder="Alasan approval, revision, atau cancel"
+                placeholder="Enter the reason for approval, revision, or cancellation"
                 rows={3}
               />
             </label>
           </div>
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Batal
+              Back
             </Button>
             <Button type="submit" icon="check">
-              Simpan Keputusan
+              Save Decision
             </Button>
           </footer>
         </form>

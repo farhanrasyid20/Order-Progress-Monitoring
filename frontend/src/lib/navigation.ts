@@ -99,32 +99,14 @@ export const navigationItems: readonly NavigationItem[] = [
     group: "workspace",
     flow: "offset",
   },
-  {
-    label: "QC Checking",
-    href: "/quality-control",
-    icon: "shield",
-    group: "workspace",
-  },
-  {
-    label: "FA Report",
-    href: "/fa-report",
-    icon: "file",
-    group: "workspace",
-  },
-  {
-    label: "Submit Sample",
-    href: "/submit-sample",
-    icon: "check",
-    group: "workspace",
-  },
+  { label: "Finish / Closing", href: "/closing", icon: "check", group: "workspace" },
   {
     label: "History & Archive",
     href: "/history-archive",
     icon: "file",
     group: "workspace",
   },
-  { label: "Reports", href: "/reports", icon: "report", group: "workspace" },
-  { label: "Master Data", href: "/users", icon: "users", group: "workspace" },
+  { label: "Master Data", href: "/users", icon: "users", group: "system" },
   { label: "Settings", href: "/settings", icon: "settings", group: "system" },
 ];
 
@@ -162,6 +144,9 @@ export const workflowNavigationGroups: readonly WorkflowNavigationGroup[] = [
  * The longest matching href wins so this remains correct when nested routes grow.
  */
 export function getNavigationItem(pathname: string) {
+  if (["/quality-control", "/fa-report", "/submit-sample", "/after-sample"].includes(pathname)) {
+    return navigationItems.find((item) => item.href === "/closing");
+  }
   return [...navigationItems]
     .sort((first, second) => second.href.length - first.href.length)
     .find(

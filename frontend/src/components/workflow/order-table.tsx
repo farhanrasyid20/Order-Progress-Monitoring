@@ -7,6 +7,7 @@ import type { Order, StandaloneRequirementKind } from "@/types/order";
 export type OrderTableProps = {
   orders: Order[];
   compact?: boolean;
+  editActionLabel?: string;
   requirementKind?: StandaloneRequirementKind;
   onViewOrder?: (order: Order) => void;
   onEditOrder?: (order: Order) => void;
@@ -40,6 +41,7 @@ function routeLabel(order: Order) {
 export function OrderTable({
   orders,
   compact = false,
+  editActionLabel,
   requirementKind,
   onViewOrder,
   onEditOrder,
@@ -145,11 +147,12 @@ export function OrderTable({
                     {onEditOrder ? (
                       <button
                         type="button"
-                        className="table-action"
-                        aria-label={`Edit ${order.no}`}
+                        className={editActionLabel ? "button button-secondary" : "table-action"}
+                        aria-label={`${editActionLabel ?? "Edit"} ${order.no}`}
                         onClick={() => onEditOrder(order)}
                       >
                         <Icon name="pen" size={16} />
+                        {editActionLabel}
                       </button>
                     ) : null}
                   </div>

@@ -153,10 +153,10 @@ export const workflowStageDetails: Record<WorkflowStage, WorkflowStageDetails> =
     progress: 98,
   },
   "sample-completed": {
-    process: "Sample Completed",
-    status: "Ready to Finalize",
-    tone: "success",
-    progress: 100,
+    process: "Sample Decision",
+    status: "Waiting for Sample Decision",
+    tone: "warning",
+    progress: 99,
   },
   "order-production": {
     process: "Order / Production",
@@ -188,8 +188,7 @@ const nextWorkflowStage: Partial<Record<WorkflowStage, WorkflowStage>> = {
   "sample-progress": "quality-control",
   "quality-control": "fa-report",
   "fa-report": "submit-sample",
-  "submit-sample": "sample-completed",
-  "sample-completed": "completed",
+
   "order-production": "completed",
 };
 
@@ -234,6 +233,8 @@ export type WorkflowOrdersContextValue = {
     values: OffsetSpkValues,
     continueWorkflow: boolean,
   ) => void;
+  completeSampleDecision: (orderNo: string, decision: "approve" | "revision" | "cancel", pic: string, notes: string) => void;
+  submitSample: (orderNo: string, submittedDate: string) => void;
   advanceOrder: (orderNo: string, values?: Partial<OrderFormValues>, sample?: SampleProgressValues) => void;
   moveOrderToStage: (
     orderNo: string,
@@ -1334,6 +1335,38 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     [],
   );
 
+  const completeSampleDecision = useCallback((orderNo: string, decision: "approve" | "revision" | "cancel", pic: string, notes: string) => {
+    setOrders((current) => current.map((order) => {
+      if (order.no !== orderNo || order.stage !== "sample-completed" || order.workflow.currentStatus === "cancelled") return order;
+      const updated = appendHistory({ ...order, pic }, {
+        process: "sample_decision", status: decision, user: prototypeActor,
+        changeSummary: "Sample decision: " + decision, remark: notes.trim(),
+      });
+      if (decision === "cancel") {
+        return { ...updated, stage: "completed", process: "Cancelled Project", status: "Cancelled", tone: "danger",
+          workflow: { ...updated.workflow, currentStage: "completed", currentProcess: "project_cancelled", currentStatus: "cancelled" } };
+      }
+      return decision === "approve" ? moveToStage(updated, "completed")
+        : moveToStage({ ...updated, status: "Revision", tone: "warning", workflow: { ...updated.workflow, designDecision: null } }, "design-progress", { preserveStatus: true });
+    }));
+  }, []);
+
+  const submitSample = useCallback((orderNo: string, submittedDate: string) => {
+    const parsed = new Date(submittedDate + "T00:00:00Z");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(submittedDate) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== submittedDate) return;
+    setOrders((current) => current.map((order) => {
+      if (order.no !== orderNo || order.stage !== "submit-sample" || order.workflow.currentStatus === "cancelled") return order;
+      return moveToStage(appendHistory({
+        ...order,
+        sampleSubmissions: [...(order.sampleSubmissions ?? []), { submittedDate, recordedAt: new Date().toISOString() }],
+      }, {
+        process: "sample_submitted", status: "submitted", user: prototypeActor,
+        changeSummary: "Sample submitted on " + displayDate(submittedDate) + ".",
+        remark: "Submission date: " + submittedDate,
+      }), "sample-completed");
+    }));
+  }, []);
+
   const advanceOrder = useCallback(
     (orderNo: string, values: Partial<OrderFormValues> = {}, sample?: SampleProgressValues) => {
       setOrders((currentOrders) =>
@@ -1421,6 +1454,8 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       saveRubberRequirement,
       saveMaterialRequest,
       saveOffsetSpk,
+      completeSampleDecision,
+      submitSample,
       advanceOrder,
       moveOrderToStage,
     }),
@@ -1429,6 +1464,8 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       updateDrawingStatus,
       addProject,
       editProject,
+      completeSampleDecision,
+      submitSample,
       advanceOrder,
       cancelIncomingProject,
       completeDesignDecision,

@@ -18,6 +18,7 @@ export type WorkflowEditModalRenderProps = {
 };
 
 export type WorkflowStageViewProps = {
+  editActionLabel?: string;
   stage: WorkflowStage;
   title: string;
   copy: string;
@@ -43,6 +44,7 @@ export function WorkflowStageView({
   queueCopy,
   summaryLanguage,
   renderEditModal,
+  editActionLabel,
 }: WorkflowStageViewProps) {
   const { orders } = useWorkflowOrders();
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -75,6 +77,7 @@ export function WorkflowStageView({
           requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined}
           onViewOrder={setHistoryOrder}
           onEditOrder={setEditingOrder}
+          editActionLabel={editActionLabel}
         />
         <TablePagination
           page={pagination.page}

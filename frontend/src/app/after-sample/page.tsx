@@ -1,5 +1,3 @@
-import { AfterSampleView } from "./components";
+import { ClosingView } from "@/components/workflow/closing-view";
 
-export default function AfterSamplePage() {
-  return <AfterSampleView />;
-}
+export default function Page() { return <ClosingView initialStage="sample-completed" />; }

@@ -1,18 +1,3 @@
-import { ClosingStageView } from "@/components/workflow/closing-stage-view";
+import { ClosingView } from "@/components/workflow/closing-view";
 
-export default function SubmitSamplePage() {
-  return (
-    <ClosingStageView
-      stage="submit-sample"
-      title="Submit Sample"
-      copy="Record sample submissions before moving to the final sample decision."
-      queueTitle="Submit Sample Queue"
-      queueCopy="Projects with completed FA Reports ready for sample submission"
-      language="en"
-      nextLabel="After Sample / Decision"
-      referenceLabel="Sample Submission Number"
-      referencePrefix="SUB"
-      icon="check"
-    />
-  );
-}
+export default function Page() { return <ClosingView initialStage="submit-sample" />; }
