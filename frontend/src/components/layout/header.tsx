@@ -98,11 +98,6 @@ export function Header({
         >
           <Icon name="menu" />
         </button>
-        <div className="breadcrumbs">
-          <span>Workspace</span>
-          <Icon name="chevron" size={14} />
-          <strong>{activeLabel}</strong>
-        </div>
       </div>
 
       <div className="header-actions">

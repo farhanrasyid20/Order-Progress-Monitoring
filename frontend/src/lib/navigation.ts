@@ -7,7 +7,7 @@ export type NavigationItem = {
   href: string;
   icon: IconName;
   count?: number;
-  group: "workspace" | "system";
+  group: "workspace" | "closing" | "system";
   /** A route-specific workflow group shown after the shared design flow. */
   flow?: WorkflowFlow;
 };
@@ -99,19 +99,27 @@ export const navigationItems: readonly NavigationItem[] = [
     group: "workspace",
     flow: "offset",
   },
-  { label: "Finish / Closing", href: "/closing", icon: "check", group: "workspace" },
+  {
+    label: "QC Check / FA Report",
+    href: "/quality-control",
+    icon: "shield",
+    group: "closing",
+  },
   {
     label: "History & Archive",
     href: "/history-archive",
     icon: "file",
-    group: "workspace",
+    group: "closing",
   },
   { label: "Master Data", href: "/users", icon: "users", group: "system" },
-  { label: "Settings", href: "/settings", icon: "settings", group: "system" },
 ];
 
 export const workspaceNavigationItems = navigationItems.filter(
   (item) => item.group === "workspace",
+);
+
+export const closingNavigationItems = navigationItems.filter(
+  (item) => item.group === "closing",
 );
 
 export const systemNavigationItems = navigationItems.filter(
@@ -145,7 +153,10 @@ export const workflowNavigationGroups: readonly WorkflowNavigationGroup[] = [
  */
 export function getNavigationItem(pathname: string) {
   if (["/quality-control", "/fa-report", "/submit-sample", "/after-sample"].includes(pathname)) {
-    return navigationItems.find((item) => item.href === "/closing");
+    return navigationItems.find((item) => item.href === "/quality-control");
+  }
+  if (pathname.startsWith("/history-archive")) {
+    return navigationItems.find((item) => item.href === "/history-archive");
   }
   return [...navigationItems]
     .sort((first, second) => second.href.length - first.href.length)

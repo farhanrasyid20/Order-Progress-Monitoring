@@ -20,7 +20,6 @@ export function ClosingView({ initialStage = "quality-control" }: { initialStage
   const [stage, setStage] = useState<ClosingStage>(initialStage);
   const { orders } = useWorkflowOrders();
   return <>
-    <div className="page-intro"><div><h1>Finish / Closing</h1><p>QC Checking, FA Report, sample submission, and the final sample decision.</p></div></div>
     <nav aria-label="Closing processes" className="closing-tabs">
       {tabs.map((tab) => <Button key={tab.stage} type="button" variant={stage === tab.stage ? "primary" : "secondary"} aria-pressed={stage === tab.stage} onClick={() => setStage(tab.stage)}>
         {tab.label} ({orders.filter((order) => order.stage === tab.stage && order.workflow.currentStatus !== "cancelled").length})

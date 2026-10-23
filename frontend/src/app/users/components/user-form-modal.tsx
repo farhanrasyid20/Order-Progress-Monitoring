@@ -111,13 +111,13 @@ export function UserFormModal({ user, onClose, onSave }: UserFormModalProps) {
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-form-grid">
           <label className="modal-field">
-            <span>Full Name</span>
+            <span>Name</span>
             <input
               ref={nameInputRef}
               type="text"
               value={draft.name}
               autoComplete="name"
-              placeholder="Enter full name"
+              placeholder="Enter name"
               required
               onChange={(event) =>
                 setDraft((current) => ({

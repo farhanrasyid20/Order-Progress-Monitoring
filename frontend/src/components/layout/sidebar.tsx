@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icon } from "@/components/ui/icon";
 import {
+  closingNavigationItems,
   isNavigationItemActive,
   systemNavigationItems,
   workflowNavigationGroups,
@@ -24,7 +25,7 @@ function NavigationLink({
   onNavigate,
   nested = false,
 }: {
-  item: (typeof workspaceNavigationItems)[number];
+  item: (typeof workspaceNavigationItems | typeof closingNavigationItems | typeof systemNavigationItems)[number];
   pathname: string;
   onNavigate: () => void;
   nested?: boolean;
@@ -162,6 +163,16 @@ export function Sidebar({ open, visible, onClose, onLogout }: SidebarProps) {
             />
           ))}
 
+          <p className="nav-label nav-label-settings">FINISH / CLOSING</p>
+          {closingNavigationItems.map((item) => (
+            <NavigationLink
+              key={item.href}
+              item={item}
+              pathname={pathname}
+              onNavigate={onClose}
+            />
+          ))}
+
           <p className="nav-label nav-label-settings">SYSTEM</p>
           {systemNavigationItems.map((item) => (
             <NavigationLink
@@ -174,16 +185,6 @@ export function Sidebar({ open, visible, onClose, onLogout }: SidebarProps) {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="support-card">
-            <span className="support-icon">
-              <Icon name="alert" size={17} />
-            </span>
-            <div>
-              <strong>Need help?</strong>
-              <small>Contact IT Support</small>
-            </div>
-            <Icon name="chevron" size={15} />
-          </div>
           <Link
             href="/"
             className="nav-item logout"
