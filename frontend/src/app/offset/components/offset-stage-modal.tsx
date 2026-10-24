@@ -18,7 +18,6 @@ export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetSta
   const titleId = useId();
   const { advanceOrder } = useWorkflowOrders();
   const [pic, setPic] = useState(order.pic === "-" ? "" : order.pic);
-  const [deadline, setDeadline] = useState("");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -32,9 +31,9 @@ export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetSta
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    advanceOrder(order.no, {
+    advanceOrder(order.id, {
       pic,
-      deadline: deadline || order.deadline,
+      deadline: order.deadline,
       description: notes.trim() || `${title} completed.`,
     });
     onClose();
@@ -73,11 +72,11 @@ export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetSta
             </label>
             <label className="modal-field">
               <span>PIC</span>
-              <input value={pic} onChange={(event) => setPic(event.target.value)} required />
+              <input value={pic} disabled={order.stage === "offset-prepress" || order.stage === "offset-plate" || order.stage === "offset-varnish" || order.stage === "offset-press"} onChange={(event) => setPic(event.target.value)} required />
             </label>
             <label className="modal-field modal-field-full">
               <span>Target Completion Date</span>
-              <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />
+              <input value={order.deadline} disabled />
             </label>
             <label className="modal-field modal-field-full">
               <span>Process Notes</span>

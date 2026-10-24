@@ -14,7 +14,7 @@ import type { Order, ProcessHistoryRecord, ProjectFormDraft } from "@/types/orde
 import {
   getProjectFieldValue,
   isFieldVisible,
-  projectFormConfig,
+  getProjectFormConfig,
 } from "./project-form-config";
 
 export type OrderHistoryModalProps = {
@@ -118,7 +118,7 @@ export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparatio
     return <AddProjectModal
       order={order}
       onClose={() => setIsEditing(false)}
-      onSubmit={(values) => editProject(order.no, values)}
+      onSubmit={(values) => editProject(order.id, values)}
     />;
   }
 
@@ -172,7 +172,7 @@ export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparatio
 
           <IncomingPreparationDetails key={order.id} order={order} onCancel={onCancel} onUpdatePreparation={onUpdatePreparation} />
 
-          {projectFormConfig.map((section) => (
+          {getProjectFormConfig(detailValues).map((section) => (
             <section className="project-form-section" key={section.id}>
               <div className="project-form-section-heading">
                 <h3>{section.title}</h3>
@@ -186,8 +186,9 @@ export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparatio
                 ) : null}
                 {section.fields.filter((field) => isFieldVisible(field, detailValues)).map((field) => {
                   const value = getProjectFieldValue(detailValues, field);
-                  const displayValue = field.options?.find((option) => option.value === value)?.label
-                    ?? (value.trim() ? value : "-");
+                  const displayValue = value.trim()
+                    ? field.options?.find((option) => option.value === value)?.label ?? value
+                    : "-";
 
                   return (
                     <div className={field.fullWidth ? "incoming-detail-full" : undefined} key={field.key}>

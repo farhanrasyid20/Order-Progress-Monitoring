@@ -1,3 +1,4 @@
+import { UsersProvider } from "@/components/users/users-provider";
 import type { Metadata } from "next";
 import AppFrame from "@/components/layout/app-frame";
 import { IssuesProvider } from "@/components/issues/issue-provider";
@@ -13,11 +14,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="id">
       <body>
+        <UsersProvider>
         <WorkflowOrdersProvider>
           <IssuesProvider>
             <AppFrame>{children}</AppFrame>
           </IssuesProvider>
         </WorkflowOrdersProvider>
+        </UsersProvider>
       </body>
     </html>
   );

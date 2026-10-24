@@ -61,7 +61,10 @@ export type ProjectMainDataKey =
   | "finishing"
   | "fgWeight";
 
-export type ProjectMainData = Record<ProjectMainDataKey, string>;
+export type OffsetProjectDataKey =
+  | "fgQuantity" | "imposition" | "grammage" | "printingSide" | "printingMachine"
+  | "varnish" | "lamination" | "coatingSide" | "specialEffect";
+export type ProjectMainData = Record<ProjectMainDataKey, string> & Partial<Record<OffsetProjectDataKey, string>>;
 export type PreparationType = "converting" | "offset";
 export type ConvertingRoute = "by_design" | "by_production";
 export type PreparationRoute = ConvertingRoute | "offset";
@@ -235,6 +238,7 @@ export type ToolingOrderRecord = RequirementRecord;
 export type RubberOrderRecord = RequirementRecord;
 
 export type ProcessHistoryRecord = {
+  source?: StandaloneRequirementKind;
   stage?: WorkflowStage;
   pic?: string;
   deadline?: string;
@@ -274,6 +278,8 @@ export type WorkflowStage =
   | "completed";
 
 export type Order = {
+  requirementBranch?: StandaloneRequirementKind;
+  sourceProjectId?: string;
   sampleSubmissions?: { submittedDate: string; recordedAt: string }[];
   sampleProgress?: SampleProgressRecord[];
   materialRequestSource?: StandaloneRequirementKind;

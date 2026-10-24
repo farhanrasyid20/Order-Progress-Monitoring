@@ -16,7 +16,7 @@ export function IncomingOrdersTable({ orders, onShowDetails }: IncomingOrdersTab
         <th>Action</th><th>Status</th><th>PSR / Code</th><th>Current Process</th>
         <th>Customer &amp; Product</th><th>Designer</th><th>Deadline</th>
       </tr></thead>
-      <tbody>{orders.map((order) => <tr key={order.no}>
+      <tbody>{orders.map((order) => <tr key={order.id}>
         <td><button type="button" className="table-detail-button" onClick={() => onShowDetails(order)} aria-label={`Details for ${order.no}`}><Icon name="eye" size={14} />Details</button></td>
         <td><Badge tone={order.tone}>{order.status}</Badge></td>
         <td><strong className="order-number">{order.no}</strong></td>

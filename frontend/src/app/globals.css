@@ -281,22 +281,23 @@ select { min-width: 130px; height: 38px; padding: 0 30px 0 11px; border: 1px sol
 .preparation-order-controls .preparation-select { flex: 1; min-width: 0; }
 .preparation-order-controls .table-action { flex-shrink: 0; }
 .issue-log-card .issue-table { min-width: 1000px; table-layout: fixed; }
-.issue-col-source { width: calc(28% - 84px); }
-.issue-col-code { width: calc(16% - 48px); }
-.issue-col-error { width: calc(32% - 96px); }
-.issue-col-category { width: calc(24% - 72px); }
-.issue-col-target { width: 112px; }
-.issue-col-status { width: 92px; }
-.issue-col-actions { width: 96px; }
-.issue-table th, .issue-table td { padding: 14px 16px; }
-.issue-table td { vertical-align: middle; white-space: normal; overflow-wrap: anywhere; line-height: 1.6; }
-.issue-table .issue-source-cell strong { line-height: 1.5; }
-.issue-table .issue-source-cell > span { margin-top: 5px; line-height: 1.5; }
+.issue-col-source { width: 19%; }
+.issue-col-error { width: 18%; }
+.issue-col-code { width: 13%; }
+.issue-col-designer { width: 10%; }
+.issue-col-category { width: 10%; }
+.issue-col-target { width: 11%; }
+.issue-col-status { width: 10%; }
+.issue-col-actions { width: 9%; }
+.issue-table th { padding: 10px 13px; }
+.issue-table td { padding: 12px 13px; }
+.issue-table th { white-space: normal; line-height: 1.5; vertical-align: middle; }
+.issue-table td { vertical-align: middle; white-space: normal; overflow-wrap: anywhere; }
 .issue-table .issue-project-code { color: var(--primary); font-size: 9px; font-weight: 600; }
 .issue-table .issue-target-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.issue-table .issue-status-cell, .issue-table .issue-actions-cell { text-align: center; }
+.issue-table .issue-status-cell, .issue-table .issue-actions-cell { text-align: left; }
 .issue-table .issue-status-cell .badge { display: inline-flex; margin-top: 0; }
-.issue-table .issue-actions { justify-content: center; white-space: nowrap; }
+.issue-table .issue-actions { justify-content: flex-start; flex-wrap: wrap; }
 .history-list { padding: 6px 22px 20px; }
 .history-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--border); }
 .history-item:last-child { border-bottom: 0; }
@@ -619,3 +620,29 @@ select { min-width: 130px; height: 38px; padding: 0 30px 0 11px; border: 1px sol
 .closing-confirmation { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0 10px; color: #46515d; font-size: 11px; font-weight: 400; line-height: 1.5; cursor: pointer; }
 .closing-confirmation input { flex: 0 0 auto; width: 15px; height: 15px; margin: 1px 0 0; accent-color: var(--primary); }
 .submit-sample-note { margin: 0; color: var(--text-muted); font-size: 11px; font-weight: 400; line-height: 1.5; }
+
+/* Shared column sizing for the Converting and Offset workflow queues. */
+.full-orders .workflow-queue-table { table-layout: fixed; min-width: 1000px; }
+.workflow-queue-table th, .workflow-queue-table td { padding-left: 13px; padding-right: 13px; }
+.workflow-queue-table td { white-space: normal; overflow-wrap: anywhere; vertical-align: middle; }
+
+.workflow-queue-table .table-actions { flex-wrap: wrap; }
+.workflow-queue-table .table-actions .button { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+
+/* Make locked modal fields visibly distinct from editable inputs. */
+.modal-dialog .modal-field input:disabled,
+.modal-dialog .modal-field select:disabled,
+.modal-dialog .modal-field textarea:disabled,
+.modal-dialog .modal-field input[readonly],
+.modal-dialog .modal-field textarea[readonly] {
+  color: #8a929d;
+  -webkit-text-fill-color: #8a929d;
+  background-color: #f3f4f6;
+  border-color: #e1e5e9;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.project-form-actions { flex-wrap: wrap; }
+.project-save-error { flex: 1 1 240px; margin: 0 auto 0 0; color: var(--danger); font-size: 11px; line-height: 1.5; }
+@media (max-width: 640px) { .project-save-error { flex-basis: 100%; margin-right: 0; } }

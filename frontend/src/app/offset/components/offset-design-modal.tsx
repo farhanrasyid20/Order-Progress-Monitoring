@@ -50,7 +50,7 @@ export function OffsetDesignModal({ order, onClose }: OffsetDesignModalProps) {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     saveOffsetSpk(
-      order.no,
+      order.id,
       {
         customer: order.customer,
         productName: order.product,

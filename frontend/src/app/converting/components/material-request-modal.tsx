@@ -41,11 +41,11 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
   const submitMode = useRef<"save" | "continue">("save");
   const { saveMaterialRequest } = useWorkflowOrders();
   const latest = order.materialRequests.filter((record) => record.source === order.materialRequestSource).at(-1);
-  const [miNumber, setMiNumber] = useState(
-    latest?.miNumber ?? `${offset ? "OMI" : "MI"}-${order.no.replace("#", "-")}-${order.materialRequests.length + 1}`,
+  const [miNumber] = useState(
+    latest?.miNumber ?? `${offset ? "OMI" : "MI"}-${order.no.replace("#", "-")}-${order.requirementBranch ? order.requirementBranch.toUpperCase() + "-" : ""}${order.materialRequests.length + 1}`,
   );
   const [status, setStatus] = useState<MaterialRequestStatus>(latest?.status ?? "draft");
-  const [requestedBy, setRequestedBy] = useState(latest?.requestedBy ?? (order.pic === "-" ? "" : order.pic));
+  const [requestedBy] = useState(latest?.requestedBy ?? (order.pic === "-" ? "" : order.pic));
   const [requestDate, setRequestDate] = useState(latest?.requestDate ?? "");
   const [material, setMaterial] = useState(latest?.material ?? (order.material === "-" ? "" : order.material));
   const [quantity, setQuantity] = useState(latest?.quantity ?? "");
@@ -68,7 +68,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
     event.preventDefault();
     const continueWorkflow = submitMode.current === "continue" && canContinue;
     saveMaterialRequest(
-      order.no,
+      order.id,
       {
         source: order.materialRequestSource,
         miNumber,
@@ -120,7 +120,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
             </label>
             <label className="modal-field">
               <span>MI Number</span>
-              <input value={miNumber} onChange={(event) => setMiNumber(event.target.value)} required />
+              <input value={miNumber} disabled />
             </label>
             <label className="modal-field">
               <span>MI Status</span>
@@ -137,7 +137,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
             </label>
             <label className="modal-field">
               <span>Requested By</span>
-              <input value={requestedBy} onChange={(event) => setRequestedBy(event.target.value)} required />
+              <input value={requestedBy} disabled />
             </label>
             <label className="modal-field">
               <span>Request Date</span>

@@ -1,5 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
+import { useIssues } from "@/components/issues/issue-provider";
+import { buildRecentActivity } from "@/lib/recent-activity";
 import { useRouter } from "next/navigation";
 import { DesignerWorkload } from "./designer-workload";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
@@ -58,6 +61,8 @@ export function DashboardOverview({
 }: DashboardOverviewProps) {
   const router = useRouter();
   const { orders } = useWorkflowOrders();
+  const { issues } = useIssues();
+  const recentActivity = useMemo(() => buildRecentActivity(orders, issues), [orders, issues]);
   const goToOrders = onViewOrders ?? (() => router.push("/orders"));
 
   return (
@@ -79,7 +84,7 @@ export function DashboardOverview({
 
       <div className="content-grid">
         <DesignerWorkload orders={orders} />
-        <RecentActivity />
+        <RecentActivity items={recentActivity} />
       </div>
     </>
   );

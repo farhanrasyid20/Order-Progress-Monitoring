@@ -34,7 +34,7 @@ export function OrderProductionEditModal({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    advanceOrder(order.no, {
+    advanceOrder(order.id, {
       pic,
       deadline,
       description: notes.trim() || `Order / Production: ${reference}`,

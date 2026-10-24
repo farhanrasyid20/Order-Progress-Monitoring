@@ -102,7 +102,7 @@ function LandingWorkflowCard({ column, orders }: LandingWorkflowCardProps) {
       <div className="landing-order-list">
         {orders.length ? (
           orders.map((order) => (
-            <article className="landing-order" key={order.no}>
+            <article className="landing-order" key={order.id}>
               <div className="landing-order-title">
                 <strong>{order.product}</strong>
                 <Badge tone={order.tone}>{order.status}</Badge>

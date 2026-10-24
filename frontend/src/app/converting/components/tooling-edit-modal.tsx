@@ -43,14 +43,15 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
   const submitMode = useRef<"save" | "continue">("save");
   const { saveToolingRequirement } = useWorkflowOrders();
   const latest = order.toolingOrders.at(-1);
-  const [requirementType, setRequirementType] = useState<(typeof toolingTypes)[number]>(
-    (latest?.requirementType as (typeof toolingTypes)[number]) ?? "Auto Peeling",
-  );
+  const savedRequirementType = latest?.requirementType?.trim() || "";
+  const savedRequestedBy = [latest?.requestedBy, order.pic]
+    .find(value => value?.trim() && value.trim() !== "-")?.trim() || "";
+  const [requirementType, setRequirementType] = useState(savedRequirementType || "Auto Peeling");
   const [status, setStatus] = useState<RequirementStatus>(latest?.status ?? "needed");
   const [orderDate, setOrderDate] = useState(latest?.orderDate ?? "");
   const [expectedDate, setExpectedDate] = useState(latest?.expectedDate ?? "");
   const [arrivalDate, setArrivalDate] = useState(latest?.arrivalDate ?? "");
-  const [requestedBy, setRequestedBy] = useState(latest?.requestedBy ?? (order.pic === "-" ? "" : order.pic));
+  const [requestedBy, setRequestedBy] = useState(savedRequestedBy);
   const [supplier, setSupplier] = useState(latest?.supplier ?? "");
   const [invoiceNumber, setInvoiceNumber] = useState(latest?.invoiceNumber ?? "");
   const [price, setPrice] = useState(latest?.price ?? "");
@@ -70,7 +71,7 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
     const continueWorkflow = submitMode.current === "continue";
 
     saveToolingRequirement(
-      order.no,
+      order.id,
       {
         requirementType,
         status,
@@ -125,16 +126,18 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
               <span>PSR / Code</span>
               <input value={order.no} disabled />
             </label>
-            <label className="modal-field"><span>Customer</span><input value={order.customer} readOnly /></label>
-            <label className="modal-field"><span>Product / Component</span><input value={order.product} readOnly /></label>
+            <label className="modal-field"><span>Customer</span><input value={order.customer} disabled /></label>
+            <label className="modal-field"><span>Product / Component</span><input value={order.product} disabled /></label>
             <label className="modal-field">
               <span>Tooling Type</span>
               <select
                 value={requirementType}
+                disabled={Boolean(savedRequirementType)}
                 onChange={(event) =>
-                  setRequirementType(event.target.value as (typeof toolingTypes)[number])
+                  setRequirementType(event.target.value)
                 }
               >
+                {savedRequirementType && !toolingTypes.some(type => type === savedRequirementType) ? <option value={savedRequirementType}>{savedRequirementType}</option> : null}
                 {toolingTypes.map((type) => (
                   <option key={type}>{type}</option>
                 ))}
@@ -155,7 +158,7 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
             </label>
             <label className="modal-field">
               <span>Order By / PIC</span>
-              <input value={requestedBy} onChange={(event) => setRequestedBy(event.target.value)} required />
+              <input value={requestedBy} disabled={Boolean(savedRequestedBy)} onChange={(event) => setRequestedBy(event.target.value)} required />
             </label>
             <label className="modal-field">
               <span>Order Date</span>

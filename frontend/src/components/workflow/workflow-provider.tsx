@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { matchesOrder, splitRequirementBranches } from "@/lib/requirement-branches";
 import { orders as initialOrders } from "@/data/orders";
 import { canUpdateDrawingStatus } from "@/lib/permissions";
 import { drawingStatusOptions, getDrawingStatus } from "@/lib/drawing-status";
@@ -399,7 +400,7 @@ function hasOrderValues(values: Partial<OrderFormValues>) {
 
 function appendHistory(
   order: Order,
-  entry: Pick<Order["processHistory"][number], "process" | "status" | "user" | "changeSummary" | "remark" | "stage" | "pic" | "deadline">,
+  entry: Pick<Order["processHistory"][number], "process" | "status" | "user" | "changeSummary" | "remark" | "stage" | "pic" | "deadline" | "source">,
 ): Order {
   const updatedAt = new Date().toISOString();
 
@@ -409,6 +410,7 @@ function appendHistory(
       ...order.processHistory,
       {
         ...entry,
+        source: entry.source ?? order.requirementBranch,
         date: updatedAt,
       },
     ],
@@ -709,7 +711,7 @@ function moveToStage(
  * display fields keep the existing dashboard and queue UI working unchanged.
  */
 export function WorkflowOrdersProvider({ children, currentUserRole = "design" }: { children: ReactNode; currentUserRole?: ProjectRole }) {
-  const [orders, setOrders] = useState<Order[]>(initialOrders);
+  const [orders, setOrders] = useState<Order[]>(() => initialOrders.flatMap(order => splitRequirementBranches(order, moveToStage)));
   const [storageReady, setStorageReady] = useState(false);
   const designFileUrls = useRef<string[]>([]);
 
@@ -724,7 +726,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           order && typeof order.id === "string" && typeof order.projectDate === "string" &&
           order.workflow && order.mainData && order.lineage && Array.isArray(order.processHistory),
         )) {
-          setOrders(parsed as Order[]);
+          setOrders((parsed as Order[]).flatMap(order => splitRequirementBranches(order, moveToStage)));
         }
       }
     } catch {
@@ -949,14 +951,14 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
   const completeIncomingPreparation = useCallback(
     (orderNo: string, values: PreparationWorkflowUpdate) => {
       setOrders((currentOrders) =>
-        currentOrders.map((order) => {
-          if (order.no !== orderNo) return order;
+        currentOrders.flatMap((order): Order[] => {
+          if (!matchesOrder(order, orderNo)) return [order];
           if (
             order.stage !== "order" ||
             order.workflow.currentStatus === "cancelled" ||
             !isCompleteIncomingPreparation(values)
           ) {
-            return order;
+            return [order];
           }
 
           const isCombined = values.route === "by_production" && values.productionOrder === "tooling_and_rubber";
@@ -1007,11 +1009,10 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               !isRubberOrder,
           });
 
-          return isToolingOrder
+          const result = isToolingOrder
             ? withToolingDetailsStatus(moved)
-            : isRubberOrder
-              ? withRequirementDetailsStatus(moved, "rubber")
-              : moved;
+            : isRubberOrder ? withRequirementDetailsStatus(moved, "rubber") : moved;
+          return splitRequirementBranches(result, moveToStage);
 
         }),
       );
@@ -1028,7 +1029,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
           if (
-            order.no !== orderNo ||
+            !matchesOrder(order, orderNo) ||
             order.stage !== "design-progress" ||
             order.workflow.currentStatus === "cancelled"
           ) {
@@ -1050,7 +1051,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
           if (
-            order.no !== orderNo ||
+            !matchesOrder(order, orderNo) ||
             order.stage !== "review-approval" ||
             order.workflow.currentStatus === "cancelled" ||
             !order.workflow.drawingLink
@@ -1079,7 +1080,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     setOrders((currentOrders) =>
       currentOrders.map((order) => {
         if (
-          order.no !== orderNo ||
+          !matchesOrder(order, orderNo) ||
           order.workflow.currentStatus === "cancelled"
         ) {
           return order;
@@ -1120,7 +1121,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     const fileUrl = values.designFile ? URL.createObjectURL(values.designFile) : null;
     if (fileUrl) designFileUrls.current.push(fileUrl);
     setOrders((currentOrders) => currentOrders.map((order) => {
-      if (order.no !== orderNo || order.workflow.currentStatus === "cancelled") return order;
+      if (!matchesOrder(order, orderNo) || order.workflow.currentStatus === "cancelled") return order;
       return appendHistory({
         ...order,
         mainData: { ...values.mainData },
@@ -1153,7 +1154,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     (orderNo: string, values: Partial<OrderFormValues>) => {
       setOrders((currentOrders) =>
         currentOrders.map((order) =>
-          order.no === orderNo && order.workflow.currentStatus !== "cancelled"
+          matchesOrder(order, orderNo) && order.workflow.currentStatus !== "cancelled"
             ? appendHistory(applyOrderValues(order, values), {
               process: "project_updated",
               status: "updated",
@@ -1177,7 +1178,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
           if (
-            order.no !== orderNo ||
+            !matchesOrder(order, orderNo) ||
             !isInRequirementQueue(order, "tooling") ||
             order.workflow.currentStatus === "cancelled"
           ) {
@@ -1226,7 +1227,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
           if (
-            order.no !== orderNo ||
+            !matchesOrder(order, orderNo) ||
             !isInRequirementQueue(order, "rubber") ||
             order.workflow.currentStatus === "cancelled"
           ) {
@@ -1275,8 +1276,9 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               ? Boolean(values.source && materialRequestQueueEntries(order).some((entry) => entry.materialRequestSource === values.source))
               : order.stage === "material-request" || order.stage === "offset-material-request";
           if (
-            order.no !== orderNo ||
+            !matchesOrder(order, orderNo) ||
             !isMaterialQueue ||
+            Boolean(order.requirementBranch && values.source !== order.requirementBranch) ||
             order.workflow.currentStatus === "cancelled"
           ) {
             return order;
@@ -1299,6 +1301,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               },
             },
             {
+              source: values.source,
               process: "material_request",
               status: values.status,
               user: prototypeActor,
@@ -1332,7 +1335,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
           if (
-            order.no !== orderNo ||
+            !matchesOrder(order, orderNo) ||
             order.workflow.preparationType !== "offset" ||
             order.workflow.currentStatus === "cancelled"
           ) {
@@ -1370,9 +1373,9 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
 
   const completeSampleDecision = useCallback((orderNo: string, decision: "approve" | "revision" | "cancel", pic: string, notes: string) => {
     setOrders((current) => current.map((order) => {
-      if (order.no !== orderNo || order.stage !== "sample-completed" || order.workflow.currentStatus === "cancelled") return order;
+      if (!matchesOrder(order, orderNo) || order.stage !== "sample-completed" || order.workflow.currentStatus === "cancelled") return order;
       const updated = appendHistory({ ...order, pic }, {
-        process: "sample_decision", status: decision, user: prototypeActor,
+        process: "sample_decision", pic, status: decision, user: prototypeActor,
         changeSummary: "Sample decision: " + decision, remark: notes.trim(),
       });
       if (decision === "cancel") {
@@ -1388,7 +1391,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     const parsed = new Date(submittedDate + "T00:00:00Z");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(submittedDate) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== submittedDate) return;
     setOrders((current) => current.map((order) => {
-      if (order.no !== orderNo || order.stage !== "submit-sample" || order.workflow.currentStatus === "cancelled") return order;
+      if (!matchesOrder(order, orderNo) || order.stage !== "submit-sample" || order.workflow.currentStatus === "cancelled") return order;
       return moveToStage(appendHistory({
         ...order,
         sampleSubmissions: [...(order.sampleSubmissions ?? []), { submittedDate, recordedAt: new Date().toISOString() }],
@@ -1404,7 +1407,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     (orderNo: string, values: Partial<OrderFormValues> = {}, sample?: SampleProgressValues) => {
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
-          if (order.no !== orderNo || order.workflow.currentStatus === "cancelled") {
+          if (!matchesOrder(order, orderNo) || order.workflow.currentStatus === "cancelled") {
             return order;
           }
 
@@ -1416,7 +1419,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               deadline: values.deadline || order.deadline,
               status: "updated",
               user: prototypeActor,
-              changeSummary: "Task handoff details updated.",
+              changeSummary: order.stage === "offset-prepress" ? "Move to Material Request / MI." : "Task handoff details updated.",
               remark: values.description?.trim() ?? "",
             })
             : applyOrderValues(order, values);
@@ -1451,7 +1454,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     ) => {
       setOrders((currentOrders) =>
         currentOrders.map((order) =>
-          order.no === orderNo && order.workflow.currentStatus !== "cancelled"
+          matchesOrder(order, orderNo) && order.workflow.currentStatus !== "cancelled"
             ? moveToStage(
               hasOrderValues(values)
                 ? appendHistory(applyOrderValues(order, values), {

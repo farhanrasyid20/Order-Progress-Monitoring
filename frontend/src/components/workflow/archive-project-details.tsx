@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Order, ProjectFormDraft } from "@/types/order";
-import { projectFormConfig, getProjectFieldValue, isFieldVisible } from "@/app/orders/components/project-form-config";
+import { getProjectFormConfig, getProjectFieldValue, isFieldVisible } from "@/app/orders/components/project-form-config";
 import { DetailGrid, RequirementDetails } from "./requirement-details";
 import { ProjectInformation } from "./project-information";
 import { MaterialRequestDetails, MaterialRequestRecordDetails } from "./material-request-details";
@@ -63,25 +63,25 @@ export function ArchiveProjectDetails({ order, offsetOnly = false }: { order: Or
         ["Version", String(order.lineage.versionNumber)], ["Created At", order.createdAt],
         ["Description", order.description], ["Material", order.material], ["Priority", order.priority],
       ]} />
-      {projectFormConfig.map((section) => <section key={section.id} className="project-form-section">
+      {getProjectFormConfig(draft).map((section) => <section key={section.id} className="project-form-section">
         <h3>{section.title}</h3>
         <DetailGrid fields={section.fields.filter((field) => isFieldVisible(field, draft) && field.key !== "drawingLink").map((field) => {
           const value = getProjectFieldValue(draft, field);
-          return [field.label, field.options?.find((option) => option.value === value)?.label ?? value];
+          return [field.label, value.trim() ? field.options?.find((option) => option.value === value)?.label ?? value : "-"];
         })} />
       </section>)}
     </Section> : null}
     {!offsetOnly ? <Section title="Drawing & Preparation">
       <DetailGrid fields={[
         ["Drawing Status", order.workflow.drawingStatus], ["Design Decision", order.workflow.designDecision],
-        ["Preparation Type", order.workflow.preparationType], ["Converting Route", order.workflow.convertingRoute],
+        ["Preparation Type", order.workflow.preparationType], ...(order.workflow.preparationType === "offset" ? [] : [["Converting Route", order.workflow.convertingRoute] as [string, string | null | undefined]]),
         ["Production Order", order.workflow.productionOrder], ["Material Requested", order.workflow.materialRequested ? "Yes" : "No"],
         ["Drawing File", order.workflow.drawingFileName],
       ]} />
       {order.workflow.drawingLink ? <a className="drawing-link" href={order.workflow.drawingLink} target="_blank" rel="noopener noreferrer">Open Drawing</a> : <p>No drawing recorded.</p>}
     </Section> : null}
-    {!offsetOnly ? <RequirementDetails order={order} kind="tooling" showProject={false} /> : null}
-    {!offsetOnly ? <RequirementDetails order={order} kind="rubber" showProject={false} /> : null}
+    {!offsetOnly && order.requirementBranch !== "rubber" ? <RequirementDetails order={order} kind="tooling" showProject={false} /> : null}
+    {!offsetOnly && order.requirementBranch !== "tooling" ? <RequirementDetails order={order} kind="rubber" showProject={false} /> : null}
     {!hidePreparationInputs ? <Section title={latestMaterialOnly ? "Material Request / MI Details - Latest Input" : "Material Request / MI - All Inputs"}>
       {latestMaterialOnly ? latestMaterial
         ? <MaterialRequestRecordDetails record={latestMaterial} />

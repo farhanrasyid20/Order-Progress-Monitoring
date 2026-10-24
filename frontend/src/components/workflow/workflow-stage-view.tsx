@@ -74,6 +74,11 @@ export function WorkflowStageView({
       <OrderCard title={queueTitle} subtitle={queueCopy}>
         <OrderTable
           orders={pagination.pageItems}
+          queueLayout={[
+            "tooling-progress", "rubber-order-setting", "material-request", "sample-progress",
+            "offset-prepress", "offset-material-request", "offset-plate", "offset-varnish", "offset-press",
+            "quality-control", "fa-report", "submit-sample", "sample-completed",
+          ].includes(stage)}
           requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined}
           onViewOrder={setHistoryOrder}
           onEditOrder={setEditingOrder}

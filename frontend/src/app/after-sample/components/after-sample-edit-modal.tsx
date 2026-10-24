@@ -18,7 +18,7 @@ export function AfterSampleEditModal({
 }: AfterSampleEditModalProps) {
   const titleId = useId();
   const { completeSampleDecision } = useWorkflowOrders();
-  const [pic, setPic] = useState(order.pic);
+  const [pic] = useState(order.pic);
   const [decision, setDecision] = useState("Sample Approve / Continue to Production");
   const [notes, setNotes] = useState("");
 
@@ -33,7 +33,7 @@ export function AfterSampleEditModal({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    completeSampleDecision(order.no, decision === "Sample Approve / Continue to Production" ? "approve" : decision === "Revision / Return to Design" ? "revision" : "cancel", pic, notes);
+    completeSampleDecision(order.id, decision === "Sample Approve / Continue to Production" ? "approve" : decision === "Revision / Return to Design" ? "revision" : "cancel", pic, notes);
     onClose();
   };
 
@@ -71,7 +71,7 @@ export function AfterSampleEditModal({
           <div className="modal-form-grid">
             <label className="modal-field">
               <span>PIC</span>
-              <input value={pic} onChange={(event) => setPic(event.target.value)} required />
+              <input value={pic} disabled />
             </label>
             <label className="modal-field">
               <span>Decision</span>

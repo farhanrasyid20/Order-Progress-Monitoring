@@ -15,9 +15,9 @@ export type SampleEditModalProps = {
 export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
   const titleId = useId();
   const { advanceOrder } = useWorkflowOrders();
-  const [pic, setPic] = useState(order.pic);
-  const [deadline, setDeadline] = useState(order.deadline);
-  const [sampleNumber, setSampleNumber] = useState(order.sampleProgress?.at(-1)?.sampleNumber ?? `${order.no}-SMP`);
+  const [pic] = useState(order.pic);
+  const [deadline] = useState(order.deadline);
+  const [sampleNumber] = useState(order.sampleProgress?.at(-1)?.sampleNumber ?? `${order.no}${order.requirementBranch ? "-" + order.requirementBranch.toUpperCase() : ""}-SMP`);
   const [notes, setNotes] = useState(order.sampleProgress?.at(-1)?.notes ?? "");
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    advanceOrder(order.no, { pic, deadline }, { pic, deadline, sampleNumber, notes });
+    advanceOrder(order.id, { pic, deadline }, { pic, deadline, sampleNumber, notes });
     onClose();
   };
 
@@ -69,23 +69,20 @@ export function SampleEditModal({ order, onClose }: SampleEditModalProps) {
           <div className="modal-form-grid">
             <label className="modal-field">
               <span>Sample PIC</span>
-              <input value={pic} onChange={(event) => setPic(event.target.value)} required />
+              <input value={pic} disabled />
             </label>
             <label className="modal-field">
               <span>Target Completion Date</span>
               <input
                 value={deadline}
-                onChange={(event) => setDeadline(event.target.value)}
-                required
+                disabled
               />
             </label>
             <label className="modal-field modal-field-full">
               <span>Sample Number</span>
               <input
                 value={sampleNumber}
-                onChange={(event) => setSampleNumber(event.target.value)}
-                placeholder="Sample ID or revision number"
-                required
+                disabled
               />
             </label>
             <label className="modal-field modal-field-full">

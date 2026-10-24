@@ -30,8 +30,8 @@ export function HandoffModal({
 }: HandoffModalProps) {
   const titleId = useId();
   const { advanceOrder } = useWorkflowOrders();
-  const [pic, setPic] = useState(order.pic === "-" ? "" : order.pic);
-  const [reference, setReference] = useState(`${order.no}-${referencePrefix}`);
+  const [pic] = useState(order.pic === "-" ? "" : order.pic);
+  const [reference] = useState(`${order.no}-${referencePrefix}`);
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function HandoffModal({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    advanceOrder(order.no, {
+    advanceOrder(order.id, {
       pic,
       description: `${title}: ${reference}${notes.trim() ? ` - ${notes.trim()}` : ""}`,
     });
@@ -81,11 +81,11 @@ export function HandoffModal({
           <div className="modal-form-grid">
             <label className="modal-field">
               <span>PIC</span>
-              <input value={pic} onChange={(event) => setPic(event.target.value)} required />
+              <input value={pic} disabled />
             </label>
             <label className="modal-field">
               <span>{referenceLabel}</span>
-              <input value={reference} onChange={(event) => setReference(event.target.value)} required />
+              <input value={reference} disabled />
             </label>
             <label className="modal-field modal-field-full">
               <span>{language === "en" ? "Notes" : "Catatan"}</span>

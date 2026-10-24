@@ -22,6 +22,7 @@ export function IssueFormModal({ editing, projectId, onClose, onSaved }: IssueFo
   const selectedOrder = orders.find((order) => order.id === form.incomingDesignId);
   const projectOptions = selectedOrder && !isActiveProject(selectedOrder) && editing ? [...activeOrders, selectedOrder] : activeOrders;
   const projectInfo = selectedOrder ? issueProjectInfo(selectedOrder) : form;
+  const preparedBy = selectedOrder ? (selectedOrder.pic === "-" ? "" : selectedOrder.pic) : form.preparedBy;
   const isLegacyIssue = Boolean(editing && !editing.incomingDesignId && !form.incomingDesignId);
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export function IssueFormModal({ editing, projectId, onClose, onSaved }: IssueFo
   };
   const handleSave = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = saveIssue(form, editing?.id);
+    const result = saveIssue({ ...form, preparedBy }, editing?.id);
     if (result) { setError(result); return; }
     onSaved?.();
     onClose();
@@ -55,7 +56,7 @@ export function IssueFormModal({ editing, projectId, onClose, onSaved }: IssueFo
             <form className="modal-form" onSubmit={handleSave}>
               <div className="modal-form-grid">
                 <label className="modal-field modal-field-full"><span>Incoming Design *</span>
-                  <select value={form.incomingDesignId ?? ""} disabled={Boolean(projectId)} required={!editing || Boolean(editing.incomingDesignId)} onChange={(event) => selectProject(event.target.value)}>
+                  <select value={form.incomingDesignId ?? ""} disabled={Boolean(projectId || editing)} required={!editing || Boolean(editing.incomingDesignId)} onChange={(event) => selectProject(event.target.value)}>
                     <option value="">{editing && !editing.incomingDesignId ? "Legacy issue without a project reference" : "Select Incoming Design..."}</option>
                     {projectOptions.map((order) => <option key={order.id} value={order.id}>{order.no} — {order.customer} — {order.product}</option>)}
                   </select>
@@ -68,8 +69,12 @@ export function IssueFormModal({ editing, projectId, onClose, onSaved }: IssueFo
                 <label className="modal-field"><span>Date Found</span><input type="date" value={form.dateFound} onChange={(event) => updateForm("dateFound", event.target.value)} required /></label>
                 <label className="modal-field modal-field-full"><span>Description of Error</span><textarea value={form.errorDescription} onChange={(event) => updateForm("errorDescription", event.target.value)} rows={2} required /></label>
                 <label className="modal-field"><span>Type of Error</span><select value={form.category} onChange={(event) => updateForm("category", event.target.value)}>{categories.map((category) => <option key={category}>{category}</option>)}</select></label>
-                <label className="modal-field"><span>Prepared By</span><input value={form.preparedBy} onChange={(event) => updateForm("preparedBy", event.target.value)} required /></label>
-                <label className="modal-field"><span>Found By</span><input value={form.foundBy} onChange={(event) => updateForm("foundBy", event.target.value)} required /></label>
+                <label className="modal-field"><span>Prepared By</span><input value={preparedBy} readOnly={Boolean(selectedOrder)} onChange={(event) => updateForm("preparedBy", event.target.value)} required /></label>
+                <label className="modal-field"><span>Found By</span><select value={form.foundBy} onChange={(event) => updateForm("foundBy", event.target.value)} required>
+                  <option value="">Select user...</option>
+                  {form.foundBy && !["Ihsan", "Aldo", "Dimas"].includes(form.foundBy) ? <option value={form.foundBy}>{form.foundBy}</option> : null}
+                  {["Ihsan", "Aldo", "Dimas"].map(name => <option key={name} value={name}>{name}</option>)}
+                </select></label>
                 <label className="modal-field"><span>Target Date</span><input type="date" value={form.targetDate} onChange={(event) => updateForm("targetDate", event.target.value)} /></label>
                 <label className="modal-field"><span>Status</span><select value={form.status} onChange={(event) => updateForm("status", event.target.value as IssueStatus)}><option>Open</option><option>Closed</option></select></label>
                 <label className="modal-field"><span>Date Closed</span><input type="date" value={form.dateClosed} onChange={(event) => updateForm("dateClosed", event.target.value)} disabled={form.status !== "Closed"} /></label>

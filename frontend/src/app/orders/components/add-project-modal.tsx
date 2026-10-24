@@ -16,7 +16,7 @@ import {
   getProjectFieldValue,
   isFieldRequired,
   isFieldVisible,
-  projectFormConfig,
+  getProjectFormConfig,
   type ProjectFormField,
   type ProjectFormFieldKey,
 } from "./project-form-config";
@@ -40,7 +40,7 @@ function isHttpLink(value: string) {
 }
 
 function validateDraft(draft: ProjectFormDraft): ProjectFormErrors {
-  return projectFormConfig.reduce<ProjectFormErrors>((errors, section) => {
+  return getProjectFormConfig(draft).reduce<ProjectFormErrors>((errors, section) => {
     section.fields.forEach((field) => {
       if (!isFieldVisible(field, draft)) {
         return;
@@ -89,6 +89,8 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
   const [errors, setErrors] = useState<ProjectFormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
   const [designFile, setDesignFile] = useState<File | null>(null);
+  const invalidFields = getProjectFormConfig(draft).flatMap(section => section.fields)
+    .filter(field => isFieldVisible(field, draft) && errors[field.key]);
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -181,12 +183,12 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
     }, 300);
   };
 
-  const renderField = (field: ProjectFormField) => {
+  const renderField = (field: ProjectFormField, sectionId: string) => {
     if (!isFieldVisible(field, draft)) {
       return null;
     }
 
-    const fieldId = `${titleId}-${field.key}`;
+    const fieldId = `${titleId}-${sectionId}-${field.key}`;
     const error = errors[field.key];
     const required = isFieldRequired(field, draft);
     const sharedProps = {
@@ -221,14 +223,14 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
             />
             <span className="project-file-button" aria-hidden="true">
               <Icon name="file" size={15} />
-              Pilih file
+              Select file
             </span>
             <span
               className={`project-file-name${designFile ? " is-selected" : ""}`}
               title={designFile?.name}
               aria-hidden="true"
             >
-              {designFile?.name ?? order?.workflow.drawingFileName ?? (order?.workflow.drawingLink ? "File desain saat ini (pilih untuk mengganti)" : "Belum ada file dipilih")}
+              {designFile?.name ?? order?.workflow.drawingFileName ?? (order?.workflow.drawingLink ? "Current design file (select to replace)" : "No file selected")}
             </span>
           </span>
         ) : field.type === "select" ? (
@@ -287,7 +289,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
 
         <div className="project-form-scroll">
           <form className="modal-form project-form" onSubmit={handleSubmit} noValidate>
-            {projectFormConfig.map((section) => (
+            {getProjectFormConfig(draft).map((section) => (
               <section className="project-form-section" key={section.id}>
                 <div className="project-form-section-heading">
                   <h3>{section.title}</h3>
@@ -300,12 +302,15 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
                       <input type="text" value={order?.no ?? nextProjectCode} readOnly />
                     </label>
                   ) : null}
-                  {section.fields.map(renderField)}
+                  {section.fields.map((field) => renderField(field, section.id))}
                 </div>
               </section>
             ))}
 
             <footer className="modal-actions project-form-actions">
+              {invalidFields.length ? <p className="project-save-error" role="alert">
+                Please complete or check: {invalidFields.map(field => field.label).join(", ")}.
+              </p> : null}
               <Button type="button" variant="secondary" onClick={onClose} disabled={isSaving}>
                 Cancel
               </Button>

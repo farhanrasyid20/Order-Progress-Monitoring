@@ -2,10 +2,12 @@ import type {
   ProjectFormDraft,
   ProjectMainData,
   ProjectMainDataKey,
+  OffsetProjectDataKey,
 } from "@/types/order";
 
 export type ProjectFormFieldKey =
   | ProjectMainDataKey
+  | OffsetProjectDataKey
   | "entryType"
   | "previousProjectCode"
   | "preparationType"
@@ -292,6 +294,46 @@ export function getProjectFieldValue(
   field: ProjectFormField,
 ) {
   return field.source === "mainData"
-    ? draft.mainData[field.key as ProjectMainDataKey]
+    ? (draft.mainData[field.key as ProjectMainDataKey | OffsetProjectDataKey] ?? "")
     : draft[field.key as keyof Omit<ProjectFormDraft, "mainData">];
+}
+
+const offsetSelect = (key: ProjectFormFieldKey, label: string, values: readonly string[]): ProjectFormField => ({
+  key, source: "mainData", label, type: "select",
+  options: [{ label: "Select...", value: "" }, ...values.map(value => ({ label: value, value }))],
+});
+
+/** Offset specifications follow the client workbook; assignment and notes stay shared. */
+export function getProjectFormConfig(draft: ProjectFormDraft): readonly ProjectFormSection[] {
+  if (draft.preparationType !== "offset") return projectFormConfig;
+  const section = (id: string) => projectFormConfig.find(section => section.id === id)!;
+  return [
+    section("process-route"),
+    { id: "project-information", title: "Project Information", fields: [
+      { key: "mcNo", source: "mainData", label: "MC No. / Code", type: "text" },
+      { key: "custName", source: "mainData", label: "Customer Name", placeholder: "Enter customer name", type: "text", required: true },
+      offsetSelect("boardQua", "Material", ["Woodfree", "Art Paper", "Art Cartoon", "Ivory", "Duplex", "Aceboard", "Kraft", "Tesliner"]),
+      { key: "fgQuantity", source: "mainData", label: "FG Qty (SHT)", type: "text" },
+      { key: "imposition", source: "mainData", label: "Imposition / UP", type: "text" },
+      offsetSelect("grammage", "Gramatur", [60,70,80,100,120,150,175,210,230,260,300,310,400].map(value => value + " gsm")),
+      offsetSelect("printingSide", "Printing Side", ["1 side", "2 side"]),
+      offsetSelect("printingMachine", "Machine", ["CD102", "SM102", "Sumitomo", "GTO54", "SC900", "SG1115"]),
+    ] },
+    { id: "dimensions", title: "Dimensions", fields: section("dimensions").fields.filter(field => ["width", "length", "weight"].includes(field.key)) },
+    { ...section("printing-colour"), fields: section("printing-colour").fields.map((field, index) => ({
+      ...field,
+      label: index === 0 ? "Printing" : "Colours " + index,
+      ...(index === 0 ? { placeholder: "Number of colours, Pantone colours, special colours" } : {}),
+    })) },
+    { id: "coatings", title: "Coatings", fields: [
+      offsetSelect("varnish", "Varnish", ["WB Block Varnish", "WB Spot Varnish", "OPV Block Varnish", "OPV Spot Varnish"]),
+      offsetSelect("lamination", "Lamination", ["Glossy", "Matte"]),
+      offsetSelect("coatingSide", "Coating Side", ["1 side", "2 side"]),
+    ] },
+    { id: "special-effect", title: "Special Effect", fields: [
+      offsetSelect("specialEffect", "Special Effect", ["Emboss", "Deboss", "Hotprint Gold/Silver", "Spot UV"]),
+    ] },
+    section("assignment-target"),
+    section("notes"),
+  ];
 }

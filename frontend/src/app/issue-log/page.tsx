@@ -7,6 +7,7 @@ import { Icon } from "@/components/ui/icon";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useTablePagination } from "@/components/ui/use-table-pagination";
 
+import { IssueDetailModal } from "@/components/issues/issue-detail-modal";
 import { IssueFormModal } from "@/components/issues/issue-form-modal";
 import { useIssues } from "@/components/issues/issue-provider";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
@@ -39,7 +40,7 @@ export default function IssueLogPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [editing, setEditing] = useState<IssueRecord | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [showHistory, setShowHistory] = useState<IssueRecord | null>(null);
+  const [detailIssue, setDetailIssue] = useState<IssueRecord | null>(null);
 
   const filteredIssues = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -128,44 +129,47 @@ export default function IssueLogPage() {
         <div className="table-wrap issue-table-wrap">
           <table className="issue-table">
             <colgroup>
-              <col className="issue-col-source" />
+              <col className="issue-col-actions" />
+              <col className="issue-col-status" />
               <col className="issue-col-code" />
+              <col className="issue-col-source" />
               <col className="issue-col-error" />
+              <col className="issue-col-designer" />
               <col className="issue-col-category" />
               <col className="issue-col-target" />
-              <col className="issue-col-status" />
-              <col className="issue-col-actions" />
             </colgroup>
             <thead>
               <tr>
-                <th scope="col">Source / Customer</th>
-                <th scope="col">Part Code</th>
-                <th scope="col">Error</th>
-                <th scope="col">Category</th>
-                <th scope="col">Target Date</th>
-                <th scope="col" className="issue-status-cell">Status</th>
                 <th scope="col" className="issue-actions-cell">Action</th>
+                <th scope="col" className="issue-status-cell">Status</th>
+                <th scope="col">PSR / Code</th>
+                <th scope="col">Customer &amp; Product</th>
+                <th scope="col">Error</th>
+                <th scope="col">Designer</th>
+                <th scope="col">Category</th>
+                <th scope="col">Deadline for Revision</th>
               </tr>
             </thead>
             <tbody>
               {pagination.pageItems.map((issue) => (
                 <tr key={issue.id}>
-                  <td className="issue-source-cell">
-                    <strong>{issue.source}</strong>
-                    <span>{issue.productDescription || "-"}</span>
-                    {issue.projectCode ? <span className="issue-project-code">{issue.projectCode}</span> : null}
-                  </td>
-                  <td>{issue.partCode || "-"}</td>
-                  <td className="issue-error-cell">{issue.errorDescription}</td>
-                  <td className="issue-category-cell">{issue.category}</td>
-                  <td className="issue-target-cell">{toDateLabel(issue.targetDate)}</td>
-                  <td className="issue-status-cell"><Badge tone={issue.status === "Open" ? "warning" : "success"}>{issue.status}</Badge></td>
                   <td className="issue-actions-cell">
                     <div className="table-actions issue-actions">
-                      <button type="button" className="table-action" aria-label={`View history for issue ${issue.id}`} onClick={() => setShowHistory(issue)}><Icon name="clock" size={16} /></button>
+                      <button type="button" className="table-action" aria-label={`View details and history for issue ${issue.id}`} title="View details" onClick={() => setDetailIssue(issue)}><Icon name="eye" size={16} /></button>
                       <button type="button" className="table-action" aria-label={`Edit issue ${issue.id}`} onClick={() => openEdit(issue)}><Icon name="pen" size={16} /></button>
                     </div>
                   </td>
+                  <td className="issue-status-cell"><Badge tone={issue.status === "Open" ? "warning" : "success"}>{issue.status}</Badge></td>
+                  <td>{issue.projectCode || issue.partCode || "-"}</td>
+                  <td className="issue-source-cell">
+                    <strong>{issue.source}</strong>
+                    <span>{issue.productDescription || "-"}</span>
+
+                  </td>
+                  <td className="issue-error-cell">{issue.errorDescription || "-"}</td>
+                  <td>{orders.find(order => order.id === issue.incomingDesignId)?.pic || issue.preparedBy || "-"}</td>
+                  <td className="issue-category-cell">{issue.category}</td>
+                  <td className="issue-target-cell">{toDateLabel(issue.targetDate)}</td>
                 </tr>
               ))}
             </tbody>
@@ -187,16 +191,7 @@ export default function IssueLogPage() {
       {isFormOpen ? <IssueFormModal editing={editing} onClose={() => { setEditing(null); setIsFormOpen(false); }} onSaved={() => { pagination.resetPage(); setToastMessage("Issue saved successfully."); }} /> : null}
       {toastMessage ? <div className="toast-message" role="status">{toastMessage}</div> : null}
 
-      {showHistory ? (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowHistory(null); }}>
-          <section className="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="issue-history-title">
-            <header className="modal-header"><div><h2 id="issue-history-title">Issue History #{showHistory.id}</h2><p>{showHistory.errorDescription}</p></div><button type="button" className="modal-close" aria-label="Close issue history" onClick={() => setShowHistory(null)} autoFocus><Icon name="close" size={18} /></button></header>
-            <div className="history-list">
-              {[...showHistory.history].reverse().map((history, index) => <article className="history-item" key={`${history.date}-${index}`}><div><strong>{history.summary}</strong><span>{history.user}</span></div><time>{new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(history.date))}</time></article>)}
-            </div>
-          </section>
-        </div>
-      ) : null}
+      {detailIssue ? <IssueDetailModal issue={detailIssue} onClose={() => setDetailIssue(null)} /> : null}
     </>
   );
 }

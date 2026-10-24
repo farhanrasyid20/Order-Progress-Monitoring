@@ -2,10 +2,10 @@ import type { Order } from "@/types/order";
 import { MaterialRequestDetails } from "./material-request-details";
 import { DetailGrid } from "./requirement-details";
 
-export function SampleProgressDetails({ order }: { order: Order }) {
+export function SampleProgressDetails({ order, fullProjectInformation = false }: { order: Order; fullProjectInformation?: boolean }) {
   const latest = order.sampleProgress?.at(-1);
   return <>
-    <MaterialRequestDetails order={order} allSources />
+    <MaterialRequestDetails order={order} allSources={!order.requirementBranch} fullProjectInformation={fullProjectInformation} />
     <section className="requirement-detail-section" aria-label="Sample progress input details">
       <h3>Sample Progress Details - Latest Input</h3>
       {latest ? <DetailGrid fields={[

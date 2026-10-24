@@ -97,10 +97,10 @@ export function OrdersView({
 
   const pagination = useTablePagination(filteredOrders);
   const updatedHistoryOrder = pendingHistoryOrderNo
-    ? orders.find((order) => order.no === pendingHistoryOrderNo) ?? null
+    ? orders.find((order) => order.id === pendingHistoryOrderNo) ?? null
     : null;
   const visibleDetailOrder = detailOrder
-    ? orders.find((order) => order.no === detailOrder.no) ?? null
+    ? orders.find((order) => order.id === detailOrder.id) ?? null
     : updatedHistoryOrder;
 
   const resetPage = pagination.resetPage;
@@ -200,10 +200,10 @@ export function OrdersView({
             setCancellingOrder(null);
           }}
           onConfirm={(reason) => {
-            cancelIncomingProject(cancellingOrder.no, reason);
+            cancelIncomingProject(cancellingOrder.id, reason);
             setCancellingOrder(null);
             resetPage();
-            setPendingHistoryOrderNo(cancellingOrder.no);
+            setPendingHistoryOrderNo(cancellingOrder.id);
             setToastMessage(`Project ${cancellingOrder.no} was cancelled.`);
             window.setTimeout(() => setToastMessage(""), 3200);
           }}
@@ -238,7 +238,7 @@ export function OrdersView({
                       : "Incoming Design (Drawing)";
 
             setToastMessage(
-              `Preparation for ${orderNo} was updated and moved to ${destination}.`,
+              `Preparation for ${visibleDetailOrder.no} was updated and moved to ${destination}.`,
             );
 
             window.setTimeout(() => setToastMessage(""), 3200);

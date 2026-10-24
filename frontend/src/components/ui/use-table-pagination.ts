@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export const DEFAULT_TABLE_PAGE_SIZE = 5;
+export const DEFAULT_TABLE_PAGE_SIZE = 7;
 
 /** Keeps page bounds and slicing consistent across client-side data tables. */
 export function useTablePagination<Item>(

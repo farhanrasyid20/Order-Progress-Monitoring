@@ -16,7 +16,7 @@ export function MaterialRequestRecordDetails({ record }: { record: MaterialReque
   ]} />;
 }
 
-export function MaterialRequestDetails({ order, allSources = false }: { order: Order; allSources?: boolean }) {
+export function MaterialRequestDetails({ order, allSources = false, fullProjectInformation = false }: { order: Order; allSources?: boolean; fullProjectInformation?: boolean }) {
   const source = order.materialRequestSource;
   const requirementKind = source ?? (order.workflow.productionOrder === "tooling" || order.workflow.productionOrder === "rubber"
     ? order.workflow.productionOrder : undefined);
@@ -32,7 +32,7 @@ export function MaterialRequestDetails({ order, allSources = false }: { order: O
     : records.slice(-1);
 
   return <>
-    <ProjectInformation order={order} />
+    <ProjectInformation order={order} full={fullProjectInformation} />
     {requirementKinds.map((kind) => <RequirementDetails key={kind} order={order} kind={kind} showProject={false} showPrevious={false} />)}
     <section className="requirement-detail-section" aria-label="Material request input details">
       <h3>Material Request / MI Details - Latest Input</h3>

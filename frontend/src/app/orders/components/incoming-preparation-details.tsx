@@ -105,7 +105,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
   };
 
   const handleUpdate = (order: Order, draft: PreparationDraft) => {
-    onUpdatePreparation(order.no, draft);
+    onUpdatePreparation(order.id, draft);
 
     setDrafts((current) => {
       const nextDrafts = { ...current };
@@ -137,19 +137,9 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
       <div className="modal-field"><span>Preparation</span>
         <select
           className="preparation-select"
-          value={draft.route}
-          aria-label={`Select preparation route for ${order.no}`}
-          disabled={isCancelled || !isPreparation}
-          onChange={(event) =>
-            updateDraft(order, {
-              route: event.target.value as PreparationRoute,
-              productionOrder: null,
-              materialRequested: false,
-              toolingRequirement: undefined,
-              rubberRequirement: undefined,
-              remark: "",
-            })
-          }
+          value={draftFromOrder(order).route}
+          aria-label={`Preparation route for ${order.no}`}
+          disabled
         >
           {routeOptions.map((option) => (
             <option key={option.value} value={option.value}>

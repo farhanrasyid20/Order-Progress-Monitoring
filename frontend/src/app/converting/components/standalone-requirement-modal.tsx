@@ -242,6 +242,7 @@ export function StandaloneRequirementModal({
               <span>Order By / PIC</span>
               <input
                 value={requestedBy}
+                disabled={combined}
                 onChange={(event) => setRequestedBy(event.target.value)}
                 required
               />

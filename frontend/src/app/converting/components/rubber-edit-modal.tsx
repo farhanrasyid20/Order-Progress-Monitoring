@@ -40,14 +40,15 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
   const submitMode = useRef<"save" | "continue">("save");
   const { saveRubberRequirement } = useWorkflowOrders();
   const latest = order.rubberOrders.at(-1);
-  const [requirementType, setRequirementType] = useState<(typeof rubberTypes)[number]>(
-    (latest?.requirementType as (typeof rubberTypes)[number]) ?? "Rubber 4MM",
-  );
+  const savedRequirementType = latest?.requirementType?.trim() || "";
+  const savedRequestedBy = [latest?.requestedBy, order.pic]
+    .find(value => value?.trim() && value.trim() !== "-")?.trim() || "";
+  const [requirementType, setRequirementType] = useState(savedRequirementType || "Rubber 4MM");
   const [status, setStatus] = useState<RequirementStatus>(latest?.status ?? "needed");
   const [orderDate, setOrderDate] = useState(latest?.orderDate ?? "");
   const [expectedDate, setExpectedDate] = useState(latest?.expectedDate ?? "");
   const [arrivalDate, setArrivalDate] = useState(latest?.arrivalDate ?? "");
-  const [requestedBy, setRequestedBy] = useState(latest?.requestedBy ?? (order.pic === "-" ? "" : order.pic));
+  const [requestedBy, setRequestedBy] = useState(savedRequestedBy);
   const [supplier, setSupplier] = useState(latest?.supplier ?? "");
   const [invoiceNumber, setInvoiceNumber] = useState(latest?.invoiceNumber ?? "");
   const [price, setPrice] = useState(latest?.price ?? "");
@@ -67,7 +68,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
     const continueWorkflow = submitMode.current === "continue";
 
     saveRubberRequirement(
-      order.no,
+      order.id,
       {
         requirementType,
         status,
@@ -96,7 +97,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
       <section className="modal-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="modal-header">
           <div>
-            <h2 id={titleId}>Order Rubber</h2>
+            <h2 id={titleId}>Update Rubber</h2>
             <p>Record rubber, stencil, test run, or MC requirements for {order.no}.</p>
           </div>
           <button
@@ -122,16 +123,18 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
               <span>Part Number / Code</span>
               <input value={order.no} disabled />
             </label>
-            <label className="modal-field"><span>Customer</span><input value={order.customer} readOnly /></label>
-            <label className="modal-field"><span>Product / Component</span><input value={order.product} readOnly /></label>
+            <label className="modal-field"><span>Customer</span><input value={order.customer} disabled /></label>
+            <label className="modal-field"><span>Product / Component</span><input value={order.product} disabled /></label>
             <label className="modal-field">
               <span>Requirement Type</span>
               <select
                 value={requirementType}
+                disabled={Boolean(savedRequirementType)}
                 onChange={(event) =>
-                  setRequirementType(event.target.value as (typeof rubberTypes)[number])
+                  setRequirementType(event.target.value)
                 }
               >
+                {savedRequirementType && !rubberTypes.some(type => type === savedRequirementType) ? <option value={savedRequirementType}>{savedRequirementType}</option> : null}
                 {rubberTypes.map((type) => (
                   <option key={type}>{type}</option>
                 ))}
@@ -152,7 +155,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
             </label>
             <label className="modal-field">
               <span>Order By / PIC</span>
-              <input value={requestedBy} onChange={(event) => setRequestedBy(event.target.value)} required />
+              <input value={requestedBy} disabled={Boolean(savedRequestedBy)} onChange={(event) => setRequestedBy(event.target.value)} required />
             </label>
             <label className="modal-field">
               <span>Order Date</span>

@@ -1,3 +1,5 @@
+import { formatRecordedAt } from "@/lib/detail-date";
+import { OffsetProjectDetails } from "./offset-project-details";
 import type { Order, RequirementRecord, RequirementStatus, StandaloneRequirementKind } from "@/types/order";
 
 const statusLabels: Record<RequirementStatus, string> = {
@@ -9,7 +11,7 @@ const statusLabels: Record<RequirementStatus, string> = {
 export function DetailGrid({ fields }: { fields: [string, string | null | undefined][] }) {
   return <dl className="incoming-detail-grid">
     {fields.map(([label, value]) => <div key={label}>
-      <dt>{label}</dt><dd>{value?.trim() || "-"}</dd>
+      <dt>{label}</dt><dd>{label === "Recorded At" ? formatRecordedAt(value) : value?.trim() || "-"}</dd>
     </div>)}
   </dl>;
 }
@@ -36,14 +38,14 @@ export function RequirementDetails({ order, kind, showProject = true, showPrevio
   const preparationLabels = { tooling: "Order Tooling", rubber: "Order Rubber", tooling_and_rubber: "Order Tooling & Rubber" };
 
   return <>
-    {showProject ? <section className="requirement-detail-section" aria-label="Project information">
+    {showProject && order.workflow.preparationType === "offset" ? <OffsetProjectDetails order={order} /> : null}
+    {showProject && order.workflow.preparationType !== "offset" ? <section className="requirement-detail-section" aria-label="Project information">
       <h3>Project Information</h3>
       <DetailGrid fields={[
         ["PSR / Code", order.no], ["Customer", order.customer],
         ["Product / Component", order.product], ["Material", order.material],
         ["Description", order.description], ["Designer / PIC", order.pic],
         ["Project Date", order.projectDate], ["Deadline", order.deadline],
-        ["Priority", order.priority],
         ["Preparation", order.workflow.productionOrder ? preparationLabels[order.workflow.productionOrder] : "-"],
         ["Forwarded to Material Request / MI", (kind === "tooling" ? order.workflow.toolingForwarded : order.workflow.rubberForwarded) ? "Yes" : "No"],
       ]} />

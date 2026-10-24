@@ -34,7 +34,7 @@ export function DrawingEditModal({ order, onClose }: DrawingEditModalProps) {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    submitDrawing(order.no, { pic, deadline, drawingLink, notes });
+    submitDrawing(order.id, { pic, deadline, drawingLink, notes });
     onClose();
   };
 

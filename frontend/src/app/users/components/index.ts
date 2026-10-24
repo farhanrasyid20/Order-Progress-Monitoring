@@ -1,1 +1,1 @@
-export { UsersView, type UsersViewProps } from "./users-view";
+export { UsersView } from "./users-view";

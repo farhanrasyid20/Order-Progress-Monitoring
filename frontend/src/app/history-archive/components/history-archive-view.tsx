@@ -73,7 +73,7 @@ export function HistoryArchiveView() {
         title="Closed Projects"
         subtitle={`${filteredOrders.length} of ${archivedOrders.length} closed projects found`}
       >
-        <OrderTable orders={pagination.pageItems} onViewOrder={setHistoryOrder} />
+        <OrderTable orders={pagination.pageItems} queueLayout onViewOrder={setHistoryOrder} />
         <TablePagination
           page={pagination.page}
           pageCount={pagination.pageCount}
