@@ -31,5 +31,7 @@ export const permissions: Record<ProjectRole, ProjectPermissions> = {
 };
 
 export function canUpdateDrawingStatus(role: ProjectRole) {
-  return role === "superadmin";
+  // Drawing progress is maintained by the Design team during Incoming Design;
+  // supervisory roles retain the same access for review and correction.
+  return ["superadmin", "admin", "manager", "design"].includes(role);
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -36,9 +35,9 @@ const requirementStatuses: readonly { value: RequirementStatus; label: string }[
 /** Stores rubber, stencil, test-run, and MC readiness as structured requirements. */
 export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
   const titleId = useId();
-  const router = useRouter();
   const submitMode = useRef<"save" | "continue">("save");
   const { saveRubberRequirement } = useWorkflowOrders();
+  const isDrawingReviewPending = order.stage === "design-progress" || order.stage === "review-approval";
   const latest = order.rubberOrders.at(-1);
   const savedRequirementType = latest?.requirementType?.trim() || "";
   const savedRequestedBy = [latest?.requestedBy, order.pic]
@@ -204,7 +203,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
             >
               Save Requirement
             </Button>
-            <Button
+            {!isDrawingReviewPending ? <Button
               type="submit"
               icon="arrow"
               onClick={() => {
@@ -212,7 +211,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
               }}
             >
               Save &amp; Continue
-            </Button>
+            </Button> : null}
           </footer>
         </form>
       </section>

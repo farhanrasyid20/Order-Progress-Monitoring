@@ -136,7 +136,7 @@ export const workflowNavigationGroups: readonly WorkflowNavigationGroup[] = [
     label: "Converting",
     icon: "settings",
     items: workspaceNavigationItems.filter((item) => item.flow === "converting"),
-    emptyCopy: "Tahap Converting belum tersedia.",
+    emptyCopy: "No Converting stages are available.",
   },
   {
     id: "offset",

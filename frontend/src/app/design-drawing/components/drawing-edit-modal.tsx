@@ -4,6 +4,7 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { isNetworkPath } from "@/lib/drawing-link";
 import type { Order } from "@/types/order";
 
 export type DrawingEditModalProps = {
@@ -20,8 +21,11 @@ export function DrawingEditModal({ order, onClose }: DrawingEditModalProps) {
   const { submitDrawing } = useWorkflowOrders();
   const [pic, setPic] = useState(order.pic);
   const [deadline, setDeadline] = useState(order.deadline);
-  const [drawingLink, setDrawingLink] = useState(order.workflow.drawingLink ?? "");
+  const [drawingLink, setDrawingLink] = useState(order.workflow.drawingLink?.startsWith("file:") ? "" : order.workflow.drawingLink ?? "");
+  const [drawingNetworkPath, setDrawingNetworkPath] = useState(order.workflow.drawingNetworkPath ?? "");
+  const [selectedFileName, setSelectedFileName] = useState(order.workflow.drawingFileName ?? "");
   const [notes, setNotes] = useState("");
+  const [sourceError, setSourceError] = useState("");
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -34,7 +38,26 @@ export function DrawingEditModal({ order, onClose }: DrawingEditModalProps) {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    submitDrawing(order.id, { pic, deadline, drawingLink, notes });
+    const source = drawingNetworkPath.trim() || drawingLink.trim();
+
+    if (!source) {
+      setSourceError("Enter a file-server path or an internal web link for the drawing.");
+      return;
+    }
+
+    if (!isNetworkPath(source) && !/^https?:\/\//i.test(source) && !/^file:\/\//i.test(source)) {
+      setSourceError("Use a server path such as \\\\iib\\data\\... or an http(s) link.");
+      return;
+    }
+
+    submitDrawing(order.id, {
+      pic,
+      deadline,
+      drawingLink: source,
+      drawingNetworkPath: isNetworkPath(source) ? source : undefined,
+      drawingFileName: selectedFileName || undefined,
+      notes,
+    });
     onClose();
   };
 
@@ -83,16 +106,43 @@ export function DrawingEditModal({ order, onClose }: DrawingEditModalProps) {
               />
             </label>
             <label className="modal-field modal-field-full">
-              <span>Link drawing</span>
+              <span>File-server path</span>
+              <input
+                value={drawingNetworkPath}
+                onChange={(event) => {
+                  setDrawingNetworkPath(event.target.value);
+                  setSourceError("");
+                }}
+                placeholder="\\\\iib\\data\\Drawing\\...\\drawing.pdf"
+                title="Paste the path copied from the company file server"
+              />
+              <small className="drawing-source-help">Paste the path from File Explorer. Once file-server browsing is connected, this field will be filled automatically.</small>
+            </label>
+            <label className="modal-field modal-field-full">
+              <span>Web link (optional)</span>
               <input
                 type="url"
                 value={drawingLink}
-                onChange={(event) => setDrawingLink(event.target.value)}
-                placeholder="https://..."
+                onChange={(event) => {
+                  setDrawingLink(event.target.value);
+                  setSourceError("");
+                }}
+                placeholder="https://files.internal/..."
                 pattern="https?://.+"
-                title="Gunakan link yang diawali http:// atau https://"
-                required
+                title="Use an http:// or https:// drawing link"
               />
+            </label>
+            <label className="modal-field modal-field-full">
+              <span>Select drawing file</span>
+              <span className="project-file-picker">
+                <input
+                  type="file"
+                  onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name ?? "")}
+                />
+                <span className="project-file-button" aria-hidden="true"><Icon name="file" size={15} /> Select file</span>
+                <span className={`project-file-name${selectedFileName ? " is-selected" : ""}`} aria-hidden="true">{selectedFileName || "No file selected"}</span>
+              </span>
+              <small className="drawing-source-help">Selecting a file confirms its name; paste its server path above until the company file-server browser is connected.</small>
             </label>
             <label className="modal-field modal-field-full">
               <span>Catatan</span>
@@ -109,9 +159,10 @@ export function DrawingEditModal({ order, onClose }: DrawingEditModalProps) {
               Batal
             </Button>
             <Button type="submit" icon="arrow">
-              Simpan Link Drawing
+              Simpan Drawing
             </Button>
           </footer>
+          {sourceError ? <p className="project-form-error" role="alert">{sourceError}</p> : null}
         </form>
       </section>
     </div>

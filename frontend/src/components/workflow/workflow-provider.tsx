@@ -10,11 +10,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { matchesOrder, splitRequirementBranches } from "@/lib/requirement-branches";
+import { matchesOrder } from "@/lib/requirement-branches";
 import { orders as initialOrders } from "@/data/orders";
 import { canUpdateDrawingStatus } from "@/lib/permissions";
 import { drawingStatusOptions, getDrawingStatus } from "@/lib/drawing-status";
-import { isInRequirementQueue, shouldAdvanceRequirementStage, isCombinedRequirement, materialRequestQueueEntries } from "@/lib/requirement-queue";
+import { canRecordConvertingRequirement, isInRequirementQueue, materialRequestQueueEntries } from "@/lib/requirement-queue";
 import type {
   DesignDecision,
   DrawingStatus,
@@ -32,6 +32,7 @@ import type {
   ProjectLineage,
   ProjectMainData,
   ProjectWorkflow,
+  PreparationOrderKind,
   PreparationWorkflowUpdate,
   RequirementUpdateValues,
   StandaloneRequirementKind,
@@ -64,16 +65,28 @@ export const workflowStageDetails: Record<WorkflowStage, WorkflowStageDetails> =
     progress: 15,
   },
   "design-progress": {
-    process: "Design Process",
+    process: "Progress Drawing",
     status: "In Progress",
     tone: "info",
     progress: 28,
   },
   "review-approval": {
-    process: "Incoming Design",
+    process: "Review Drawing Status",
     status: "Waiting for Design Decision",
     tone: "warning",
     progress: 42,
+  },
+  "converting-design": {
+    process: "Under Design",
+    status: "Under Design",
+    tone: "info",
+    progress: 48,
+  },
+  "converting-production": {
+    process: "Under Production",
+    status: "Under Production",
+    tone: "info",
+    progress: 48,
   },
   "tooling-progress": {
     process: "Order Tooling",
@@ -88,7 +101,7 @@ export const workflowStageDetails: Record<WorkflowStage, WorkflowStageDetails> =
     progress: 70,
   },
   "material-request": {
-    process: "Material Request / Create MI",
+    process: "Request Material / Create MI",
     status: "Waiting for Material Request",
     tone: "warning",
     progress: 74,
@@ -130,7 +143,7 @@ export const workflowStageDetails: Record<WorkflowStage, WorkflowStageDetails> =
     progress: 88,
   },
   "sample-progress": {
-    process: "Sample Progress",
+    process: "Sample Process",
     status: "Sample In Progress",
     tone: "info",
     progress: 85,
@@ -177,6 +190,8 @@ const nextWorkflowStage: Partial<Record<WorkflowStage, WorkflowStage>> = {
   order: "design-progress",
   "design-incoming": "design-progress",
   "design-progress": "review-approval",
+  "converting-design": "material-request",
+  "converting-production": "material-request",
   "tooling-progress": "material-request",
   "rubber-order-setting": "material-request",
   "material-request": "sample-progress",
@@ -208,6 +223,12 @@ export type WorkflowOrdersContextValue = {
   completeIncomingPreparation: (
     orderNo: string,
     values: PreparationWorkflowUpdate,
+  ) => void;
+  /** Updates the first Incoming Design tooling/rubber detail without changing the workflow stage. */
+  updateIncomingRequirementDetails: (
+    orderNo: string,
+    kind: PreparationOrderKind,
+    values: RequirementUpdateValues,
   ) => void;
   submitDrawing: (orderNo: string, values: DrawingSubmission) => void;
   completeDesignDecision: (orderNo: string, decision: DesignDecision) => void;
@@ -351,6 +372,8 @@ function currentStageForQueue(stage: WorkflowStage): ProjectCurrentStage {
   if (stage === "design-progress") return "drawing";
   if (
     stage === "review-approval" ||
+    stage === "converting-design" ||
+    stage === "converting-production" ||
     stage === "tooling-progress" ||
     stage === "rubber-order-setting" ||
     stage === "material-request" ||
@@ -421,25 +444,21 @@ function appendHistory(
 function firstStageAfterDesignApproval(order: Order): WorkflowStage {
   if (order.workflow.preparationType === "offset") return "offset-design";
 
-  if (order.workflow.convertingRoute === "by_design") {
-    return "material-request";
+  const hasPreparationOrder = selectedPreparationOrders(order.workflow).length > 0;
+  if (!hasPreparationOrder && !order.workflow.materialRequested) {
+    return "sample-progress";
   }
 
-  return order.workflow.productionOrder === "rubber"
-    ? "rubber-order-setting"
-    : "tooling-progress";
+  if (order.workflow.convertingRoute === "by_design") {
+    return "converting-design";
+  }
+
+  return "converting-production";
 }
 
 function nextStageForOrder(order: Order): WorkflowStage | undefined {
   if (order.stage === "review-approval") {
     return firstStageAfterDesignApproval(order);
-  }
-
-  if (
-    order.stage === "tooling-progress" &&
-    order.workflow.productionOrder === "tooling_and_rubber"
-  ) {
-    return "rubber-order-setting";
   }
 
   return nextWorkflowStage[order.stage];
@@ -479,42 +498,67 @@ function incomingPreparationLabel(values: PreparationWorkflowUpdate) {
         ? "Preparation: By Production"
         : "Preparation: Offset";
 
-  const productionLabel =
-    values.productionOrder === "tooling"
-      ? "Preparation: Order Tooling"
-      : values.productionOrder === "rubber"
-        ? "Preparation: Order Rubber"
-        : values.productionOrder === "tooling_and_rubber"
-          ? "Preparation: Order Tooling & Rubber"
-          : null;
+  const productionLabels = selectedPreparationOrders(values).map((kind) =>
+    kind === "tooling" ? "Preparation: Order Tooling" : "Preparation: Order Rubber",
+  );
 
   return [
     routeLabel,
     values.materialRequested ? "Preparation: Request Material" : null,
-    productionLabel,
+    ...productionLabels,
   ]
     .filter(Boolean)
     .join(" -> ");
 }
 
 function finalPreparationStatus(values: PreparationWorkflowUpdate) {
-  if (values.route === "by_production") {
-    if (values.productionOrder === "tooling") return "Preparation: Order Tooling";
-    if (values.productionOrder === "rubber") return "Preparation: Order Rubber";
-    if (values.productionOrder === "tooling_and_rubber") {
-      return "Preparation: Order Tooling & Rubber";
-    }
-  }
+  if (values.materialRequested) return "Preparation: Request Material";
+  if (values.route === "offset") return "Preparation: Order Tooling / Plate";
 
-  return "Preparation: Request Material";
+  const selected = selectedPreparationOrders(values);
+  if (selected.length === 2) return "Preparation: Order Tooling & Rubber";
+  if (selected[0] === "tooling") return "Preparation: Order Tooling";
+  if (selected[0] === "rubber") return "Preparation: Order Rubber";
+
+  return values.route === "by_design" ? "Preparation: By Design" : "Preparation: By Production";
 }
 
 function isCompleteIncomingPreparation(values: PreparationWorkflowUpdate) {
-  return Boolean(
-    values.materialRequested &&
-    values.remark.trim() &&
-    (values.route !== "by_production" || values.productionOrder),
+  // Tooling/Rubber and Request Material are independent preparation tasks.
+  // A remark is optional; only the selected route is needed to start drawing.
+  return Boolean(values.route);
+}
+
+function selectedPreparationOrders(
+  values: Pick<PreparationWorkflowUpdate, "preparationOrders" | "productionOrder">,
+): PreparationOrderKind[] {
+  const legacy = values.productionOrder === "tooling_and_rubber"
+    ? (["tooling", "rubber"] as const)
+    : values.productionOrder
+      ? [values.productionOrder]
+      : [];
+  const candidates = values.preparationOrders ?? legacy;
+
+  return [...new Set(candidates.filter((kind): kind is PreparationOrderKind =>
+    kind === "tooling" || kind === "rubber",
+  ))];
+}
+
+function hasUnforwardedPreparationOrder(order: Order) {
+  return selectedPreparationOrders(order.workflow).some((kind) =>
+    kind === "tooling" ? !order.workflow.toolingForwarded : !order.workflow.rubberForwarded,
   );
+}
+
+function isConvertingRequirementStage(stage: WorkflowStage) {
+  return stage === "converting-production" ||
+    stage === "tooling-progress" ||
+    stage === "rubber-order-setting";
+}
+
+/** Tooling/Rubber are visible as planning items while a drawing awaits review. */
+function isDrawingReviewPendingStage(stage: WorkflowStage) {
+  return stage === "design-progress" || stage === "review-approval";
 }
 
 function applyIncomingPreparation(
@@ -522,14 +566,15 @@ function applyIncomingPreparation(
   values: PreparationWorkflowUpdate,
 ): Order {
   const updatedAt = new Date().toISOString();
-  const productionOrder =
-    values.route === "by_production" && values.materialRequested
-      ? values.productionOrder
-      : null;
+  const preparationOrders = values.route === "by_production"
+    ? selectedPreparationOrders(values)
+    : [];
+  const productionOrder = preparationOrders[0] ?? null;
   const materialRequested = Boolean(values.materialRequested);
   const normalizedValues = {
     ...values,
     productionOrder,
+    preparationOrders,
     materialRequested,
   };
 
@@ -541,6 +586,7 @@ function applyIncomingPreparation(
       ...order.workflow,
       preparationType: values.route === "offset" ? "offset" : "converting",
       convertingRoute: values.route === "offset" ? null : values.route,
+      preparationOrders,
       productionOrder,
       materialRequested,
     },
@@ -562,15 +608,39 @@ function applyIncomingPreparation(
 function normalizeDrawingLink(value: string) {
   const drawingLink = value.trim();
 
+  if (drawingLink.startsWith("\\\\")) {
+    const [server, ...pathSegments] = drawingLink
+      .replace(/^\\+/, "")
+      .split(/\\+/)
+      .filter(Boolean);
+    if (!server || pathSegments.length === 0) return null;
+    return `file://${[server, ...pathSegments].map(encodeURIComponent).join("/")}`;
+  }
+
   try {
     const url = new URL(drawingLink);
 
-    return url.protocol === "http:" || url.protocol === "https:"
+    return url.protocol === "http:" || url.protocol === "https:" || url.protocol === "file:"
       ? url.toString()
       : null;
   } catch {
     return null;
   }
+}
+
+function drawingFileNameFromSource(value: string) {
+  const source = value.trim();
+  if (!source) return "";
+
+  try {
+    const url = new URL(source);
+    const fromUrl = url.pathname.split("/").filter(Boolean).at(-1);
+    if (fromUrl) return decodeURIComponent(fromUrl);
+  } catch {
+    // A UNC path is parsed below.
+  }
+
+  return source.split(/[\\/]/).filter(Boolean).at(-1) ?? "";
 }
 
 function applyDrawingSubmission(
@@ -585,6 +655,11 @@ function applyDrawingSubmission(
     workflow: {
       ...order.workflow,
       drawingLink,
+      drawingNetworkPath: values.drawingNetworkPath ??
+        (values.drawingLink.trim().startsWith("\\\\") ? values.drawingLink.trim() : order.workflow.drawingNetworkPath),
+      drawingFileName: values.drawingFileName?.trim() ||
+        drawingFileNameFromSource(values.drawingNetworkPath ?? values.drawingLink) ||
+        order.workflow.drawingFileName,
       designDecision: null,
     },
     processHistory: [
@@ -706,12 +781,40 @@ function moveToStage(
   };
 }
 
+/** Convert browser data created by earlier prototypes into the current workflow shape. */
+function normalizePersistedOrder(order: Order): Order {
+  const legacySelections = order.workflow.productionOrder === "tooling_and_rubber"
+    ? (["tooling", "rubber"] as PreparationOrderKind[])
+    : order.workflow.productionOrder
+      ? [order.workflow.productionOrder]
+      : [];
+  const preparationOrders = [...new Set(
+    (order.workflow.preparationOrders ?? legacySelections).filter(
+      (kind): kind is PreparationOrderKind => kind === "tooling" || kind === "rubber",
+    ),
+  )];
+
+  return {
+    ...order,
+    toolingOrders: order.toolingOrders ?? [],
+    rubberOrders: order.rubberOrders ?? [],
+    materialRequests: order.materialRequests ?? [],
+    offsetSpks: order.offsetSpks ?? [],
+    workflow: {
+      ...order.workflow,
+      preparationOrders,
+      // Old screens still read this value. It is a single display adapter only.
+      productionOrder: preparationOrders[0] ?? null,
+    },
+  };
+}
+
 /**
  * Browser-persisted prototype state. New records use the nested Project model, while the flat
  * display fields keep the existing dashboard and queue UI working unchanged.
  */
 export function WorkflowOrdersProvider({ children, currentUserRole = "design" }: { children: ReactNode; currentUserRole?: ProjectRole }) {
-  const [orders, setOrders] = useState<Order[]>(() => initialOrders.flatMap(order => splitRequirementBranches(order, moveToStage)));
+  const [orders, setOrders] = useState<Order[]>(() => initialOrders.map(normalizePersistedOrder));
   const [storageReady, setStorageReady] = useState(false);
   const designFileUrls = useRef<string[]>([]);
 
@@ -726,7 +829,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           order && typeof order.id === "string" && typeof order.projectDate === "string" &&
           order.workflow && order.mainData && order.lineage && Array.isArray(order.processHistory),
         )) {
-          setOrders((parsed as Order[]).flatMap(order => splitRequirementBranches(order, moveToStage)));
+          setOrders((parsed as Order[]).map(normalizePersistedOrder));
         }
       }
     } catch {
@@ -808,6 +911,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               values.preparationType === "converting" && values.convertingRoute
                 ? values.convertingRoute
                 : null,
+            preparationOrders: [],
             productionOrder: null,
             materialRequested: false,
             currentStage: "order",
@@ -894,6 +998,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           workflow: {
             preparationType: "converting",
             convertingRoute: "by_production",
+            preparationOrders: [kind],
             productionOrder: kind,
             materialRequested: false,
             currentStage: currentStageForQueue(stage),
@@ -951,21 +1056,21 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
   const completeIncomingPreparation = useCallback(
     (orderNo: string, values: PreparationWorkflowUpdate) => {
       setOrders((currentOrders) =>
-        currentOrders.flatMap((order): Order[] => {
-          if (!matchesOrder(order, orderNo)) return [order];
+        currentOrders.map((order) => {
+          if (!matchesOrder(order, orderNo)) return order;
           if (
             order.stage !== "order" ||
             order.workflow.currentStatus === "cancelled" ||
             !isCompleteIncomingPreparation(values)
           ) {
-            return [order];
+            return order;
           }
 
-          const isCombined = values.route === "by_production" && values.productionOrder === "tooling_and_rubber";
-          const isToolingOrder = values.route === "by_production" && (values.productionOrder === "tooling" || isCombined);
-          const isRubberOrder = values.route === "by_production" && (values.productionOrder === "rubber" || isCombined);
+          const selections = values.route === "by_production"
+            ? selectedPreparationOrders(values)
+            : [];
           let prepared = applyIncomingPreparation(order, values);
-          if (isToolingOrder && values.toolingRequirement) {
+          if (selections.includes("tooling") && values.toolingRequirement) {
             prepared = appendHistory({
               ...prepared,
               toolingOrders: [...prepared.toolingOrders, {
@@ -980,7 +1085,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.toolingRequirement.remark,
             });
           }
-          if (isRubberOrder && values.rubberRequirement) {
+          if (selections.includes("rubber") && values.rubberRequirement) {
             prepared = appendHistory({
               ...prepared,
               rubberOrders: [...prepared.rubberOrders, { ...values.rubberRequirement, sequence: prepared.rubberOrders.length + 1 }],
@@ -992,28 +1097,55 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.rubberRequirement.remark,
             });
           }
+          return moveToStage(
+            prepared,
+            values.route === "offset" ? "offset-prepress" : "design-progress",
+          );
+        }),
+      );
+    },
+    [],
+  );
 
-          const targetStage =
-            values.route === "offset"
-              ? "offset-prepress"
-              : isToolingOrder
-                ? "tooling-progress"
-                : isRubberOrder
-                  ? "rubber-order-setting"
-                  : "material-request";
+  const updateIncomingRequirementDetails = useCallback(
+    (
+      orderNo: string,
+      kind: PreparationOrderKind,
+      values: RequirementUpdateValues,
+    ) => {
+      setOrders((currentOrders) =>
+        currentOrders.map((order) => {
+          if (
+            !matchesOrder(order, orderNo) ||
+            order.stage === "order" ||
+            order.workflow.currentStatus === "cancelled"
+          ) {
+            return order;
+          }
 
-          const moved = moveToStage(prepared, targetStage, {
-            preserveStatus:
-              values.route !== "offset" &&
-              !isToolingOrder &&
-              !isRubberOrder,
+          const currentRecords = kind === "tooling"
+            ? order.toolingOrders
+            : order.rubberOrders;
+          const previous = currentRecords.at(-1);
+          const nextRecord = {
+            ...values,
+            sequence: previous?.sequence ?? currentRecords.length + 1,
+          };
+          const nextRecords = previous
+            ? [...currentRecords.slice(0, -1), nextRecord]
+            : [...currentRecords, nextRecord];
+          const label = kind === "tooling" ? "Tooling" : "Rubber";
+          const updatedOrder = kind === "tooling"
+            ? { ...order, toolingOrders: nextRecords }
+            : { ...order, rubberOrders: nextRecords };
+
+          return appendHistory(updatedOrder, {
+            process: `${kind}_requirement`,
+            status: values.status,
+            user: prototypeActor,
+            changeSummary: `${label} requirement updated from Incoming Design.`,
+            remark: values.remark.trim(),
           });
-
-          const result = isToolingOrder
-            ? withToolingDetailsStatus(moved)
-            : isRubberOrder ? withRequirementDetailsStatus(moved, "rubber") : moved;
-          return splitRequirementBranches(result, moveToStage);
-
         }),
       );
     },
@@ -1122,6 +1254,9 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     if (fileUrl) designFileUrls.current.push(fileUrl);
     setOrders((currentOrders) => currentOrders.map((order) => {
       if (!matchesOrder(order, orderNo) || order.workflow.currentStatus === "cancelled") return order;
+      const preparationOrders = values.preparationType === "converting" && values.convertingRoute === "by_production"
+        ? order.workflow.preparationOrders ?? []
+        : [];
       return appendHistory({
         ...order,
         mainData: { ...values.mainData },
@@ -1136,7 +1271,8 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           ...order.workflow,
           preparationType: values.preparationType,
           convertingRoute: values.preparationType === "converting" ? values.convertingRoute || null : null,
-          productionOrder: values.preparationType === "converting" && values.convertingRoute === "by_production" ? order.workflow.productionOrder : null,
+          preparationOrders,
+          productionOrder: preparationOrders[0] ?? null,
           drawingLink: fileUrl ?? order.workflow.drawingLink,
           drawingFileName: values.designFile?.name ?? order.workflow.drawingFileName,
         },
@@ -1177,41 +1313,67 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     ) => {
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
+          const isInitialQueueTask = isInRequirementQueue(order, "tooling");
           if (
             !matchesOrder(order, orderNo) ||
-            !isInRequirementQueue(order, "tooling") ||
+            !canRecordConvertingRequirement(order, "tooling") ||
             order.workflow.currentStatus === "cancelled"
           ) {
             return order;
           }
 
+          const updateIncomingDraft =
+            isDrawingReviewPendingStage(order.stage) && order.toolingOrders.length > 0;
           const record = {
             ...values,
-            sequence: order.toolingOrders.length + 1,
+            sequence: updateIncomingDraft
+              ? order.toolingOrders.at(-1)?.sequence ?? order.toolingOrders.length
+              : order.toolingOrders.length + 1,
           };
           const updated = appendHistory(
             {
               ...order,
-              toolingOrders: [...order.toolingOrders, record],
+              toolingOrders: updateIncomingDraft
+                ? [...order.toolingOrders.slice(0, -1), record]
+                : [...order.toolingOrders, record],
             },
             {
               process: "tooling_requirement",
               status: values.status,
               user: prototypeActor,
-              changeSummary: `Tooling ${values.requirementType} updated to ${values.status}.`,
+              changeSummary: updateIncomingDraft
+                ? "Tooling requirement updated while drawing review is pending."
+                : `Tooling ${values.requirementType} updated to ${values.status}.`,
               remark: values.remark.trim(),
             },
           );
+          // These preparation details may be edited before drawing approval,
+          // but must remain in their queue and cannot advance the workflow yet.
+          if (isDrawingReviewPendingStage(order.stage)) return updated;
           if (continueWorkflow) {
             const forwarded = {
               ...updated,
               workflow: { ...updated.workflow, toolingReady: isReadyToContinueRequirement(values.status), toolingForwarded: true },
             };
-            return shouldAdvanceRequirementStage(updated)
-              ? moveToStage(forwarded, "material-request")
-              : forwarded;
+            // A repeat order is only an additional record; it must not send a
+            // project that is already in Process/Closing back to Preparation.
+            if (!isInitialQueueTask || !isConvertingRequirementStage(order.stage)) {
+              return forwarded;
+            }
+            // Standalone orders retain their original direct material handoff.
+            if (order.requirementBranch) return moveToStage(forwarded, "material-request");
+            // Request Material deliberately remains independent: it may proceed
+            // even while a supervisor sees another Tooling/Rubber task pending.
+            if (forwarded.workflow.materialRequested) return moveToStage(forwarded, "material-request");
+            // Without MI, wait for a second selected task; the last one sends
+            // the project straight to Sample Process.
+            return hasUnforwardedPreparationOrder(forwarded)
+              ? withToolingDetailsStatus(forwarded)
+              : moveToStage(forwarded, "sample-progress");
           }
-          return shouldAdvanceRequirementStage(updated) ? withToolingDetailsStatus(updated) : updated;
+          return isInitialQueueTask && isConvertingRequirementStage(order.stage)
+            ? withToolingDetailsStatus(updated)
+            : updated;
         }),
       );
     },
@@ -1226,41 +1388,58 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     ) => {
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
+          const isInitialQueueTask = isInRequirementQueue(order, "rubber");
           if (
             !matchesOrder(order, orderNo) ||
-            !isInRequirementQueue(order, "rubber") ||
+            !canRecordConvertingRequirement(order, "rubber") ||
             order.workflow.currentStatus === "cancelled"
           ) {
             return order;
           }
 
+          const updateIncomingDraft =
+            isDrawingReviewPendingStage(order.stage) && order.rubberOrders.length > 0;
           const record = {
             ...values,
-            sequence: order.rubberOrders.length + 1,
+            sequence: updateIncomingDraft
+              ? order.rubberOrders.at(-1)?.sequence ?? order.rubberOrders.length
+              : order.rubberOrders.length + 1,
           };
           const updated = appendHistory(
             {
               ...order,
-              rubberOrders: [...order.rubberOrders, record],
+              rubberOrders: updateIncomingDraft
+                ? [...order.rubberOrders.slice(0, -1), record]
+                : [...order.rubberOrders, record],
             },
             {
               process: "rubber_requirement",
               status: values.status,
               user: prototypeActor,
-              changeSummary: `Rubber ${values.requirementType} updated to ${values.status}.`,
+              changeSummary: updateIncomingDraft
+                ? "Rubber requirement updated while drawing review is pending."
+                : `Rubber ${values.requirementType} updated to ${values.status}.`,
               remark: values.remark.trim(),
             },
           );
+          if (isDrawingReviewPendingStage(order.stage)) return updated;
           if (continueWorkflow) {
             const forwarded = {
               ...updated,
               workflow: { ...updated.workflow, rubberReady: isReadyToContinueRequirement(values.status), rubberForwarded: true },
             };
-            return shouldAdvanceRequirementStage(updated)
-              ? moveToStage(forwarded, "material-request")
-              : forwarded;
+            if (!isInitialQueueTask || !isConvertingRequirementStage(order.stage)) {
+              return forwarded;
+            }
+            if (order.requirementBranch) return moveToStage(forwarded, "material-request");
+            if (forwarded.workflow.materialRequested) return moveToStage(forwarded, "material-request");
+            return hasUnforwardedPreparationOrder(forwarded)
+              ? withRequirementDetailsStatus(forwarded, "rubber")
+              : moveToStage(forwarded, "sample-progress");
           }
-          return shouldAdvanceRequirementStage(updated) ? withRequirementDetailsStatus(updated, "rubber") : updated;
+          return isInitialQueueTask && isConvertingRequirementStage(order.stage)
+            ? withRequirementDetailsStatus(updated, "rubber")
+            : updated;
         }),
       );
     },
@@ -1271,14 +1450,12 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
     (orderNo: string, values: MaterialRequestValues, continueWorkflow: boolean) => {
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
-          const isMaterialQueue =
-            isCombinedRequirement(order)
-              ? Boolean(values.source && materialRequestQueueEntries(order).some((entry) => entry.materialRequestSource === values.source))
-              : order.stage === "material-request" || order.stage === "offset-material-request";
+          const isMaterialQueue = Boolean(
+            materialRequestQueueEntries(order).some((entry) => entry.id === order.id),
+          );
           if (
             !matchesOrder(order, orderNo) ||
             !isMaterialQueue ||
-            Boolean(order.requirementBranch && values.source !== order.requirementBranch) ||
             order.workflow.currentStatus === "cancelled"
           ) {
             return order;
@@ -1311,16 +1488,17 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           );
 
           const canMoveToNextStage =
-            order.stage === "material-request" ||
-            order.stage === "offset-material-request" ||
+            ["converting-design", "converting-production", "material-request", "offset-material-request"].includes(order.stage) ||
             values.status === "released" ||
             values.status === "received";
 
-          const nextStage =
-            continueWorkflow && canMoveToNextStage &&
-              (order.stage === "material-request" || order.stage === "offset-material-request")
-              ? nextStageForOrder(updated)
-              : undefined;
+          const nextStage = continueWorkflow && canMoveToNextStage
+            ? (["converting-design", "converting-production"].includes(order.stage)
+                ? "sample-progress"
+                : order.stage === "material-request" || order.stage === "offset-material-request"
+                  ? nextStageForOrder(updated)
+                  : undefined)
+            : undefined;
 
           return nextStage ? moveToStage(updated, nextStage) : updated;
 
@@ -1484,6 +1662,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       editProject,
       createStandaloneRequirementOrder,
       completeIncomingPreparation,
+      updateIncomingRequirementDetails,
       submitDrawing,
       completeDesignDecision,
       cancelIncomingProject,
@@ -1517,6 +1696,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       saveRubberRequirement,
       saveToolingRequirement,
       submitDrawing,
+      updateIncomingRequirementDetails,
       updateOrder,
     ],
   );

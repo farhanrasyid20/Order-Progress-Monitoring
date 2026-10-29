@@ -1,4 +1,5 @@
 import type { MaterialRequestRecord, MaterialRequestStatus, Order, StandaloneRequirementKind } from "@/types/order";
+import { selectedPreparationOrders } from "@/lib/requirement-queue";
 import { DetailGrid, RequirementDetails } from "./requirement-details";
 import { ProjectInformation } from "./project-information";
 
@@ -18,14 +19,15 @@ export function MaterialRequestRecordDetails({ record }: { record: MaterialReque
 
 export function MaterialRequestDetails({ order, allSources = false, fullProjectInformation = false }: { order: Order; allSources?: boolean; fullProjectInformation?: boolean }) {
   const source = order.materialRequestSource;
-  const requirementKind = source ?? (order.workflow.productionOrder === "tooling" || order.workflow.productionOrder === "rubber"
-    ? order.workflow.productionOrder : undefined);
+  const selectedRequirementKinds = selectedPreparationOrders(order);
+  const requirementKind = source ?? (selectedRequirementKinds.length === 1
+    ? selectedRequirementKinds[0] : undefined);
   const requirementKinds: StandaloneRequirementKind[] = requirementKind ? [requirementKind] :
     order.workflow.preparationType === "offset" ? [] :
-    order.workflow.productionOrder === "tooling_and_rubber" ? ["tooling", "rubber"] :
+    selectedRequirementKinds.length ? selectedRequirementKinds :
     order.toolingOrders.length || order.rubberOrders.length
       ? (["tooling", "rubber"] as const).filter((kind) => (kind === "tooling" ? order.toolingOrders : order.rubberOrders).length > 0)
-      : ["tooling", "rubber"];
+      : [];
   const records = order.materialRequests.filter((record) => allSources || record.source === source);
   const latestRecords = allSources
     ? [undefined, "tooling", "rubber"].map((kind) => records.filter((record) => record.source === kind).at(-1)).filter((record): record is MaterialRequestRecord => Boolean(record))

@@ -24,7 +24,7 @@ export function ToolingProgressView() {
         icon="settings"
         queueTitle="Order Tooling Queue"
         summaryLanguage="en"
-        queueCopy="Approved projects and Order Tooling projects from Incoming Design"
+        queueCopy="Projects with Tooling planned from Incoming Design"
         renderEditModal={({ order, onClose }) => (
           <ToolingEditModal order={order} onClose={onClose} />
         )}

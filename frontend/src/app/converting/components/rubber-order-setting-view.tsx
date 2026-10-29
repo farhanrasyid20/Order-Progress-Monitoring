@@ -24,7 +24,7 @@ export function RubberOrderSettingView() {
         }
         icon="box"
         queueTitle="Order Rubber Queue"
-        queueCopy="Approved projects and Order Rubber projects from Incoming Design"
+        queueCopy="Projects with Rubber planned from Incoming Design"
         renderEditModal={({ order, onClose }) => (
           <RubberEditModal order={order} onClose={onClose} />
         )}

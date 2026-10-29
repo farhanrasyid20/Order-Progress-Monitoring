@@ -10,6 +10,7 @@ import { IssueFormModal } from "@/components/issues/issue-form-modal";
 import { isActiveProject } from "@/lib/active-project";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { drawingDisplayName, drawingHref } from "@/lib/drawing-link";
 import type { Order, ProcessHistoryRecord, ProjectFormDraft } from "@/types/order";
 import {
   getProjectFieldValue,
@@ -79,6 +80,8 @@ export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparatio
   const [issueSaved, setIssueSaved] = useState(false);
   const { editProject } = useWorkflowOrders();
   const history = [...order.processHistory].reverse();
+  const drawingNetworkPath = (order.workflow as typeof order.workflow & { drawingNetworkPath?: string | null }).drawingNetworkPath;
+  const savedDrawingHref = drawingHref(order.workflow.drawingLink, drawingNetworkPath);
   const detailValues: ProjectFormDraft = {
     mainData: order.mainData,
     entryType: order.lineage.entryType,
@@ -89,6 +92,41 @@ export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparatio
     projectDate: order.projectDate,
     deadline: order.deadline,
     drawingLink: order.workflow.drawingLink ?? "",
+  };
+  const projectSections = getProjectFormConfig(detailValues);
+  const routeSection = projectSections.find((section) => section.id === "process-route");
+  const projectInformationSection = projectSections.find((section) => section.id === "project-information");
+  const remainingSections = projectSections.filter(
+    (section) => section.id !== "process-route" && section.id !== "project-information",
+  );
+
+  const renderDetailField = (field: ReturnType<typeof getProjectFormConfig>[number]["fields"][number]) => {
+    const value = getProjectFieldValue(detailValues, field);
+    const displayValue = String(value ?? "").trim()
+      ? field.options?.find((option) => option.value === value)?.label ?? value
+      : "-";
+
+    return (
+      <div className={field.fullWidth ? "incoming-detail-full" : undefined} key={field.key}>
+        <dt>{field.label}</dt>
+        <dd>
+          {field.key === "drawingLink" && savedDrawingHref ? (
+            <span className="drawing-link-actions">
+              <a
+                className="drawing-link"
+                href={savedDrawingHref}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Icon name="file" size={14} />
+                {drawingDisplayName(order.workflow.drawingFileName, drawingNetworkPath)}
+              </a>
+              {drawingNetworkPath ? <code className="drawing-network-path">{drawingNetworkPath}</code> : null}
+            </span>
+          ) : displayValue}
+        </dd>
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -172,43 +210,29 @@ export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparatio
 
           <IncomingPreparationDetails key={order.id} order={order} onCancel={onCancel} onUpdatePreparation={onUpdatePreparation} />
 
-          {getProjectFormConfig(detailValues).map((section) => (
+          {routeSection || projectInformationSection ? (
+            <section className="project-form-section">
+              <div className="project-form-section-heading">
+                <h3>Project Information &amp; Route</h3>
+              </div>
+              <dl className="incoming-detail-grid">
+                <div>
+                  <dt>PSR / Code</dt>
+                  <dd>{order.no}</dd>
+                </div>
+                {routeSection?.fields.filter((field) => isFieldVisible(field, detailValues)).map(renderDetailField)}
+                {projectInformationSection?.fields.filter((field) => isFieldVisible(field, detailValues)).map(renderDetailField)}
+              </dl>
+            </section>
+          ) : null}
+
+          {remainingSections.map((section) => (
             <section className="project-form-section" key={section.id}>
               <div className="project-form-section-heading">
                 <h3>{section.title}</h3>
               </div>
               <dl className="incoming-detail-grid">
-                {section.id === "process-route" ? (
-                  <div>
-                    <dt>PSR / Code</dt>
-                    <dd>{order.no}</dd>
-                  </div>
-                ) : null}
-                {section.fields.filter((field) => isFieldVisible(field, detailValues)).map((field) => {
-                  const value = getProjectFieldValue(detailValues, field);
-                  const displayValue = value.trim()
-                    ? field.options?.find((option) => option.value === value)?.label ?? value
-                    : "-";
-
-                  return (
-                    <div className={field.fullWidth ? "incoming-detail-full" : undefined} key={field.key}>
-                      <dt>{field.label}</dt>
-                      <dd>
-                        {field.key === "drawingLink" && order.workflow.drawingLink ? (
-                          <a
-                            className="drawing-link"
-                            href={order.workflow.drawingLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            <Icon name="file" size={14} />
-                            {order.workflow.drawingFileName ?? "Open Drawing"}
-                          </a>
-                        ) : displayValue}
-                      </dd>
-                    </div>
-                  );
-                })}
+                {section.fields.filter((field) => isFieldVisible(field, detailValues)).map(renderDetailField)}
               </dl>
             </section>
           ))}

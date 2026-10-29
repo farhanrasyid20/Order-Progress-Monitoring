@@ -68,14 +68,22 @@ export type ProjectMainData = Record<ProjectMainDataKey, string> & Partial<Recor
 export type PreparationType = "converting" | "offset";
 export type ConvertingRoute = "by_design" | "by_production";
 export type PreparationRoute = ConvertingRoute | "offset";
+/** A selectable preparation task. A new Incoming Design project can have at most one of each. */
+export type PreparationOrderKind = "tooling" | "rubber";
+/**
+ * `tooling_and_rubber` is retained only to read browser data saved by older
+ * prototype versions. New UI must use `PreparationOrderKind[]` instead.
+ */
 export type PreparationOrderSelection =
-  | "tooling"
-  | "rubber"
+  | PreparationOrderKind
   | "tooling_and_rubber";
 export type DesignDecision = "approve" | "revision";
 export type PreparationWorkflowUpdate = {
   route: PreparationRoute;
+  /** Legacy single value consumed by older screens. */
   productionOrder: PreparationOrderSelection | null;
+  /** Canonical selection for new Incoming Design. Never contains duplicates. */
+  preparationOrders?: PreparationOrderKind[];
   materialRequested: boolean;
   remark: string;
   toolingRequirement?: RequirementUpdateValues;
@@ -85,6 +93,10 @@ export type DrawingSubmission = {
   pic: string;
   deadline: string;
   drawingLink: string;
+  /** Original UNC path when the drawing is referenced from the company file server. */
+  drawingNetworkPath?: string;
+  /** File name selected by the designer, retained even when the server path is added later. */
+  drawingFileName?: string;
   notes: string;
 };
 export type ProjectCurrentStage =
@@ -222,12 +234,15 @@ export type ProjectWorkflow = {
   materialForwarded?: Partial<Record<StandaloneRequirementKind, boolean>>;
   preparationType: PreparationType;
   convertingRoute: ConvertingRoute | null;
+  /** New independent selections; existing `productionOrder` remains a display adapter. */
+  preparationOrders?: PreparationOrderKind[];
   productionOrder: PreparationOrderSelection | null;
   materialRequested: boolean;
   currentStage: ProjectCurrentStage;
   currentProcess: string;
   currentStatus: ProjectCurrentStatus;
   drawingLink: string | null;
+  drawingNetworkPath?: string;
   drawingFileName?: string;
   designDecision: DesignDecision | null;
   progress: number;
@@ -260,6 +275,8 @@ export type WorkflowStage =
   | "design-incoming"
   | "design-progress"
   | "review-approval"
+  | "converting-design"
+  | "converting-production"
   | "tooling-progress"
   | "rubber-order-setting"
   | "material-request"

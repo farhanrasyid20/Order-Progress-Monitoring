@@ -13,6 +13,12 @@ import { CancelProjectModal } from "./cancel-project-modal";
 import { IncomingOrdersTable } from "./incoming-orders-table";
 import { OrderHistoryModal } from "./order-history-modal";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
+import {
+  WorkflowFilterCards,
+  workflowPhaseForStage,
+  type WorkflowPhase,
+} from "./workflow-filter-cards";
+import { isActiveProject } from "@/lib/active-project";
 
 export type OrdersViewProps = {
   initialAddModalOpen?: boolean;
@@ -33,8 +39,9 @@ export function OrdersView({
     completeIncomingPreparation,
   } = useWorkflowOrders();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState("");
+  const [preparationType, setPreparationType] = useState("");
   const [pic, setPic] = useState("");
+  const [workflowPhase, setWorkflowPhase] = useState<WorkflowPhase | "">("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(initialAddModalOpen);
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
@@ -62,17 +69,8 @@ export function OrdersView({
   }, [initialAddModalOpen]);
 
   const incomingOrders = useMemo(
-    () =>
-      orders.filter(
-        (order) =>
-          order.stage !== "completed" ||
-          order.workflow.currentStatus === "cancelled",
-      ),
+    () => orders.filter(isActiveProject),
     [orders],
-  );
-  const statuses = useMemo(
-    () => Array.from(new Set([...incomingOrders.map((order) => order.status), "Cancelled"])),
-    [incomingOrders],
   );
   const people = useMemo(
     () => Array.from(new Set(incomingOrders.map((order) => order.pic))),
@@ -82,18 +80,18 @@ export function OrdersView({
     const normalizedQuery = query.trim().toLowerCase();
 
     return incomingOrders.filter((order) => {
-      const isCancelled = order.workflow.currentStatus === "cancelled";
       const matchesQuery = `${order.no} ${order.customer} ${order.product} ${order.pic} ${order.description}`
         .toLowerCase()
         .includes(normalizedQuery);
 
       return (
         matchesQuery &&
-        (!status ? !isCancelled : order.status === status) &&
+        (!workflowPhase || workflowPhaseForStage(order.stage) === workflowPhase) &&
+        (!preparationType || order.workflow.preparationType === preparationType) &&
         (!pic || order.pic === pic)
       );
     });
-  }, [incomingOrders, pic, query, status]);
+  }, [incomingOrders, pic, preparationType, query, workflowPhase]);
 
   const pagination = useTablePagination(filteredOrders);
   const updatedHistoryOrder = pendingHistoryOrderNo
@@ -106,8 +104,9 @@ export function OrdersView({
   const resetPage = pagination.resetPage;
   const clearFilters = () => {
     setQuery("");
-    setStatus("");
+    setPreparationType("");
     setPic("");
+    setWorkflowPhase("");
     resetPage();
   };
 
@@ -130,16 +129,15 @@ export function OrdersView({
 
       <OrderFilters
         query={query}
-        status={status}
+        preparationType={preparationType}
         pic={pic}
-        statuses={statuses}
         people={people}
         onQueryChange={(value) => {
           setQuery(value);
           resetPage();
         }}
-        onStatusChange={(value) => {
-          setStatus(value);
+        onPreparationTypeChange={(value) => {
+          setPreparationType(value);
           resetPage();
         }}
         onPicChange={(value) => {
@@ -147,6 +145,15 @@ export function OrdersView({
           resetPage();
         }}
         onClear={clearFilters}
+      />
+
+      <WorkflowFilterCards
+        orders={incomingOrders}
+        selectedPhase={workflowPhase}
+        onPhaseChange={(phase) => {
+          setWorkflowPhase(phase);
+          resetPage();
+        }}
       />
 
       <OrderCard
@@ -223,19 +230,17 @@ export function OrdersView({
             resetPage();
             setPendingHistoryOrderNo(orderNo);
 
-            const destination =
-              values.route === "offset"
-                ? "Prepress / Pra-Cetak"
-                : values.route === "by_production" &&
-                  values.productionOrder === "tooling_and_rubber"
-                  ? "Order Tooling and Order Rubber"
-                  : values.route === "by_production" &&
-                    values.productionOrder === "tooling"
-                    ? "Order Tooling"
-                    : values.route === "by_production" &&
-                      values.productionOrder === "rubber"
-                      ? "Order Rubber"
-                      : "Incoming Design (Drawing)";
+            const preparationOrders = values.preparationOrders ??
+              (values.productionOrder === "tooling" || values.productionOrder === "rubber"
+                ? [values.productionOrder]
+                : []);
+            const destination = values.route === "offset"
+              ? "Prepress"
+              : preparationOrders.length
+                ? preparationOrders
+                    .map((kind) => (kind === "tooling" ? "Order Tooling" : "Order Rubber"))
+                    .join(" and ")
+                : "Incoming Design (Drawing)";
 
             setToastMessage(
               `Preparation for ${visibleDetailOrder.no} was updated and moved to ${destination}.`,

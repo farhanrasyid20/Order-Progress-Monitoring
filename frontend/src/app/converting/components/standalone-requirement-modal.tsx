@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
-import { isInRequirementQueue } from "@/lib/requirement-queue";
+import { canRecordConvertingRequirement } from "@/lib/requirement-queue";
 import type {
   ProjectPriority,
   RequirementStatus,
@@ -19,9 +19,8 @@ export type StandaloneRequirementModalProps = {
   project?: Order;
   initialRequirement?: RequirementUpdateValues;
   onSaveRequirement?: (values: RequirementUpdateValues) => void;
-  combined?: boolean;
-  initialRubberRequirement?: RequirementUpdateValues;
-  onSaveCombined?: (tooling: RequirementUpdateValues, rubber: RequirementUpdateValues) => void;
+  /** The detail is already persisted in Incoming Design and can be saved directly. */
+  saveImmediately?: boolean;
 };
 
 const toolingTypes = [
@@ -59,6 +58,7 @@ const requirementStatuses: readonly { value: RequirementStatus; label: string }[
 ];
 
 const priorityOptions: readonly ProjectPriority[] = ["High", "Medium", "Low"];
+type RequirementEntryMode = "existing" | "manual";
 
 /**
  * Creates a direct Tooling or Rubber requirement while preserving the normal
@@ -70,21 +70,19 @@ export function StandaloneRequirementModal({
   project,
   initialRequirement,
   onSaveRequirement,
-  combined = false,
-  initialRubberRequirement,
-  onSaveCombined,
+  saveImmediately = false,
 }: StandaloneRequirementModalProps) {
   const titleId = useId();
   const submitMode = useRef<"save" | "continue">("save");
   const { orders, createStandaloneRequirementOrder, saveToolingRequirement, saveRubberRequirement } = useWorkflowOrders();
   const [projectId, setProjectId] = useState(project?.id ?? "");
+  const [entryMode, setEntryMode] = useState<RequirementEntryMode>("existing");
   const selectedProject = project ?? orders.find((order) => order.id === projectId);
-  const isLinkedRequirement = kind === "tooling" || kind === "rubber";
-  const eligibleProjects = orders.filter((order) => isInRequirementQueue(order, kind) && order.workflow.preparationType === "converting" && order.workflow.convertingRoute === "by_production" && (order.workflow.productionOrder === kind || order.workflow.productionOrder === "tooling_and_rubber"));
+  const usesExistingProject = Boolean(project) || entryMode === "existing";
+  const eligibleProjects = orders.filter((order) => canRecordConvertingRequirement(order, kind));
   const [error, setError] = useState("");
   const requirementTypes = kind === "tooling" ? toolingTypes : rubberTypes;
-  const kindLabel = combined ? "Tooling & Rubber" : kind === "tooling" ? "Tooling" : "Rubber";
-  const [rubberType, setRubberType] = useState(initialRubberRequirement?.requirementType ?? rubberTypes[0]);
+  const kindLabel = kind === "tooling" ? "Tooling" : "Rubber";
   const [customer, setCustomer] = useState("");
   const [product, setProduct] = useState("");
   const [partNo, setPartNo] = useState("");
@@ -116,17 +114,21 @@ export function StandaloneRequirementModal({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (isLinkedRequirement) {
+    if (usesExistingProject) {
       if (!selectedProject || (!project && !eligibleProjects.some((order) => order.id === selectedProject.id)) || selectedProject.workflow.currentStatus === "cancelled") {
         setError(`Select an active Order ${kindLabel} project.`);
         return;
       }
       if (!requestedBy.trim()) { setError("Order By / PIC is required."); return; }
       const requirement: RequirementUpdateValues = { requirementType, status, requestedBy: requestedBy.trim(), supplier, orderDate: orderDate || null, expectedDate: expectedDate || null, arrivalDate: arrivalDate || null, invoiceNumber, price, remark };
-      if (combined && onSaveCombined) onSaveCombined(requirement, { ...requirement, requirementType: rubberType });
-      else if (onSaveRequirement) onSaveRequirement(requirement);
-      else (kind === "tooling" ? saveToolingRequirement : saveRubberRequirement)(selectedProject.no, requirement, submitMode.current === "continue" && canContinue);
+      if (onSaveRequirement) onSaveRequirement(requirement);
+      else (kind === "tooling" ? saveToolingRequirement : saveRubberRequirement)(selectedProject.id, requirement, submitMode.current === "continue" && canContinue);
       onClose();
+      return;
+    }
+
+    if (!customer.trim() || !product.trim() || !requestedBy.trim()) {
+      setError("Customer, product, and Order By / PIC are required for a manual order.");
       return;
     }
 
@@ -176,8 +178,14 @@ export function StandaloneRequirementModal({
       >
         <header className="modal-header">
           <div>
-            <h2 id={titleId}>Add {kindLabel}</h2>
-            <p>{project ? `Enter ${kindLabel.toLowerCase()} details, then click Update in Incoming Design to submit the project.` : `Select an Order ${kindLabel} project from Incoming Design and enter requirement details.`}</p>
+            <h2 id={titleId}>{saveImmediately ? "Edit" : "Add"} {kindLabel}</h2>
+            <p>{project
+              ? saveImmediately
+                ? `Edit ${kindLabel.toLowerCase()} details for this project. Changes save directly without changing its workflow stage.`
+                : `Enter ${kindLabel.toLowerCase()} details, then click Update in Incoming Design to submit the project.`
+              : usesExistingProject
+                ? `Select a project code to add its ${kindLabel.toLowerCase()} details.`
+                : `Enter the order manually when no project code exists yet. The system will generate an internal code after saving.`}</p>
           </div>
           <button
             type="button"
@@ -192,7 +200,22 @@ export function StandaloneRequirementModal({
 
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-form-grid">
-            {isLinkedRequirement ? <>
+            {!project ? <label className="modal-field modal-field-full">
+              <span>Order Source</span>
+              <select
+                value={entryMode}
+                onChange={(event) => {
+                  const nextMode = event.target.value as RequirementEntryMode;
+                  setEntryMode(nextMode);
+                  if (nextMode === "manual") setProjectId("");
+                  setError("");
+                }}
+              >
+                <option value="existing">Existing project / PSR code</option>
+                <option value="manual">No project code yet (manual entry)</option>
+              </select>
+            </label> : null}
+            {usesExistingProject ? <>
               <label className="modal-field modal-field-full">
                 <span>Incoming Design *</span>
                 <select value={selectedProject?.id ?? ""} disabled={Boolean(project)} required onChange={(event) => {
@@ -205,30 +228,30 @@ export function StandaloneRequirementModal({
                   {(project ? [project] : eligibleProjects).map((order) => <option key={order.id} value={order.id}>{order.no} - {order.customer} - {order.product}</option>)}
                 </select>
               </label>
-              {!project && !eligibleProjects.length ? <p className="project-form-error">No active Order {kindLabel} projects available. Update the preparation in Incoming Design first.</p> : null}
+              {!project && !eligibleProjects.length ? <p className="project-form-error">No active or repeat {kindLabel} projects are available. Add the first {kindLabel.toLowerCase()} order from Incoming Design first.</p> : null}
               <label className="modal-field"><span>PSR / Code</span><input value={selectedProject?.no ?? ""} readOnly /></label>
             </> : null}
             <label className="modal-field">
               <span>Customer</span>
-              <input value={isLinkedRequirement ? selectedProject?.customer ?? "" : customer} readOnly={isLinkedRequirement} onChange={(event) => setCustomer(event.target.value)} required />
+              <input value={usesExistingProject ? selectedProject?.customer ?? "" : customer} readOnly={usesExistingProject} onChange={(event) => setCustomer(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>{isLinkedRequirement ? "Product / Component" : "Produk / Komponen"}</span>
-              <input value={isLinkedRequirement ? selectedProject?.product ?? "" : product} readOnly={isLinkedRequirement} onChange={(event) => setProduct(event.target.value)} required />
+              <span>Product / Component</span>
+              <input value={usesExistingProject ? selectedProject?.product ?? "" : product} readOnly={usesExistingProject} onChange={(event) => setProduct(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Part Number / Code</span>
-              <input value={isLinkedRequirement ? selectedProject?.mainData.partNo ?? "" : partNo} readOnly={isLinkedRequirement} onChange={(event) => setPartNo(event.target.value)} required={!isLinkedRequirement} />
+              <span>{usesExistingProject ? "Part Number / Code" : "Part Number / Reference (optional)"}</span>
+              <input value={usesExistingProject ? selectedProject?.mainData.partNo ?? "" : partNo} readOnly={usesExistingProject} onChange={(event) => setPartNo(event.target.value)} />
             </label>
             <label className="modal-field">
               <span>Material</span>
-              <input value={isLinkedRequirement ? selectedProject?.material ?? "" : material} readOnly={isLinkedRequirement} onChange={(event) => setMaterial(event.target.value)} />
+              <input value={usesExistingProject ? selectedProject?.material ?? "" : material} readOnly={usesExistingProject} onChange={(event) => setMaterial(event.target.value)} />
             </label>
             <label className="modal-field">
               <span>Priority</span>
               <select
-                value={isLinkedRequirement ? selectedProject?.priority ?? "Medium" : priority}
-                disabled={isLinkedRequirement}
+                value={usesExistingProject ? selectedProject?.priority ?? "Medium" : priority}
+                disabled={usesExistingProject}
                 onChange={(event) => setPriority(event.target.value as ProjectPriority)}
               >
                 {priorityOptions.map((option) => (
@@ -242,13 +265,12 @@ export function StandaloneRequirementModal({
               <span>Order By / PIC</span>
               <input
                 value={requestedBy}
-                disabled={combined}
                 onChange={(event) => setRequestedBy(event.target.value)}
                 required
               />
             </label>
             <label className="modal-field">
-              <span>{combined ? "Tooling" : kindLabel} Type</span>
+              <span>{kindLabel} Type</span>
               <select
                 value={requirementType}
                 onChange={(event) => setRequirementType(event.target.value)}
@@ -260,12 +282,6 @@ export function StandaloneRequirementModal({
                 ))}
               </select>
             </label>
-            {combined ? <label className="modal-field">
-              <span>Rubber Type</span>
-              <select value={rubberType} onChange={(event) => setRubberType(event.target.value)}>
-                {rubberTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-              </select>
-            </label> : null}
             <label className="modal-field">
               <span>Status</span>
               <select
@@ -280,11 +296,11 @@ export function StandaloneRequirementModal({
               </select>
             </label>
             <label className="modal-field">
-              <span>{isLinkedRequirement ? "Order Date" : "Tanggal Order"}</span>
+              <span>Order Date</span>
               <input type="date" value={orderDate} onChange={(event) => setOrderDate(event.target.value)} />
             </label>
             <label className="modal-field">
-              <span>{isLinkedRequirement ? "Expected Arrival Date" : "Estimasi Datang"}</span>
+              <span>Expected Arrival Date</span>
               <input
                 type="date"
                 value={expectedDate}
@@ -292,7 +308,7 @@ export function StandaloneRequirementModal({
               />
             </label>
             <label className="modal-field">
-              <span>{isLinkedRequirement ? "Received Date" : "Tanggal Diterima"}</span>
+              <span>Received Date</span>
               <input
                 type="date"
                 value={arrivalDate}
@@ -301,7 +317,7 @@ export function StandaloneRequirementModal({
             </label>
             <label className="modal-field">
               <span>Deadline</span>
-              {isLinkedRequirement ? <input value={selectedProject?.deadline ?? ""} readOnly /> : <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />}
+              {usesExistingProject ? <input value={selectedProject?.deadline ?? ""} readOnly /> : <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />}
             </label>
             <label className="modal-field">
               <span>Supplier / Vendor</span>
@@ -312,11 +328,11 @@ export function StandaloneRequirementModal({
               <input value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} />
             </label>
             <label className="modal-field">
-              <span>{isLinkedRequirement ? "Price" : "Harga"}</span>
+              <span>Price</span>
               <input
                 value={price}
                 onChange={(event) => setPrice(event.target.value)}
-                placeholder={isLinkedRequirement ? "Amount in IDR" : "Rp / nominal"}
+                placeholder={usesExistingProject ? "Amount in IDR" : "Rp / nominal"}
               />
             </label>
             <label className="modal-field modal-field-full">
@@ -324,7 +340,7 @@ export function StandaloneRequirementModal({
               <textarea
                 value={remark}
                 onChange={(event) => setRemark(event.target.value)}
-                placeholder={isLinkedRequirement ? "Requirement notes, supplier details, or order instructions" : "Catatan kebutuhan, supplier, atau instruksi order"}
+                placeholder="Requirement notes, supplier details, or order instructions"
                 rows={3}
               />
             </label>
@@ -332,7 +348,7 @@ export function StandaloneRequirementModal({
 
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
-              {isLinkedRequirement ? "Cancel" : "Batal"}
+              Cancel
             </Button>
             <Button
               type="submit"
@@ -350,13 +366,13 @@ export function StandaloneRequirementModal({
               title={
                 canContinue
                   ? undefined
-                  : isLinkedRequirement ? "Status must be Received or Available to continue" : "Status harus Received atau Available untuk melanjutkan"
+                  : "Status must be Received or Available to continue"
               }
               onClick={() => {
                 submitMode.current = "continue";
               }}
             >
-              {isLinkedRequirement ? "Save & Continue" : "Simpan & Lanjut"}
+              Save & Continue
             </Button> : null}
           </footer>
           {error ? <p className="project-form-error" role="alert">{error}</p> : null}

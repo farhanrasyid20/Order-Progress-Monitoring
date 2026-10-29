@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -39,9 +38,9 @@ const requirementStatuses: readonly { value: RequirementStatus; label: string }[
 /** Records a tooling requirement before handing an eligible project onward. */
 export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
   const titleId = useId();
-  const router = useRouter();
   const submitMode = useRef<"save" | "continue">("save");
   const { saveToolingRequirement } = useWorkflowOrders();
+  const isDrawingReviewPending = order.stage === "design-progress" || order.stage === "review-approval";
   const latest = order.toolingOrders.at(-1);
   const savedRequirementType = latest?.requirementType?.trim() || "";
   const savedRequestedBy = [latest?.requestedBy, order.pic]
@@ -207,7 +206,7 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
             >
               Save Tooling
             </Button>
-            <Button
+            {!isDrawingReviewPending ? <Button
               type="submit"
               icon="arrow"
               onClick={() => {
@@ -215,7 +214,7 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
               }}
             >
               Save &amp; Continue
-            </Button>
+            </Button> : null}
           </footer>
         </form>
       </section>

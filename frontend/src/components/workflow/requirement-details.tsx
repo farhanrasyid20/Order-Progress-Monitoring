@@ -1,4 +1,5 @@
 import { formatRecordedAt } from "@/lib/detail-date";
+import { selectedPreparationOrders } from "@/lib/requirement-queue";
 import { OffsetProjectDetails } from "./offset-project-details";
 import type { Order, RequirementRecord, RequirementStatus, StandaloneRequirementKind } from "@/types/order";
 
@@ -35,7 +36,9 @@ export function RequirementDetails({ order, kind, showProject = true, showPrevio
   const records = kind === "tooling" ? order.toolingOrders : order.rubberOrders;
   const latest = records.at(-1);
   const label = kind === "tooling" ? "Tooling" : "Rubber";
-  const preparationLabels = { tooling: "Order Tooling", rubber: "Order Rubber", tooling_and_rubber: "Order Tooling & Rubber" };
+  const preparationLabel = selectedPreparationOrders(order)
+    .map((preparationKind) => preparationKind === "tooling" ? "Order Tooling" : "Order Rubber")
+    .join(" + ") || "-";
 
   return <>
     {showProject && order.workflow.preparationType === "offset" ? <OffsetProjectDetails order={order} /> : null}
@@ -46,7 +49,7 @@ export function RequirementDetails({ order, kind, showProject = true, showPrevio
         ["Product / Component", order.product], ["Material", order.material],
         ["Description", order.description], ["Designer / PIC", order.pic],
         ["Project Date", order.projectDate], ["Deadline", order.deadline],
-        ["Preparation", order.workflow.productionOrder ? preparationLabels[order.workflow.productionOrder] : "-"],
+        ["Preparation", preparationLabel],
         ["Forwarded to Material Request / MI", (kind === "tooling" ? order.workflow.toolingForwarded : order.workflow.rubberForwarded) ? "Yes" : "No"],
       ]} />
       {order.workflow.drawingLink ? <a className="drawing-link" href={order.workflow.drawingLink} target="_blank" rel="noopener noreferrer">Open Drawing</a> : null}
