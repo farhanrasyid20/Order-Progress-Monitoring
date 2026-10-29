@@ -7,9 +7,8 @@ const preApprovalStages = new Set([
   "review-approval",
 ]);
 
-// Tooling/Rubber planning is saved from Incoming Design before the drawing is
-// approved, so those two queues intentionally become available earlier than
-// Material Request / MI.
+// Preparation tasks become available once the Incoming Design plan is saved,
+// including Material Request / MI before drawing approval.
 const beforeIncomingPreparationIsSaved = new Set([
   "order",
   "design-incoming",
@@ -44,6 +43,27 @@ export function isCombinedRequirement(order?: Order) {
   return false;
 }
 
+export function hasParallelPreparation(order: Order) {
+  // The shared plan also supports MI alone; Tooling and Rubber are optional.
+  return !order.requirementBranch && !order.id.startsWith("standalone-") && order.workflow.preparationType === "converting" &&
+    order.workflow.convertingRoute === "by_production" && order.workflow.materialRequested;
+}
+
+export function isParallelPreparationPending(order: Order) {
+  return hasParallelPreparation(order) && order.workflow.currentStatus !== "cancelled" &&
+    order.workflow.currentStatus !== "completed" && [
+      "design-progress", "review-approval", "converting-production", "tooling-progress",
+      "rubber-order-setting", "material-request",
+    ].includes(order.stage);
+}
+
+export function isParallelPreparationComplete(order: Order) {
+  return hasParallelPreparation(order) && Boolean(order.workflow.materialReady) &&
+    selectedPreparationOrders(order).every((kind) => kind === "tooling"
+      ? order.workflow.toolingReady && order.workflow.toolingForwarded
+      : order.workflow.rubberReady && order.workflow.rubberForwarded);
+}
+
 export function isInRequirementQueue(order: Order, kind: StandaloneRequirementKind) {
   if (
     order.workflow.currentStatus === "cancelled" ||
@@ -55,7 +75,8 @@ export function isInRequirementQueue(order: Order, kind: StandaloneRequirementKi
   return order.workflow.preparationType === "converting" &&
     order.workflow.convertingRoute === "by_production" &&
     selectedPreparationOrders(order).includes(kind) &&
-    !(kind === "tooling" ? order.workflow.toolingForwarded : order.workflow.rubberForwarded);
+    (hasParallelPreparation(order) ? isParallelPreparationPending(order)
+      : !(kind === "tooling" ? order.workflow.toolingForwarded : order.workflow.rubberForwarded));
 }
 
 /**
@@ -104,11 +125,20 @@ export function materialRequestQueueEntries(order: Order): Order[] {
       : [];
   }
 
-  const afterApproval = !preApprovalStages.has(order.stage);
+  if (hasParallelPreparation(order)) {
+    return isParallelPreparationPending(order) ? [{
+      ...order,
+      process: "Material Request / MI",
+      status: order.workflow.materialReady ? "MI Completed - Waiting for Other Preparation" : "Material Request / MI Pending",
+      tone: order.workflow.materialReady ? "success" : "warning",
+    }] : [];
+  }
+
+  const preparationSaved = !beforeIncomingPreparationIsSaved.has(order.stage);
   const isConverting = order.workflow.preparationType === "converting";
   const isMaterialStage = order.stage === "material-request";
 
-  return isConverting && afterApproval && (order.workflow.materialRequested || isMaterialStage)
+  return isConverting && preparationSaved && (order.workflow.materialRequested || isMaterialStage)
     ? [order]
     : [];
 }
@@ -116,11 +146,16 @@ export function materialRequestQueueEntries(order: Order): Order[] {
 export function requirementQueueDisplay(order: Order, kind: StandaloneRequirementKind): Order {
   const hasDetails = (kind === "tooling" ? order.toolingOrders : order.rubberOrders).length > 0;
   const label = kind === "tooling" ? "Tooling" : "Rubber";
+  const completed = kind === "tooling"
+    ? order.workflow.toolingReady && order.workflow.toolingForwarded
+    : order.workflow.rubberReady && order.workflow.rubberForwarded;
 
   return {
     ...order,
     process: kind === "tooling" ? "Order Tooling" : "Order Rubber",
-    status: `${label} Details ${hasDetails ? "Added" : "Required"}`,
-    tone: hasDetails ? "info" : "warning",
+    status: completed && isParallelPreparationPending(order)
+      ? `${label} Completed - Waiting for Other Preparation`
+      : `${label} Details ${hasDetails ? "Added" : "Required"}`,
+    tone: completed ? "success" : hasDetails ? "info" : "warning",
   };
 }

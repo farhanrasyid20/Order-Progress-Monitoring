@@ -53,7 +53,7 @@ export function WorkflowStageView({
     () => stage === "tooling-progress" || stage === "rubber-order-setting"
       ? orders.filter((order) => isInRequirementQueue(order, stage === "tooling-progress" ? "tooling" : "rubber"))
         .map((order) => requirementQueueDisplay(order, stage === "tooling-progress" ? "tooling" : "rubber"))
-      : stage === "material-request" ? orders.flatMap(materialRequestQueueEntries)
+      : stage === "material-request" ? orders.filter((order) => order.workflow.preparationType === "converting").flatMap(materialRequestQueueEntries)
       : orders.filter((order) => order.stage === stage),
     [orders, stage],
   );

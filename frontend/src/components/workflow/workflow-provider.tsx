@@ -14,7 +14,7 @@ import { matchesOrder } from "@/lib/requirement-branches";
 import { orders as initialOrders } from "@/data/orders";
 import { canUpdateDrawingStatus } from "@/lib/permissions";
 import { drawingStatusOptions, getDrawingStatus } from "@/lib/drawing-status";
-import { canRecordConvertingRequirement, isInRequirementQueue, materialRequestQueueEntries } from "@/lib/requirement-queue";
+import { canRecordConvertingRequirement, isParallelPreparationPending, isParallelPreparationComplete, isInRequirementQueue, materialRequestQueueEntries } from "@/lib/requirement-queue";
 import type {
   DesignDecision,
   DrawingStatus,
@@ -733,6 +733,7 @@ function moveToStage(
   stage: WorkflowStage,
   options: { preserveStatus?: boolean } = {},
 ): Order {
+  if (stage === "sample-progress" && isParallelPreparationPending(order) && !isParallelPreparationComplete(order)) return order;
   const details = workflowStageDetails[stage];
   const updatedAt = new Date().toISOString();
   const status = options.preserveStatus ? order.status : details.status;
@@ -1138,6 +1139,12 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           const updatedOrder = kind === "tooling"
             ? { ...order, toolingOrders: nextRecords }
             : { ...order, rubberOrders: nextRecords };
+          if (isParallelPreparationPending(order)) {
+            const ready = isReadyToContinueRequirement(values.status);
+            updatedOrder.workflow = { ...updatedOrder.workflow, ...(kind === "tooling"
+              ? { toolingReady: ready, toolingForwarded: ready && Boolean(order.workflow.toolingForwarded) }
+              : { rubberReady: ready, rubberForwarded: ready && Boolean(order.workflow.rubberForwarded) }) };
+          }
 
           return appendHistory(updatedOrder, {
             process: `${kind}_requirement`,
@@ -1347,6 +1354,14 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.remark.trim(),
             },
           );
+          if (isInitialQueueTask && isParallelPreparationPending(order)) {
+            const ready = isReadyToContinueRequirement(values.status);
+            const prepared = { ...updated, workflow: {
+              ...updated.workflow, toolingReady: ready,
+              toolingForwarded: ready && (continueWorkflow || Boolean(order.workflow.toolingForwarded)),
+            } };
+            return isParallelPreparationComplete(prepared) ? moveToStage(prepared, "sample-progress") : prepared;
+          }
           // These preparation details may be edited before drawing approval,
           // but must remain in their queue and cannot advance the workflow yet.
           if (isDrawingReviewPendingStage(order.stage)) return updated;
@@ -1422,6 +1437,14 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.remark.trim(),
             },
           );
+          if (isInitialQueueTask && isParallelPreparationPending(order)) {
+            const ready = isReadyToContinueRequirement(values.status);
+            const prepared = { ...updated, workflow: {
+              ...updated.workflow, rubberReady: ready,
+              rubberForwarded: ready && (continueWorkflow || Boolean(order.workflow.rubberForwarded)),
+            } };
+            return isParallelPreparationComplete(prepared) ? moveToStage(prepared, "sample-progress") : prepared;
+          }
           if (isDrawingReviewPendingStage(order.stage)) return updated;
           if (continueWorkflow) {
             const forwarded = {
@@ -1486,6 +1509,15 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               remark: values.remark.trim(),
             },
           );
+
+          if (isParallelPreparationPending(order)) {
+            const ready = values.status === "released" || values.status === "received";
+            const prepared = { ...updated, workflow: {
+              ...updated.workflow,
+              materialReady: ready && (continueWorkflow || Boolean(order.workflow.materialReady)),
+            } };
+            return isParallelPreparationComplete(prepared) ? moveToStage(prepared, "sample-progress") : prepared;
+          }
 
           const canMoveToNextStage =
             ["converting-design", "converting-production", "material-request", "offset-material-request"].includes(order.stage) ||

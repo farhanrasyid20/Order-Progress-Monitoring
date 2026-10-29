@@ -79,6 +79,10 @@ function historyChange(record: ProcessHistoryRecord) {
 /** Shared audit detail for records after they move beyond Incoming Design. */
 export function ProjectHistoryModal({ order, onClose, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false, offsetDetails = false }: ProjectHistoryModalProps) {
   const titleId = useId();
+  const qcDetails = order.stage === "quality-control" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
+  const faDetails = order.stage === "fa-report" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
+  const readyDetails = order.stage === "submit-sample" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
+  const decisionDetails = order.stage === "sample-completed" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
   const prepressDetails = Boolean(offsetDetails && order.stage === "offset-prepress");
   const offsetMaterialDetails = order.workflow.preparationType === "offset" && order.stage === "offset-material-request" && (offsetDetails || materialRequest);
   const offsetPlateDetails = Boolean(offsetDetails && order.stage === "offset-plate");
@@ -117,7 +121,7 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
       >
         <header className="modal-header">
           <div>
-            <h2 id={titleId}>{prepressDetails ? "Offset Prepress Details & History" : sampleProgress ? "Sample Progress Details & History" : materialRequest ? "Material Request / MI Details & History" : requirementKind ? `${requirementKind === "tooling" ? "Tooling" : "Rubber"} Details & History` : "Project Details & History"}</h2>
+            <h2 id={titleId}>{decisionDetails ? "Sample Decision Details & History" : readyDetails ? "Ready to Submit Details & History" : faDetails ? "FA Report Details & History" : qcDetails ? "QC Checking Details & History" : prepressDetails ? "Offset Prepress Details & History" : sampleProgress ? "Sample Progress Details & History" : materialRequest ? "Material Request / MI Details & History" : requirementKind ? `${requirementKind === "tooling" ? "Tooling" : "Rubber"} Details & History` : "Project Details & History"}</h2>
             <p>{order.no} / {order.customer} / {order.product}{order.requirementBranch ? ` / ${order.requirementBranch === "tooling" ? "Tooling" : "Rubber"}` : ""}</p>
           </div>
           <button
@@ -147,6 +151,13 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
             </div>
           </div>
 
+          {qcDetails || faDetails || readyDetails || decisionDetails ? <>
+            <SampleProgressDetails order={order} fullProjectInformation />
+            <QcCheckingDetails order={order} />
+            {faDetails || readyDetails || decisionDetails ? <FaReportDetails order={order} /> : null}
+            {readyDetails || decisionDetails ? <ReadyToSubmitDetails order={order} /> : null}
+            {decisionDetails ? <SampleDecisionDetails order={order} /> : null}
+          </> : <>
           {order.workflow.preparationType === "offset" && !standardOffsetDetails && !archiveDetails && !offsetDetails && !requirementKind && !materialRequest && !sampleProgress ? <OffsetProjectDetails order={order} /> : null}
           {standardOffsetDetails ? <OffsetPrepressDetails order={order} fullProjectInformation={archiveDetails} showMaterialRequest={offsetMaterialDetails || offsetPlateDetails} showPlate={offsetPlateDetails} showVarnish={offsetVarnishDetails} showPress={offsetPressDetails || offsetQcDetails || offsetFaDetails || offsetReadyDetails || offsetDecisionDetails || offsetArchiveDetails} /> : offsetDetails ? <ArchiveProjectDetails order={order} offsetOnly /> : null}
           {requirementKind ? <RequirementDetails order={order} kind={requirementKind} /> : null}
@@ -157,6 +168,7 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
           {archiveDetails || order.stage === "submit-sample" || order.stage === "sample-completed" ? <FaReportDetails order={order} /> : null}
           {archiveDetails || order.stage === "sample-completed" ? <ReadyToSubmitDetails order={order} /> : null}
           {archiveDetails ? <SampleDecisionDetails order={order} /> : null}
+          </>}
 
           <div className="table-wrap history-table-wrap">
             <table className="history-table">

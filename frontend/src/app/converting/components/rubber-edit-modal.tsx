@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { isParallelPreparationPending } from "@/lib/requirement-queue";
 import type { Order, RequirementStatus } from "@/types/order";
 
 export type RubberEditModalProps = {
@@ -38,6 +39,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
   const submitMode = useRef<"save" | "continue">("save");
   const { saveRubberRequirement } = useWorkflowOrders();
   const isDrawingReviewPending = order.stage === "design-progress" || order.stage === "review-approval";
+  const parallelPreparation = isParallelPreparationPending(order);
   const latest = order.rubberOrders.at(-1);
   const savedRequirementType = latest?.requirementType?.trim() || "";
   const savedRequestedBy = [latest?.requestedBy, order.pic]
@@ -203,9 +205,11 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
             >
               Save Requirement
             </Button>
-            {!isDrawingReviewPending ? <Button
+            {!isDrawingReviewPending || parallelPreparation ? <Button
               type="submit"
               icon="arrow"
+              disabled={parallelPreparation && status !== "received" && status !== "available"}
+              title={parallelPreparation ? "Complete with Received or Available / Existing. Sample Progress waits for all selected preparation tasks." : undefined}
               onClick={() => {
                 submitMode.current = "continue";
               }}

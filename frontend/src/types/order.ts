@@ -231,6 +231,8 @@ export type ProjectWorkflow = {
   rubberReady?: boolean;
   toolingForwarded?: boolean;
   rubberForwarded?: boolean;
+  /** Completed Material / MI task in the shared Converting preparation plan. */
+  materialReady?: boolean;
   materialForwarded?: Partial<Record<StandaloneRequirementKind, boolean>>;
   preparationType: PreparationType;
   convertingRoute: ConvertingRoute | null;

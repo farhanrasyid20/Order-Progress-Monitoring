@@ -74,6 +74,11 @@ function isPreparationOrder(order: Order) {
   return order.stage === "order";
 }
 
+function requirementsEqual(left: RequirementUpdateValues | undefined, right: RequirementUpdateValues | undefined) {
+  if (!left || !right) return left === right;
+  return (Object.keys(left) as Array<keyof RequirementUpdateValues>).every((key) => left[key] === right[key]);
+}
+
 function kindLabel(kind: PreparationOrderKind) {
   return kind === "tooling" ? "Order Tooling" : "Order Rubber";
 }
@@ -107,12 +112,26 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
   };
 
   const draft = draftFor(order);
+  const savedDraft = draftFromOrder(order);
+  const hasChanges = draft.route !== savedDraft.route ||
+    draft.materialRequested !== savedDraft.materialRequested ||
+    draft.remark !== savedDraft.remark ||
+    draft.preparationOrders.length !== savedDraft.preparationOrders.length ||
+    draft.preparationOrders.some((kind, index) => kind !== savedDraft.preparationOrders[index]) ||
+    !requirementsEqual(draft.toolingRequirement, savedDraft.toolingRequirement) ||
+    !requirementsEqual(draft.rubberRequirement, savedDraft.rubberRequirement);
   const isCancelled = order.workflow.currentStatus === "cancelled";
   const isPreparation = isPreparationOrder(order);
+  const preparationOrderLocked = !draft.materialRequested;
   const selectedKinds = draft.preparationOrders.filter((kind): kind is PreparationOrderKind => Boolean(kind));
   const hasIncompleteRow = draft.preparationOrders.some((kind) => !kind);
   const canAddPreparationOrder = draft.route === "by_production" && draft.preparationOrders.length < preparationOrderOptions.length && !hasIncompleteRow;
-  const canUpdatePreparation = !isCancelled && isPreparation && !hasIncompleteRow;
+  const canUpdatePreparation = !isCancelled && isPreparation && !hasIncompleteRow && hasChanges;
+  const updateTitle = isCancelled ? "This project has already been cancelled"
+    : !isPreparation ? "Only new incoming projects can update their preparation plan"
+    : hasIncompleteRow ? "Complete any empty preparation-order row first"
+    : !hasChanges ? "Make changes before updating"
+    : "Save the preparation plan and move the project to Progress Drawing";
   const networkPath = drawingNetworkPath(order);
   const savedDrawingHref = drawingHref(order.workflow.drawingLink, networkPath);
 
@@ -130,6 +149,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
   };
 
   const persistDraft = () => {
+    if (!canUpdatePreparation) return;
     const preparationOrders = draft.preparationOrders.filter((kind): kind is PreparationOrderKind => Boolean(kind));
     onUpdatePreparation(order.id, { ...draft, preparationOrders, productionOrder: preparationOrders[0] ?? null });
     setDrafts((current) => {
@@ -186,17 +206,18 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
                 className="preparation-select"
                 value={kind ?? ""}
                 aria-label={`Preparation order ${index + 1} for ${order.no}`}
-                disabled={isCancelled || !isPreparation || detailSaved}
+                disabled={isCancelled || !isPreparation || preparationOrderLocked || detailSaved}
                 onChange={(event) => updatePreparationRow(index, (event.target.value as PreparationOrderKind) || null)}
               >
                 <option value="">Select preparation order...</option>
                 {preparationOrderOptions.map((option) => <option key={option.value} value={option.value} disabled={selectedKinds.includes(option.value) && option.value !== kind}>{option.label}</option>)}
               </select>
-              {kind ? <button type="button" className="table-action" disabled={isCancelled} aria-label={`Edit ${kindLabel(kind)} for ${order.no}`} title={detailSaved ? `Edit ${kindLabel(kind)} detail` : `Add ${kindLabel(kind)} detail`} onClick={() => setRequirementEditor({ order, kind })}><Icon name="pen" size={15} /></button> : null}
+              {kind ? <button type="button" className="table-action" disabled={isCancelled || (isPreparation && preparationOrderLocked)} aria-label={`Edit ${kindLabel(kind)} for ${order.no}`} title={detailSaved ? `Edit ${kindLabel(kind)} detail` : `Add ${kindLabel(kind)} detail`} onClick={() => setRequirementEditor({ order, kind })}><Icon name="pen" size={15} /></button> : null}
               {!detailSaved ? <button type="button" className="table-action preparation-row-remove" disabled={isCancelled || !isPreparation} aria-label={`Remove preparation order ${index + 1}`} title="Remove preparation order" onClick={() => updateDraft(order, { preparationOrders: draft.preparationOrders.filter((_, rowIndex) => rowIndex !== index) })}><Icon name="close" size={14} /></button> : null}
             </div>;
           })}
-          {canAddPreparationOrder ? <button type="button" className="preparation-add-button" disabled={isCancelled || !isPreparation} onClick={() => updateDraft(order, { preparationOrders: [...draft.preparationOrders, null] })}><Icon name="plus" size={14} /> Add Preparation Order</button> : null}
+          {canAddPreparationOrder ? <button type="button" className="preparation-add-button" disabled={isCancelled || !isPreparation || preparationOrderLocked} title={preparationOrderLocked ? "Select Next Preparation first" : undefined} onClick={() => updateDraft(order, { preparationOrders: [...draft.preparationOrders, null] })}><Icon name="plus" size={14} /> Add Preparation Order</button> : null}
+          {preparationOrderLocked && isPreparation ? <span className="preparation-empty">Select Next Preparation before choosing or adding a preparation order.</span> : null}
           {!draft.preparationOrders.length ? <span className="preparation-empty">Tooling and Rubber are optional for Converting: Production.</span> : null}
         </div>
       </div> : null}
@@ -215,7 +236,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
 
     <div className="incoming-detail-actions">
       <Badge tone={order.tone}>{finalPreparationStatus(order, draft)}</Badge>
-      <button type="button" className="table-update-button" disabled={!canUpdatePreparation} title={canUpdatePreparation ? "Save the preparation plan and move the project to Progress Drawing" : "Complete any empty preparation-order row first"} onClick={persistDraft}><Icon name="save" size={14} /> Update</button>
+      <button type="button" className="table-update-button" disabled={!canUpdatePreparation} title={updateTitle} onClick={persistDraft}><Icon name="save" size={14} /> Update</button>
       <button type="button" className="table-cancel-button" disabled={isCancelled || !isPreparation} title={isCancelled ? "This project has already been cancelled" : !isPreparation ? "Only new incoming projects can be cancelled" : "Cancel this project"} onClick={() => onCancel(order)}><Icon name="close" size={14} /> Cancel</button>
     </div>
 

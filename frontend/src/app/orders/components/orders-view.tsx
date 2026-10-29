@@ -236,7 +236,9 @@ export function OrdersView({
                 : []);
             const destination = values.route === "offset"
               ? "Prepress"
-              : preparationOrders.length
+              : values.materialRequested
+                ? "Material Request / MI"
+                : preparationOrders.length
                 ? preparationOrders
                     .map((kind) => (kind === "tooling" ? "Order Tooling" : "Order Rubber"))
                     .join(" and ")

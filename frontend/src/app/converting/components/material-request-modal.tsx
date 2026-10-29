@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { isParallelPreparationPending } from "@/lib/requirement-queue";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
@@ -37,7 +37,6 @@ export function MaterialRequestModal({ order, onClose, offset = false }: Materia
 
 function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequestModalProps) {
   const titleId = useId();
-  const router = useRouter();
   const submitMode = useRef<"save" | "continue">("save");
   const { saveMaterialRequest } = useWorkflowOrders();
   const latest = order.materialRequests.filter((record) => record.source === order.materialRequestSource).at(-1);
@@ -61,8 +60,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
 
-  const canContinue =
-    !offset || true;
+  const canContinue = !isParallelPreparationPending(order) || status === "released" || status === "received";
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
