@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useTablePagination } from "@/components/ui/use-table-pagination";
 import { UserFormModal } from "./user-form-modal";
+import { DeleteUserModal } from "./delete-user-modal";
 import {
   UserTable,
   type ManagedUser,
@@ -17,6 +18,7 @@ export function UsersView() {
   const { users, setUsers } = useUsers();
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<ManagedUser | null>(null);
   const pagination = useTablePagination(users);
 
   const closeForm = () => {
@@ -79,7 +81,7 @@ export function UsersView() {
             </p>
           </div>
         </div>
-        <UserTable users={pagination.pageItems} onEdit={openEditForm} />
+        <UserTable users={pagination.pageItems} onEdit={openEditForm} onDelete={setDeletingUser} />
         <TablePagination
           page={pagination.page}
           pageCount={pagination.pageCount}
@@ -97,6 +99,11 @@ export function UsersView() {
           onSave={saveUser}
         />
       ) : null}
+      {deletingUser ? <DeleteUserModal user={deletingUser} onClose={() => setDeletingUser(null)} onConfirm={() => {
+        setUsers(current => current.filter(user => user.id !== deletingUser.id));
+        setDeletingUser(null);
+        pagination.resetPage();
+      }} /> : null}
     </>
   );
 }

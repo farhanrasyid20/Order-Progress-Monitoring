@@ -9,6 +9,7 @@ const ts = require("typescript");
 // are omitted so these workflow tests never read or overwrite browser storage.
 function workflowHarness() {
   const states = [];
+  let actor = "Farhan";
   let cursor = 0;
   const react = {
     createContext: () => ({ Provider: "provider" }),
@@ -47,7 +48,7 @@ function workflowHarness() {
   const queue = load(path.resolve(__dirname, "../src/lib/requirement-queue.ts"));
   const api = () => {
     cursor = 0;
-    return WorkflowOrdersProvider({ children: null }).props.value;
+    return WorkflowOrdersProvider({ children: null, currentUserName: actor }).props.value;
   };
   const original = structuredClone(api().orders[0]);
   function start(kinds) {
@@ -72,8 +73,51 @@ function workflowHarness() {
     if (task === "mi") current.saveMaterialRequest("parallel-project", material(status), complete);
     else current[task === "tooling" ? "saveToolingRequirement" : "saveRubberRequirement"]("parallel-project", requirement(task, status), complete);
   }
-  return { api, queue, start, save, states, load };
+  return { api, queue, start, save, states, load, loginAs: (name) => { actor = name; } };
 }
+
+test("history follows the logged-in user across account changes without rewriting earlier events", () => {
+  const h = workflowHarness();
+  h.start(["tooling", "rubber"]);
+  const originalHistory = structuredClone(h.api().orders[0].processHistory);
+  assert.ok(originalHistory.length >= 2);
+  assert.ok(originalHistory.every(entry => entry.user === "Farhan"));
+
+  for (const [name, task] of [["Jose", "tooling"], ["Anantha", "rubber"], ["Anantha", "mi"]]) {
+    h.loginAs(name);
+    const before = h.api().orders[0].processHistory.length;
+    h.save(task);
+    const added = h.api().orders[0].processHistory.slice(before);
+    assert.ok(added.length > 0);
+    assert.ok(added.every(entry => entry.user === name));
+  }
+  const beforeQc = h.api().orders[0].processHistory.length;
+  h.loginAs("Anisa");
+  h.api().moveOrderToStage("parallel-project", "quality-control", { pic: "Different PIC", description: "QC handoff" });
+  const final = h.api().orders[0].processHistory;
+  assert.ok(final.slice(beforeQc).every(entry => entry.user === "Anisa"));
+  assert.ok(final.slice(beforeQc).length >= 2);
+  assert.deepEqual(final.slice(0, originalHistory.length), originalHistory);
+});
+
+test("project creation and drawing status audit use the account rather than project PIC", () => {
+  const h = workflowHarness();
+  const { createEmptyProjectFormDraft } = h.load(path.resolve(__dirname, "../src/app/orders/components/project-form-config.ts"));
+  const values = createEmptyProjectFormDraft();
+  values.preparationType = "converting";
+  values.convertingRoute = "by_production";
+  values.pic = "Different PIC";
+  values.mainData.component = "Audit test";
+  values.mainData.custName = "Customer";
+  h.loginAs("Anantha");
+  h.api().addProject(values);
+  const created = h.api().orders[0];
+  assert.equal(created.processHistory.at(-1).user, "Anantha");
+  h.loginAs("Farhan");
+  h.api().updateDrawingStatus(created.id, "drawing_available");
+  assert.equal(h.api().orders[0].processHistory.at(-1).user, "Farhan");
+  assert.equal(h.api().orders[0].processHistory[0].user, "Anantha");
+});
 
 function permutations(items) {
   return items.length === 0 ? [[]] : items.flatMap((item, index) =>

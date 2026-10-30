@@ -26,7 +26,7 @@ export type UserFormModalProps = {
 const emptyDraft: UserDraft = {
   name: "",
   email: "",
-  role: "Viewer",
+  role: "Intern",
   status: "Active",
 };
 

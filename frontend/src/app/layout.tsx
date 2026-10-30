@@ -2,7 +2,8 @@ import { UsersProvider } from "@/components/users/users-provider";
 import type { Metadata } from "next";
 import AppFrame from "@/components/layout/app-frame";
 import { IssuesProvider } from "@/components/issues/issue-provider";
-import { WorkflowOrdersProvider } from "@/components/workflow/workflow-provider";
+import { AuthProvider } from "@/components/auth/auth-provider";
+import { AuthenticatedWorkflowProvider } from "@/components/auth/authenticated-workflow-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,11 +16,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="id">
       <body>
         <UsersProvider>
-        <WorkflowOrdersProvider>
-          <IssuesProvider>
-            <AppFrame>{children}</AppFrame>
-          </IssuesProvider>
-        </WorkflowOrdersProvider>
+          <AuthProvider>
+            <AuthenticatedWorkflowProvider>
+              <IssuesProvider>
+                <AppFrame>{children}</AppFrame>
+              </IssuesProvider>
+            </AuthenticatedWorkflowProvider>
+          </AuthProvider>
         </UsersProvider>
       </body>
     </html>

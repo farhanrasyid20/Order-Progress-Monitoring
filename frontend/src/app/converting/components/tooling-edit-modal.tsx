@@ -49,11 +49,11 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
     .find(value => value?.trim() && value.trim() !== "-")?.trim() || "";
   const [requirementType, setRequirementType] = useState(savedRequirementType || "Auto Peeling");
   const [status, setStatus] = useState<RequirementStatus>(latest?.status ?? "needed");
-  const [orderDate, setOrderDate] = useState(latest?.orderDate ?? "");
-  const [expectedDate, setExpectedDate] = useState(latest?.expectedDate ?? "");
+  const [orderDate] = useState(latest?.orderDate ?? "");
+  const [expectedDate] = useState(latest?.expectedDate ?? "");
   const [arrivalDate, setArrivalDate] = useState(latest?.arrivalDate ?? "");
   const [requestedBy, setRequestedBy] = useState(savedRequestedBy);
-  const [supplier, setSupplier] = useState(latest?.supplier ?? "");
+  const [supplier] = useState(latest?.supplier ?? "");
   const [invoiceNumber, setInvoiceNumber] = useState(latest?.invoiceNumber ?? "");
   const [price, setPrice] = useState(latest?.price ?? "");
   const [remark, setRemark] = useState(latest?.remark ?? "");
@@ -163,11 +163,11 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
             </label>
             <label className="modal-field">
               <span>Order Date</span>
-              <input type="date" value={orderDate} onChange={(event) => setOrderDate(event.target.value)} />
+              <input type="date" value={orderDate} disabled />
             </label>
             <label className="modal-field">
               <span>Expected Arrival Date</span>
-              <input type="date" value={expectedDate} onChange={(event) => setExpectedDate(event.target.value)} />
+              <input type="date" value={expectedDate} disabled />
             </label>
             <label className="modal-field">
               <span>Received Date</span>
@@ -175,7 +175,7 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
             </label>
             <label className="modal-field">
               <span>Supplier / Vendor</span>
-              <input value={supplier} onChange={(event) => setSupplier(event.target.value)} />
+              <input value={supplier} disabled />
             </label>
             <label className="modal-field">
               <span>Invoice Number</span>

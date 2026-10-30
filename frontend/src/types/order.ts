@@ -1,7 +1,7 @@
 /** Status presentation remains separate from the workflow state. */
 export type OrderStatusTone = "info" | "success" | "warning" | "danger" | "neutral";
 export type ProjectPriority = "High" | "Medium" | "Low";
-export type ProjectRole = "superadmin" | "admin" | "manager" | "design";
+export type ProjectRole = "superadmin" | "admin" | "manager" | "design" | "qc" | "intern";
 export type DrawingStatus = "no_drawing" | "drawing_available" | "reviewed_by_superior";
 export type ProjectEntryType = "new" | "version_up";
 

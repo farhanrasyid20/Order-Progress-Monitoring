@@ -1,6 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
 import { useState } from "react";
 import { Icon } from "@/components/ui/icon";
 
@@ -14,10 +15,13 @@ export type LoginViewProps = {
   onLogin?: (credentials: LoginCredentials) => void;
 };
 
-/** Standalone login feature. Authentication can be connected later via onLogin. */
+/** Frontend demo login backed by the users shown in Master Data. */
 export function LoginView() {
-  const [email, setEmail] = useState("admin@company.com");
-  const [password, setPassword] = useState("password");
+  const { login, ready } = useAuth();
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [remember, setRemember] = useState(true);
 
@@ -41,14 +45,26 @@ export function LoginView() {
           <p>Sign in to monitor and manage customer orders.</p>
         </div>
 
-        <div>
+        <form onSubmit={(event) => {
+          event.preventDefault();
+          try {
+            if (!login(email, password, remember)) {
+              setError("Username atau password salah, atau akun tidak aktif.");
+              return;
+            }
+            router.replace("/dashboard");
+          } catch {
+            setError("Sesi tidak dapat disimpan. Izinkan penyimpanan browser lalu coba lagi.");
+          }
+        }}>
           <label className="form-field">
             <span>Email or username</span>
             <input
-              type="email"
+              type="text"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="name@company.com"
+              placeholder="Username atau email"
+              required
               autoComplete="username"
             />
           </label>
@@ -61,6 +77,7 @@ export function LoginView() {
               onChange={(event) => setPassword(event.target.value)}
               placeholder="Enter your password"
               autoComplete="current-password"
+              required
             />
             <button
               type="button"
@@ -86,10 +103,11 @@ export function LoginView() {
               Forgot password?
             </button>
           </div>
-          <Link className="button button-primary login-button" href="/dashboard">
+          {error ? <p className="project-form-error" role="alert">{error}</p> : null}
+          <button type="submit" className="button button-primary login-button" disabled={!ready}>
             Sign in
-          </Link>
-        </div>
+          </button>
+        </form>
         <p className="login-help">
           Having trouble signing in? Contact IT Support.
         </p>

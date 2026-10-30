@@ -21,6 +21,8 @@ export type StandaloneRequirementModalProps = {
   onSaveRequirement?: (values: RequirementUpdateValues) => void;
   /** The detail is already persisted in Incoming Design and can be saved directly. */
   saveImmediately?: boolean;
+  /** Incoming Design leaves receipt dates to the Tooling/Rubber order menus. */
+  hideReceivedDate?: boolean;
 };
 
 const toolingTypes = [
@@ -71,6 +73,7 @@ export function StandaloneRequirementModal({
   initialRequirement,
   onSaveRequirement,
   saveImmediately = false,
+  hideReceivedDate = false,
 }: StandaloneRequirementModalProps) {
   const titleId = useId();
   const submitMode = useRef<"save" | "continue">("save");
@@ -307,14 +310,14 @@ export function StandaloneRequirementModal({
                 onChange={(event) => setExpectedDate(event.target.value)}
               />
             </label>
-            <label className="modal-field">
+            {!hideReceivedDate ? <label className="modal-field">
               <span>Received Date</span>
               <input
                 type="date"
                 value={arrivalDate}
                 onChange={(event) => setArrivalDate(event.target.value)}
               />
-            </label>
+            </label> : null}
             <label className="modal-field">
               <span>Deadline</span>
               {usesExistingProject ? <input value={selectedProject?.deadline ?? ""} readOnly /> : <input type="date" value={deadline} onChange={(event) => setDeadline(event.target.value)} />}

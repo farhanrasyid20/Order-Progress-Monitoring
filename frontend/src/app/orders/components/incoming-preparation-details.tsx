@@ -240,7 +240,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
       <button type="button" className="table-cancel-button" disabled={isCancelled || !isPreparation} title={isCancelled ? "This project has already been cancelled" : !isPreparation ? "Only new incoming projects can be cancelled" : "Cancel this project"} onClick={() => onCancel(order)}><Icon name="close" size={14} /> Cancel</button>
     </div>
 
-    {requirementEditor ? <StandaloneRequirementModal kind={requirementEditor.kind} project={requirementEditor.order} initialRequirement={requirementFor(requirementEditor.kind)} saveImmediately={!isPreparation} onSaveRequirement={(requirement) => saveRequirementDetail(requirementEditor.kind, requirement)} onClose={() => setRequirementEditor(null)} /> : null}
+    {requirementEditor ? <StandaloneRequirementModal kind={requirementEditor.kind} project={requirementEditor.order} initialRequirement={requirementFor(requirementEditor.kind)} saveImmediately={!isPreparation} hideReceivedDate onSaveRequirement={(requirement) => saveRequirementDetail(requirementEditor.kind, requirement)} onClose={() => setRequirementEditor(null)} /> : null}
   </section>;
 }
 

@@ -37,13 +37,6 @@ export type ProjectFormSection = {
   fields: readonly ProjectFormField[];
 };
 
-const designerOptions = [
-  { label: "Not assigned", value: "" },
-  { label: "Ihsan", value: "Ihsan" },
-  { label: "Aldo", value: "Aldo" },
-  { label: "Dimas", value: "Dimas" },
-] as const;
-
 /**
  * The field configuration is deliberately owned by the Orders feature because
  * stakeholder columns are still provisional and should be easy to revise.
@@ -133,7 +126,14 @@ export const projectFormConfig: readonly ProjectFormSection[] = [
       { key: "partNo2", source: "mainData", label: "PartNo2", type: "text" },
       { key: "set", source: "mainData", label: "Set", type: "text" },
       { key: "sub", source: "mainData", label: "Sub", type: "text" },
-      { key: "singDoub", source: "mainData", label: "SingDoub", type: "text" },
+      {
+        key: "singDoub", source: "mainData", label: "SingDoub", type: "select",
+        options: [
+          { label: "Select...", value: "" },
+          { label: "Singel Wall", value: "Singel Wall" },
+          { label: "Double Wall", value: "Double Wall" },
+        ],
+      },
     ],
   },
   {
@@ -165,24 +165,45 @@ export const projectFormConfig: readonly ProjectFormSection[] = [
     id: "printing-colour",
     title: "Printing & Colour",
     fields: [
-      { key: "printing", source: "mainData", label: "Printing", type: "text" },
-      { key: "colours", source: "mainData", label: "Colours", type: "text" },
-      { key: "colour2", source: "mainData", label: "Colour2", type: "text" },
-      { key: "colour3", source: "mainData", label: "Colour3", type: "text" },
-      { key: "colour4", source: "mainData", label: "Colour4", type: "text" },
-      { key: "colour5", source: "mainData", label: "Colour5", type: "text" },
+      {
+        key: "printing", source: "mainData", label: "Printing", type: "select",
+        options: [{ label: "Yes", value: "Yes" }, { label: "No", value: "No" }],
+      },
+      { key: "colours", source: "mainData", label: "Colours", type: "text", disabledWhen: (draft) => draft.mainData.printing !== "Yes" },
+      { key: "colour2", source: "mainData", label: "Colour2", type: "text", disabledWhen: (draft) => draft.mainData.printing !== "Yes" },
+      { key: "colour3", source: "mainData", label: "Colour3", type: "text", disabledWhen: (draft) => draft.mainData.printing !== "Yes" },
+      { key: "colour4", source: "mainData", label: "Colour4", type: "text", disabledWhen: (draft) => draft.mainData.printing !== "Yes" },
+      { key: "colour5", source: "mainData", label: "Colour5", type: "text", disabledWhen: (draft) => draft.mainData.printing !== "Yes" },
     ],
   },
   {
     id: "production-finishing",
     title: "Production / Finishing",
     fields: [
-      { key: "unit", source: "mainData", label: "Unit", type: "text" },
-      { key: "manfJoin1", source: "mainData", label: "ManfJoin1", type: "text" },
+      {
+        key: "unit", source: "mainData", label: "Unit", type: "select",
+        options: [
+          { label: "Select...", value: "" },
+          { label: "PCS", value: "PCS" },
+          { label: "SET", value: "SET" },
+        ],
+      },
+      {
+        key: "manfJoin1", source: "mainData", label: "ManfJoin1", type: "select",
+        options: [
+          { label: "Select...", value: "" },
+          { label: "Glue", value: "Glue" },
+          { label: "Hot Melt", value: "Hot Melt" },
+          { label: "Stitching Single", value: "Stitching Single" },
+          { label: "Stitching Double", value: "Stitching Double" },
+        ],
+      },
       { key: "manfJoin2", source: "mainData", label: "ManfJoin2", type: "text" },
-      { key: "assembly", source: "mainData", label: "Assembly", type: "text" },
+      {
+        key: "assembly", source: "mainData", label: "Assembly", type: "select",
+        options: [{ label: "Yes", value: "Yes" }, { label: "No", value: "No" }],
+      },
       { key: "finishing", source: "mainData", label: "Finishing", type: "text" },
-      { key: "dispFlag", source: "mainData", label: "DispFlag", type: "text" },
     ],
   },
   {
@@ -194,8 +215,8 @@ export const projectFormConfig: readonly ProjectFormSection[] = [
         key: "pic",
         source: "project",
         label: "Designer",
-        type: "select",
-        options: designerOptions,
+        type: "text",
+        disabledWhen: () => true,
       },
       { key: "projectDate", source: "project", label: "Project Date", type: "date" },
       { key: "deadline", source: "project", label: "Deadline", type: "date" },
@@ -269,7 +290,7 @@ export function createEmptyProjectFormDraft(): ProjectFormDraft {
   const today = new Date();
   const projectDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   return {
-    mainData: createEmptyProjectMainData(),
+    mainData: { ...createEmptyProjectMainData(), printing: "No", assembly: "No" },
     entryType: "new",
     previousProjectCode: "",
     preparationType: "",
@@ -323,7 +344,6 @@ export function getProjectFormConfig(draft: ProjectFormDraft): readonly ProjectF
     { ...section("printing-colour"), fields: section("printing-colour").fields.map((field, index) => ({
       ...field,
       label: index === 0 ? "Printing" : "Colours " + index,
-      ...(index === 0 ? { placeholder: "Number of colours, Pantone colours, special colours" } : {}),
     })) },
     { id: "coatings", title: "Coatings", fields: [
       offsetSelect("varnish", "Varnish", ["WB Block Varnish", "WB Spot Varnish", "OPV Block Varnish", "OPV Spot Varnish"]),

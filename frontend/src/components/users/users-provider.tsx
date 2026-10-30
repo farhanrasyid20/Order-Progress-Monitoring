@@ -1,57 +1,40 @@
 "use client";
 
-import { createContext, useContext, useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type Dispatch, type SetStateAction, type ReactNode } from "react";
+import { demoUsers } from "@/data/users";
 import type { ManagedUser } from "@/app/users/components/user-table";
+import { userRoles } from "@/app/users/components/user-table";
 
-const initialUsers: ManagedUser[] = [
-  {
-    id: "user-1",
-    name: "Siti Rahma",
-    email: "siti.rahma@cots.id",
-    role: "Administrator",
-    status: "Active",
-    lastActive: "Just now",
-  },
-  {
-    id: "user-2",
-    name: "Andi Pratama",
-    email: "andi.pratama@cots.id",
-    role: "Project Manager",
-    status: "Active",
-    lastActive: "12 minutes ago",
-  },
-  {
-    id: "user-3",
-    name: "Nadia Putri",
-    email: "nadia.putri@cots.id",
-    role: "Designer",
-    status: "Active",
-    lastActive: "1 hour ago",
-  },
-  {
-    id: "user-4",
-    name: "Bima Saputra",
-    email: "bima.saputra@cots.id",
-    role: "Quality Control",
-    status: "Active",
-    lastActive: "Yesterday",
-  },
-  {
-    id: "user-5",
-    name: "Maya Lestari",
-    email: "maya.lestari@cots.id",
-    role: "Viewer",
-    status: "Inactive",
-    lastActive: "4 days ago",
-  },
-];
+const initialUsers: ManagedUser[] = demoUsers;
 
-
-const UsersContext = createContext<{ users: ManagedUser[]; setUsers: Dispatch<SetStateAction<ManagedUser[]>> } | null>(null);
+const UsersContext = createContext<{ users: ManagedUser[]; ready: boolean; setUsers: Dispatch<SetStateAction<ManagedUser[]>> } | null>(null);
 
 export function UsersProvider({ children }: { children: ReactNode }) {
   const [users, setUsers] = useState<ManagedUser[]>(initialUsers);
-  return <UsersContext.Provider value={{ users, setUsers }}>{children}</UsersContext.Provider>;
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    // Restore after hydration, before allowing authentication against stored users.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    try {
+      const saved: unknown = JSON.parse(window.localStorage.getItem("cots-users-v1") ?? "null");
+      if (Array.isArray(saved) && saved.every(user => user &&
+        typeof user.id === "string" && typeof user.name === "string" &&
+        typeof user.email === "string" && typeof user.lastActive === "string" &&
+        userRoles.includes(user.role) && ["Active", "Inactive"].includes(user.status))) {
+        setUsers(saved);
+      }
+    } catch {
+      // Fall back to the demo accounts if stored user data cannot be read.
+    }
+    setReady(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
+  useEffect(() => {
+    if (!ready) return;
+    try { window.localStorage.setItem("cots-users-v1", JSON.stringify(users)); }
+    catch { /* Keep user changes available for this session when storage is unavailable. */ }
+  }, [users, ready]);
+  return <UsersContext.Provider value={{ users, ready, setUsers }}>{children}</UsersContext.Provider>;
 }
 
 export function useUsers() {

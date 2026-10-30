@@ -1,11 +1,11 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ChangePasswordModal } from "./change-password-modal";
 import { Icon } from "@/components/ui/icon";
-import { getNavigationItem } from "@/lib/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
+import { canAccessPath } from "@/lib/auth";
 
 const sampleNotifications = [
   { id: 1, title: "Drawing Awaiting Review", message: "A new drawing has been submitted for review and approval.", time: "5 minutes ago", href: "/review-approval" },
@@ -25,9 +25,8 @@ export function Header({
   onToggleDesktopSidebar,
   desktopSidebarCollapsed,
 }: HeaderProps) {
-  const pathname = usePathname();
-  const activeItem = getNavigationItem(pathname);
-  const activeLabel = activeItem?.label ?? "Workspace";
+  const { user } = useAuth();
+  const notifications = sampleNotifications.filter(item => user && canAccessPath(user.role, item.href));
   const [profileOpen, setProfileOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -36,7 +35,7 @@ export function Header({
   const [readNotifications, setReadNotifications] = useState<number[]>([]);
   const notificationRef = useRef<HTMLDivElement>(null);
   const notificationTriggerRef = useRef<HTMLButtonElement>(null);
-  const unreadCount = sampleNotifications.length - readNotifications.length;
+  const unreadCount = notifications.filter(item => !readNotifications.includes(item.id)).length;
 
   useEffect(() => {
     if (!notificationsOpen) return;
@@ -122,12 +121,13 @@ export function Header({
             <div className="notification-heading">
               <strong>Notifications <small>{unreadCount} unread</small></strong>
               <button type="button" disabled={unreadCount === 0}
-                onClick={() => setReadNotifications(sampleNotifications.map((item) => item.id))}>
+                onClick={() => setReadNotifications(notifications.map((item) => item.id))}>
                 Mark all as read
               </button>
             </div>
             <ul className="notification-list">
-              {sampleNotifications.map((item) => (
+              {notifications.length === 0 ? <li className="notification-item">No notifications.</li> : null}
+              {notifications.map((item) => (
                 <li key={item.id}>
                   <Link href={item.href} className={`notification-item ${readNotifications.includes(item.id) ? "" : "unread"}`}
                     onClick={() => {
@@ -153,10 +153,10 @@ export function Header({
             setProfileOpen((open) => !open);
             setNotificationsOpen(false);
           }}>
-          <div className="avatar">FR</div>
+          <div className="avatar">{user?.name.slice(0, 2).toUpperCase()}</div>
           <div className="profile-copy">
-            <strong>Farhan Rasyid</strong>
-            <small>Graphic Designer</small>
+            <strong>{user?.name}</strong>
+            <small>{user?.role}</small>
           </div>
           <Icon name="chevron" size={14} />
         </button>

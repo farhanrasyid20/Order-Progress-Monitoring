@@ -11,12 +11,17 @@ export type WorkflowFilterCardsProps = {
 };
 
 type WorkflowCard = {
-  phase: WorkflowPhase;
+  phase: WorkflowPhase | "";
   label: string;
   description: string;
 };
 
 const workflowCards: WorkflowCard[] = [
+  {
+    phase: "",
+    label: "All",
+    description: "All workflow phases",
+  },
   {
     phase: "order",
     label: "Order",
@@ -78,15 +83,15 @@ export function WorkflowFilterCards({
   selectedPhase,
   onPhaseChange,
 }: WorkflowFilterCardsProps) {
-  const countForPhase = (phase: WorkflowPhase) =>
-    orders.filter((order) => workflowPhaseForStage(order.stage) === phase).length;
+  const countForPhase = (phase: WorkflowPhase | "") =>
+    phase ? orders.filter((order) => workflowPhaseForStage(order.stage) === phase).length : orders.length;
 
   return (
     <section className="card workflow-filter-card" aria-label="COTS workflow filter">
       <div className="workflow-filter-heading">
         <div>
           <h2>Workflow Status</h2>
-          <p>Filter active projects by the four COTS workflow phases.</p>
+          <p>View all active projects or filter by workflow phase.</p>
         </div>
         <strong>{orders.length} active</strong>
       </div>
@@ -96,7 +101,7 @@ export function WorkflowFilterCards({
             type="button"
             className={`workflow-filter-item ${selectedPhase === card.phase ? "is-active" : ""}`}
             aria-pressed={selectedPhase === card.phase}
-            key={card.phase}
+            key={card.phase || "all"}
             onClick={() =>
               onPhaseChange(selectedPhase === card.phase ? "" : card.phase)
             }

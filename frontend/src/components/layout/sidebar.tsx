@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
+import { canAccessPath } from "@/lib/auth";
 import { Icon } from "@/components/ui/icon";
 import {
   closingNavigationItems,
@@ -96,13 +98,21 @@ function WorkflowNavigationGroup({
 /** Persistent navigation for every authenticated application page. */
 export function Sidebar({ open, visible, onClose, onLogout }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const allowedItem = (item: { href: string }) => Boolean(user && canAccessPath(user.role, item.href));
+  const visibleClosingItems = closingNavigationItems.filter(allowedItem);
+  const visibleSystemItems = systemNavigationItems.filter(allowedItem);
+  const visibleWorkflowGroups = workflowNavigationGroups
+    .map(group => ({ ...group, items: group.items.filter(allowedItem) }))
+    .filter(group => group.items.length > 0);
   const sharedDesignItems = workspaceNavigationItems.filter(
     (item) =>
+      allowedItem(item) &&
       item.flow === undefined &&
       ["/dashboard", "/orders", "/issue-log"].includes(item.href),
   );
   const downstreamItems = workspaceNavigationItems.filter(
-    (item) => item.flow === undefined && !sharedDesignItems.includes(item),
+    (item) => allowedItem(item) && item.flow === undefined && !sharedDesignItems.includes(item),
   );
 
   return (
@@ -145,7 +155,7 @@ export function Sidebar({ open, visible, onClose, onLogout }: SidebarProps) {
             />
           ))}
 
-          {workflowNavigationGroups.map((group) => (
+          {visibleWorkflowGroups.map((group) => (
             <WorkflowNavigationGroup
               key={group.id}
               group={group}
@@ -163,8 +173,8 @@ export function Sidebar({ open, visible, onClose, onLogout }: SidebarProps) {
             />
           ))}
 
-          <p className="nav-label nav-label-settings">FINISH / CLOSING</p>
-          {closingNavigationItems.map((item) => (
+          {visibleClosingItems.length ? <p className="nav-label nav-label-settings">FINISH / CLOSING</p> : null}
+          {visibleClosingItems.map((item) => (
             <NavigationLink
               key={item.href}
               item={item}
@@ -173,8 +183,8 @@ export function Sidebar({ open, visible, onClose, onLogout }: SidebarProps) {
             />
           ))}
 
-          <p className="nav-label nav-label-settings">SYSTEM</p>
-          {systemNavigationItems.map((item) => (
+          {visibleSystemItems.length ? <p className="nav-label nav-label-settings">SYSTEM</p> : null}
+          {visibleSystemItems.map((item) => (
             <NavigationLink
               key={item.href}
               item={item}
@@ -186,7 +196,7 @@ export function Sidebar({ open, visible, onClose, onLogout }: SidebarProps) {
 
         <div className="sidebar-footer">
           <Link
-            href="/"
+            href="/login"
             className="nav-item logout"
             onClick={onLogout}
           >

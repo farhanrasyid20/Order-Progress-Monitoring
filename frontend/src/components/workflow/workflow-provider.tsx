@@ -47,9 +47,6 @@ type WorkflowStageDetails = {
   progress: number;
 };
 
-// Placeholder until authentication supplies the active user to the provider.
-const prototypeActor = "Farhan Rasyid";
-
 /** Display adapters used by the existing queue screens during the staged migration. */
 export const workflowStageDetails: Record<WorkflowStage, WorkflowStageDetails> = {
   order: {
@@ -564,6 +561,7 @@ function isDrawingReviewPendingStage(stage: WorkflowStage) {
 function applyIncomingPreparation(
   order: Order,
   values: PreparationWorkflowUpdate,
+  currentUserName: string,
 ): Order {
   const updatedAt = new Date().toISOString();
   const preparationOrders = values.route === "by_production"
@@ -596,7 +594,7 @@ function applyIncomingPreparation(
         process: "incoming_preparation",
         status: "updated",
         date: updatedAt,
-        user: prototypeActor,
+        user: currentUserName,
         changeSummary: incomingPreparationLabel(normalizedValues),
         remark: values.remark.trim(),
       },
@@ -647,6 +645,7 @@ function applyDrawingSubmission(
   order: Order,
   values: DrawingSubmission,
   drawingLink: string,
+  currentUserName: string,
 ): Order {
   const updatedAt = new Date().toISOString();
 
@@ -668,7 +667,7 @@ function applyDrawingSubmission(
         process: "drawing_submitted",
         status: "waiting",
         date: updatedAt,
-        user: prototypeActor,
+        user: currentUserName,
         changeSummary: "Drawing link submitted for design decision.",
         remark: values.notes.trim(),
       },
@@ -683,7 +682,7 @@ function designDecisionLabel(decision: DesignDecision) {
     : "Preparation: Design Revision";
 }
 
-function applyDesignDecision(order: Order, decision: DesignDecision): Order {
+function applyDesignDecision(order: Order, decision: DesignDecision, currentUserName: string): Order {
   const updatedAt = new Date().toISOString();
   const status = decision === "approve" ? "Approve" : "Revision";
 
@@ -701,7 +700,7 @@ function applyDesignDecision(order: Order, decision: DesignDecision): Order {
         process: "design_decision",
         status: decision,
         date: updatedAt,
-        user: prototypeActor,
+        user: currentUserName,
         changeSummary: designDecisionLabel(decision),
         remark: "",
       },
@@ -728,10 +727,10 @@ function withRequirementDetailsStatus(order: Order, kind: StandaloneRequirementK
   };
 }
 
-function moveToStage(
+function moveToStageWithActor(
   order: Order,
   stage: WorkflowStage,
-  options: { preserveStatus?: boolean } = {},
+  options: { preserveStatus?: boolean; actor: string },
 ): Order {
   if (stage === "sample-progress" && isParallelPreparationPending(order) && !isParallelPreparationComplete(order)) return order;
   const details = workflowStageDetails[stage];
@@ -773,7 +772,7 @@ function moveToStage(
         process: stageProcess,
         status,
         date: updatedAt,
-        user: "System",
+        user: options.actor,
         changeSummary: `Moved to ${details.process}.`,
         remark: "",
       },
@@ -814,10 +813,12 @@ function normalizePersistedOrder(order: Order): Order {
  * Browser-persisted prototype state. New records use the nested Project model, while the flat
  * display fields keep the existing dashboard and queue UI working unchanged.
  */
-export function WorkflowOrdersProvider({ children, currentUserRole = "design" }: { children: ReactNode; currentUserRole?: ProjectRole }) {
+export function WorkflowOrdersProvider({ children, currentUserRole = "design", currentUserName = "System" }: { children: ReactNode; currentUserRole?: ProjectRole; currentUserName?: string }) {
   const [orders, setOrders] = useState<Order[]>(() => initialOrders.map(normalizePersistedOrder));
   const [storageReady, setStorageReady] = useState(false);
   const designFileUrls = useRef<string[]>([]);
+  const moveToStage = useCallback((order: Order, stage: WorkflowStage, options: { preserveStatus?: boolean } = {}) =>
+    moveToStageWithActor(order, stage, { ...options, actor: currentUserName }), [currentUserName]);
 
   useEffect(() => {
     // Restore browser data after hydration so the server and initial client render agree.
@@ -861,12 +862,12 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       return appendHistory({ ...order, workflow: { ...order.workflow, drawingStatus: status } }, {
         process: "drawing_status_updated",
         status,
-        user: prototypeActor,
+        user: currentUserName,
         changeSummary: `Drawing status changed to ${drawingStatusOptions.find((option) => option.value === status)?.label}.`,
-        remark: "Updated by superadmin.",
+        remark: `Updated by ${currentUserName}.`,
       });
     }));
-  }, [currentUserRole]);
+  }, [currentUserRole, currentUserName]);
 
   const addProject = useCallback((values: ProjectFormValues) => {
     const drawingLink = values.designFile
@@ -934,7 +935,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               process: isVersionUp ? "version_up" : "new_project",
               status: "new",
               date: createdAt,
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: isVersionUp
                 ? `Version Up ${lineage.versionNumber} created from ${lineage.sourceProjectNo}.`
                 : drawingLink
@@ -967,7 +968,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         ...currentOrders,
       ];
     });
-  }, []);
+  }, [currentUserName]);
 
   const createStandaloneRequirementOrder = useCallback(
     (
@@ -1018,7 +1019,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               process: `standalone_${kind}_order`,
               status: requirement.status,
               date: createdAt,
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: `Standalone ${kindLabel.toLowerCase()} order created for ${requirement.requirementType}.`,
               remark: requirement.remark.trim(),
             },
@@ -1051,7 +1052,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         return [completedOrder, ...currentOrders];
       });
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const completeIncomingPreparation = useCallback(
@@ -1070,7 +1071,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           const selections = values.route === "by_production"
             ? selectedPreparationOrders(values)
             : [];
-          let prepared = applyIncomingPreparation(order, values);
+          let prepared = applyIncomingPreparation(order, values, currentUserName);
           if (selections.includes("tooling") && values.toolingRequirement) {
             prepared = appendHistory({
               ...prepared,
@@ -1081,7 +1082,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             }, {
               process: "tooling_requirement",
               status: values.toolingRequirement.status,
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: "Tooling requirement added from Incoming Design.",
               remark: values.toolingRequirement.remark,
             });
@@ -1093,7 +1094,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             }, {
               process: "rubber_requirement",
               status: values.rubberRequirement.status,
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: "Rubber requirement added from Incoming Design.",
               remark: values.rubberRequirement.remark,
             });
@@ -1105,7 +1106,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         }),
       );
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const updateIncomingRequirementDetails = useCallback(
@@ -1149,14 +1150,14 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           return appendHistory(updatedOrder, {
             process: `${kind}_requirement`,
             status: values.status,
-            user: prototypeActor,
+            user: currentUserName,
             changeSummary: `${label} requirement updated from Incoming Design.`,
             remark: values.remark.trim(),
           });
         }),
       );
     },
-    [],
+    [currentUserName],
   );
 
   const submitDrawing = useCallback(
@@ -1176,13 +1177,13 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           }
 
           return moveToStage(
-            applyDrawingSubmission(order, values, drawingLink),
+            applyDrawingSubmission(order, values, drawingLink, currentUserName),
             "review-approval",
           );
         }),
       );
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const completeDesignDecision = useCallback(
@@ -1199,7 +1200,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
           }
 
           return moveToStage(
-            applyDesignDecision(order, decision),
+            applyDesignDecision(order, decision, currentUserName),
             decision === "approve"
               ? firstStageAfterDesignApproval(order)
               : "design-progress",
@@ -1208,7 +1209,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         }),
       );
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const cancelIncomingProject = useCallback((orderNo: string, reason: string) => {
@@ -1245,7 +1246,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               process: "project_cancelled",
               status: "cancelled",
               date: updatedAt,
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: "Project cancelled.",
               remark: cancellationReason,
             },
@@ -1254,7 +1255,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         };
       }),
     );
-  }, []);
+  }, [currentUserName]);
 
   const editProject = useCallback((orderNo: string, values: ProjectFormValues) => {
     const fileUrl = values.designFile ? URL.createObjectURL(values.designFile) : null;
@@ -1286,12 +1287,12 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       }, {
         process: "project_updated",
         status: "updated",
-        user: prototypeActor,
+        user: currentUserName,
         changeSummary: "Project data edited from Incoming Design details.",
         remark: values.mainData.remark.trim(),
       });
     }));
-  }, []);
+  }, [currentUserName]);
 
   const updateOrder = useCallback(
     (orderNo: string, values: Partial<OrderFormValues>) => {
@@ -1301,7 +1302,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             ? appendHistory(applyOrderValues(order, values), {
               process: "project_updated",
               status: "updated",
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: "Project information updated.",
               remark: values.description?.trim() ?? "",
             })
@@ -1309,7 +1310,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         ),
       );
     },
-    [],
+    [currentUserName],
   );
 
   const saveToolingRequirement = useCallback(
@@ -1347,7 +1348,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             {
               process: "tooling_requirement",
               status: values.status,
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: updateIncomingDraft
                 ? "Tooling requirement updated while drawing review is pending."
                 : `Tooling ${values.requirementType} updated to ${values.status}.`,
@@ -1392,7 +1393,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         }),
       );
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const saveRubberRequirement = useCallback(
@@ -1430,7 +1431,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             {
               process: "rubber_requirement",
               status: values.status,
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: updateIncomingDraft
                 ? "Rubber requirement updated while drawing review is pending."
                 : `Rubber ${values.requirementType} updated to ${values.status}.`,
@@ -1466,7 +1467,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         }),
       );
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const saveMaterialRequest = useCallback(
@@ -1504,7 +1505,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               source: values.source,
               process: "material_request",
               status: values.status,
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: `Material request ${values.miNumber} updated to ${values.status}.`,
               remark: values.remark.trim(),
             },
@@ -1537,7 +1538,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         }),
       );
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const saveOffsetSpk = useCallback(
@@ -1567,7 +1568,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
             {
               process: "offset_spk",
               status: values.status,
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: `Offset SPK created for ${values.productName}.`,
               remark: values.remark.trim(),
             },
@@ -1578,14 +1579,14 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         }),
       );
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const completeSampleDecision = useCallback((orderNo: string, decision: "approve" | "revision" | "cancel", pic: string, notes: string) => {
     setOrders((current) => current.map((order) => {
       if (!matchesOrder(order, orderNo) || order.stage !== "sample-completed" || order.workflow.currentStatus === "cancelled") return order;
       const updated = appendHistory({ ...order, pic }, {
-        process: "sample_decision", pic, status: decision, user: prototypeActor,
+        process: "sample_decision", pic, status: decision, user: currentUserName,
         changeSummary: "Sample decision: " + decision, remark: notes.trim(),
       });
       if (decision === "cancel") {
@@ -1595,7 +1596,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
       return decision === "approve" ? moveToStage(updated, "completed")
         : moveToStage({ ...updated, status: "Revision", tone: "warning", workflow: { ...updated.workflow, designDecision: null } }, "design-progress", { preserveStatus: true });
     }));
-  }, []);
+  }, [currentUserName, moveToStage]);
 
   const submitSample = useCallback((orderNo: string, submittedDate: string) => {
     const parsed = new Date(submittedDate + "T00:00:00Z");
@@ -1606,12 +1607,12 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         ...order,
         sampleSubmissions: [...(order.sampleSubmissions ?? []), { submittedDate, recordedAt: new Date().toISOString() }],
       }, {
-        process: "sample_submitted", status: "submitted", user: prototypeActor,
+        process: "sample_submitted", status: "submitted", user: currentUserName,
         changeSummary: "Sample submitted on " + displayDate(submittedDate) + ".",
         remark: "Submission date: " + submittedDate,
       }), "sample-completed");
     }));
-  }, []);
+  }, [currentUserName, moveToStage]);
 
   const advanceOrder = useCallback(
     (orderNo: string, values: Partial<OrderFormValues> = {}, sample?: SampleProgressValues) => {
@@ -1628,7 +1629,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
               pic: values.pic ?? order.pic,
               deadline: values.deadline || order.deadline,
               status: "updated",
-              user: prototypeActor,
+              user: currentUserName,
               changeSummary: order.stage === "offset-prepress" ? "Move to Material Request / MI." : "Task handoff details updated.",
               remark: values.description?.trim() ?? "",
             })
@@ -1643,7 +1644,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
                 recordedAt: new Date().toISOString(),
               }],
             }, {
-              process: "sample_progress", status: "completed", user: prototypeActor,
+              process: "sample_progress", status: "completed", user: currentUserName,
               changeSummary: `Sample ${sample.sampleNumber} completed and sent to QC.`,
               remark: sample.notes.trim(),
             });
@@ -1653,7 +1654,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         }),
       );
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const moveOrderToStage = useCallback(
@@ -1670,7 +1671,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
                 ? appendHistory(applyOrderValues(order, values), {
                   process: "project_details_updated",
                   status: "updated",
-                  user: prototypeActor,
+                  user: currentUserName,
                   changeSummary: "Project details updated with stage decision.",
                   remark: values.description?.trim() ?? "",
                 })
@@ -1681,7 +1682,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design" }:
         ),
       );
     },
-    [],
+    [currentUserName, moveToStage],
   );
 
   const value = useMemo(

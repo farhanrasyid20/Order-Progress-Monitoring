@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
+import { canAccessPath } from "@/lib/auth";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 
@@ -16,6 +18,16 @@ export type AppFrameProps = {
  */
 export default function AppFrame({ children, onLogout }: AppFrameProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, ready, logout } = useAuth();
+  const publicPage = pathname === "/" || pathname === "/login";
+  const allowed = Boolean(user && canAccessPath(user.role, pathname));
+
+  useEffect(() => {
+    if (!ready || publicPage) return;
+    if (!user) router.replace("/login");
+    else if (!allowed) router.replace("/dashboard");
+  }, [ready, publicPage, user, allowed, router]);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
@@ -30,6 +42,7 @@ export default function AppFrame({ children, onLogout }: AppFrameProps) {
   }, []);
 
   const handleLogout = () => {
+    logout();
     setMobileSidebarOpen(false);
 
     if (onLogout) {
@@ -40,6 +53,8 @@ export default function AppFrame({ children, onLogout }: AppFrameProps) {
   if (pathname === "/" || pathname === "/login") {
     return <>{children}</>;
   }
+
+  if (!ready || !user || !allowed) return <main><p role="status">Memuat akses pengguna...</p></main>;
 
   return (
     <div className={`app-shell ${desktopSidebarCollapsed ? "sidebar-collapsed" : ""}`.trim()}>

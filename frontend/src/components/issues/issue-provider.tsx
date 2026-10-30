@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
+import { useAuth } from "@/components/auth/auth-provider";
 import { initialIssues } from "@/data/issues";
 import { isActiveProject } from "@/lib/active-project";
 import { issueProjectInfo } from "@/lib/issue-project";
@@ -17,6 +18,7 @@ const IssuesContext = createContext<IssuesContextValue | null>(null);
 /** Shared session state, matching the existing frontend-only order storage. */
 export function IssuesProvider({ children }: { children: ReactNode }) {
   const { orders } = useWorkflowOrders();
+  const { user } = useAuth();
   const [issues, setIssues] = useState<IssueRecord[]>(initialIssues);
   const saveIssue = useCallback((values: IssueFormValues, issueId?: number) => {
     const existing = issueId === undefined ? undefined : issues.find((issue) => issue.id === issueId);
@@ -51,16 +53,16 @@ export function IssuesProvider({ children }: { children: ReactNode }) {
     setIssues((current) => {
       if (existing) return current.map((issue) => issue.id === existing.id ? {
         ...issue, ...savedValues,
-        history: [...issue.history, { date, user: savedValues.preparedBy, summary: `Issue updated. Status: ${issue.status} to ${savedValues.status}.` }],
+        history: [...issue.history, { date, user: user?.name ?? "System", summary: `Issue updated. Status: ${issue.status} to ${savedValues.status}.` }],
       } : issue);
       return [{
         ...savedValues,
         id: Math.max(0, ...current.map((issue) => issue.id)) + 1,
-        history: [{ date, user: savedValues.preparedBy, summary: "Issue created." }],
+        history: [{ date, user: user?.name ?? "System", summary: "Issue created." }],
       }, ...current];
     });
     return null;
-  }, [issues, orders]);
+  }, [issues, orders, user?.name]);
   const value = useMemo(() => ({ issues, saveIssue }), [issues, saveIssue]);
   return <IssuesContext.Provider value={value}>{children}</IssuesContext.Provider>;
 }

@@ -4,11 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 
 export const userRoles = [
-  "Administrator",
-  "Project Manager",
+  "Superadmin",
   "Designer",
-  "Quality Control",
-  "Viewer",
+  "QC",
+  "Intern",
 ] as const;
 
 export type UserRole = (typeof userRoles)[number];
@@ -31,6 +30,7 @@ export type UserDraft = Pick<
 export type UserTableProps = {
   users: ManagedUser[];
   onEdit: (user: ManagedUser) => void;
+  onDelete: (user: ManagedUser) => void;
 };
 
 function initials(name: string) {
@@ -43,7 +43,7 @@ function initials(name: string) {
 }
 
 /** Feature-owned user table with a row action for editing a user. */
-export function UserTable({ users, onEdit }: UserTableProps) {
+export function UserTable({ users, onEdit, onDelete }: UserTableProps) {
   return (
     <div className="table-wrap">
       <table className="users-table">
@@ -96,6 +96,15 @@ export function UserTable({ users, onEdit }: UserTableProps) {
                     onClick={() => onEdit(user)}
                   >
                     <Icon name="pen" size={15} />
+                  </button>
+                  <button
+                    type="button"
+                    className="table-action user-delete-action"
+                    aria-label={`Delete ${user.name}`}
+                    title={`Delete ${user.name}`}
+                    onClick={() => onDelete(user)}
+                  >
+                    <Icon name="trash" size={15} />
                   </button>
                 </div>
               </td>

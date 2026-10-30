@@ -8,6 +8,8 @@ export type ProjectPermissions = {
 
 /** Central placeholder for the current prototype roles. */
 export const permissions: Record<ProjectRole, ProjectPermissions> = {
+  qc: { canCreateProject: false, canEditProject: false, canUpdateWorkflow: true },
+  intern: { canCreateProject: false, canEditProject: false, canUpdateWorkflow: true },
   superadmin: {
     canCreateProject: true,
     canEditProject: true,

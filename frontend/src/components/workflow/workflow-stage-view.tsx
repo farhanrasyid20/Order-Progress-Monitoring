@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { OrderCard } from "@/components/workflow/order-card";
 import { OrderTable } from "@/components/workflow/order-table";
 import { ProcessSummary } from "@/components/workflow/process-summary";
+import { RequirementStatusSummary } from "@/components/workflow/requirement-status-summary";
 import { ProjectHistoryModal } from "@/components/workflow/project-history-modal";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useTablePagination } from "@/components/ui/use-table-pagination";
@@ -69,7 +70,9 @@ export function WorkflowStageView({
         {pageAction}
       </div>
 
-      <ProcessSummary icon={icon} language={summaryLanguage} />
+      {stage === "tooling-progress" || stage === "rubber-order-setting" ? (
+        <RequirementStatusSummary orders={queueOrders} kind={stage === "tooling-progress" ? "tooling" : "rubber"} icon={icon} />
+      ) : <ProcessSummary icon={icon} language={summaryLanguage} />}
 
       <OrderCard title={queueTitle} subtitle={queueCopy}>
         <OrderTable

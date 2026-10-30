@@ -33,9 +33,9 @@ export function OrderProgress({
         title="Workflow Overview"
         subtitle="Projects grouped by their current process stage"
         action={
-          <Button type="button" variant="ghost" onClick={onViewOrders}>
+          onViewOrders ? <Button type="button" variant="ghost" onClick={onViewOrders}>
             View All
-          </Button>
+          </Button> : undefined
         }
       />
       <div className="stage-grid">
