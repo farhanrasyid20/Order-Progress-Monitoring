@@ -201,7 +201,7 @@ export function StandaloneRequirementModal({
           </button>
         </header>
 
-        <form className="modal-form" onSubmit={handleSubmit}>
+        <form className="modal-form" onSubmit={handleSubmit} noValidate>
           <div className="modal-form-grid">
             {!project ? <label className="modal-field modal-field-full">
               <span>Order Source</span>
@@ -349,6 +349,7 @@ export function StandaloneRequirementModal({
             </label>
           </div>
 
+          {error ? <p className="project-form-error" role="alert">{error}</p> : null}
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
@@ -365,6 +366,7 @@ export function StandaloneRequirementModal({
             {!project ? <Button
               type="submit"
               icon="arrow"
+              className={kind === "rubber" ? "rubber-continue-button" : undefined}
               disabled={!canContinue}
               title={
                 canContinue
@@ -378,7 +380,6 @@ export function StandaloneRequirementModal({
               Save & Continue
             </Button> : null}
           </footer>
-          {error ? <p className="project-form-error" role="alert">{error}</p> : null}
         </form>
       </section>
     </div>

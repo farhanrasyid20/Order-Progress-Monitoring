@@ -12,6 +12,9 @@ export type OrderTableProps = {
   queueLayout?: boolean;
   editActionLabel?: string;
   requirementKind?: StandaloneRequirementKind;
+  /** Queue pages can opt into their context-specific PIC field. */
+  personLabel?: string;
+  personForOrder?: (order: Order) => string;
   onViewOrder?: (order: Order) => void;
   onEditOrder?: (order: Order) => void;
 };
@@ -47,11 +50,14 @@ export function OrderTable({
   queueLayout = false,
   editActionLabel,
   requirementKind,
+  personLabel = "Designer",
+  personForOrder = (order) => order.pic,
   onViewOrder,
   onEditOrder,
 }: OrderTableProps) {
   const visibleOrders = compact ? orders.slice(0, DEFAULT_TABLE_PAGE_SIZE) : orders;
   const hasActions = Boolean(onEditOrder || onViewOrder);
+  const queuePerson = (order: Order) => personForOrder(order)?.trim() || "-";
 
   const actionCell = (order: Order) => (
     <td>
@@ -97,7 +103,7 @@ export function OrderTable({
         <thead><tr>
           <th scope="col">Action</th><th scope="col">Status</th><th scope="col">PSR / Code</th>
           <th scope="col">Current Process</th><th scope="col">Customer &amp; Product</th>
-          <th scope="col">Designer</th><th scope="col">Deadline</th>
+          <th scope="col">{personLabel}</th><th scope="col">Deadline</th>
         </tr></thead>
         <tbody>{visibleOrders.map(order => <tr key={`${order.id}-${order.materialRequestSource ?? "project"}`}>
           {actionCell(order)}
@@ -105,7 +111,7 @@ export function OrderTable({
           <td><strong className="order-number">{order.no}</strong>{order.requirementBranch ? <span>{order.requirementBranch === "tooling" ? "Tooling" : "Rubber"}</span> : null}</td>
           <td>{englishOffsetLabel(order.process)}</td>
           <td><strong>{order.customer}</strong><span>{order.product}</span></td>
-          <td>{order.pic}</td>
+          <td>{queuePerson(order)}</td>
           <td>{order.deadline}</td>
         </tr>)}</tbody>
       </table>

@@ -224,6 +224,214 @@ test("repeat orders after Sample Progress retain a single project without reente
   assert.equal(h.queue.materialRequestQueueEntries(h.api().orders[0]).length, 0);
 });
 
+test("Order Tooling queue status mirrors the latest selected requirement status", () => {
+  const h = workflowHarness();
+  h.start(["tooling"]);
+
+  h.save("tooling", false, "ordered");
+  assert.equal(
+    h.queue.requirementQueueDisplay(h.api().orders[0], "tooling").status,
+    "Ordered",
+  );
+
+  h.save("tooling", false, "available");
+  assert.equal(
+    h.queue.requirementQueueDisplay(h.api().orders[0], "tooling").status,
+    "Available / Existing",
+  );
+});
+
+test("Order Rubber queue status mirrors the latest selected requirement status", () => {
+  const h = workflowHarness();
+  h.start(["rubber"]);
+
+  h.save("rubber", false, "ordered");
+  assert.equal(
+    h.queue.requirementQueueDisplay(h.api().orders[0], "rubber").status,
+    "Ordered",
+  );
+
+  h.save("rubber", false, "available");
+  assert.equal(
+    h.queue.requirementQueueDisplay(h.api().orders[0], "rubber").status,
+    "Available / Existing",
+  );
+});
+
+test("Material Request queue status mirrors the latest selected MI status", () => {
+  const h = workflowHarness();
+  h.start(["tooling"]);
+
+  h.save("mi", false, "released");
+  let queueEntries = h.queue.materialRequestQueueEntries(h.api().orders[0]);
+  assert.equal(queueEntries.length, 1);
+  assert.equal(queueEntries[0].status, "Released");
+
+  h.save("mi", false, "requested");
+  queueEntries = h.queue.materialRequestQueueEntries(h.api().orders[0]);
+  assert.equal(queueEntries.length, 1);
+  assert.equal(queueEntries[0].status, "Requested");
+});
+
+test("Save Draft updates Tooling without forwarding its workflow", () => {
+  const h = workflowHarness();
+  h.start(["tooling"]);
+  const prepared = h.api().orders[0];
+  h.states[0] = [{
+    ...prepared,
+    stage: "converting-production",
+    workflow: {
+      ...prepared.workflow,
+      materialRequested: false,
+      toolingForwarded: false,
+      toolingReady: false,
+      currentStatus: "in_progress",
+    },
+  }];
+  const draft = {
+    requirementType: "Auto Peeling",
+    status: "ordered",
+    requestedBy: "PIC",
+    supplier: "Supplier",
+    orderDate: "2026-10-29",
+    expectedDate: "2026-11-04",
+    arrivalDate: null,
+    invoiceNumber: "INV-DRAFT",
+    price: "100",
+    remark: "Initial tooling draft",
+  };
+
+  h.api().saveToolingRequirement("parallel-project", draft, false, "draft");
+  h.api().saveToolingRequirement("parallel-project", { ...draft, remark: "Revised tooling draft" }, false, "draft");
+
+  const saved = h.api().orders[0];
+  assert.equal(saved.stage, "converting-production");
+  assert.equal(saved.workflow.toolingForwarded, false);
+  assert.equal(saved.toolingOrders.length, 1);
+  assert.equal(saved.toolingOrders[0].remark, "Revised tooling draft");
+});
+
+test("Tooling Save & Continue only forwards a ready non-parallel requirement", () => {
+  const h = workflowHarness();
+  h.start(["tooling"]);
+  const prepared = h.api().orders[0];
+  h.states[0] = [{
+    ...prepared,
+    stage: "converting-production",
+    workflow: {
+      ...prepared.workflow,
+      materialRequested: false,
+      toolingForwarded: false,
+      toolingReady: false,
+      currentStatus: "in_progress",
+    },
+  }];
+  const requirement = {
+    requirementType: "Auto Peeling",
+    status: "ordered",
+    requestedBy: "PIC",
+    supplier: "Supplier",
+    orderDate: "2026-10-29",
+    expectedDate: "2026-11-04",
+    arrivalDate: null,
+    invoiceNumber: "INV-CONTINUE",
+    price: "100",
+    remark: "Awaiting tooling",
+  };
+
+  h.api().saveToolingRequirement("parallel-project", requirement, true, "draft");
+  const pending = h.api().orders[0];
+  assert.equal(pending.stage, "converting-production");
+  assert.equal(pending.workflow.toolingForwarded, false);
+
+  h.api().saveToolingRequirement("parallel-project", { ...requirement, status: "received" }, true, "draft");
+  const continued = h.api().orders[0];
+  assert.equal(continued.workflow.toolingForwarded, true);
+  assert.equal(continued.stage, "sample-progress");
+});
+
+test("Rubber Save Draft and Save & Continue follow the same workflow rules", () => {
+  const h = workflowHarness();
+  h.start(["rubber"]);
+  const prepared = h.api().orders[0];
+  h.states[0] = [{
+    ...prepared,
+    stage: "converting-production",
+    workflow: {
+      ...prepared.workflow,
+      materialRequested: false,
+      rubberForwarded: false,
+      rubberReady: false,
+      currentStatus: "in_progress",
+    },
+  }];
+  const requirement = {
+    requirementType: "Rubber 4MM",
+    status: "ordered",
+    requestedBy: "PIC",
+    supplier: "Supplier",
+    orderDate: "2026-10-29",
+    expectedDate: "2026-11-04",
+    arrivalDate: null,
+    invoiceNumber: "INV-RUBBER",
+    price: "100",
+    remark: "Initial rubber draft",
+  };
+
+  h.api().saveRubberRequirement("parallel-project", requirement, false, "draft");
+  h.api().saveRubberRequirement("parallel-project", { ...requirement, remark: "Revised rubber draft" }, false, "draft");
+  const saved = h.api().orders[0];
+  assert.equal(saved.stage, "converting-production");
+  assert.equal(saved.workflow.rubberForwarded, false);
+  assert.equal(saved.rubberOrders.length, 1);
+  assert.equal(saved.rubberOrders[0].remark, "Revised rubber draft");
+
+  h.api().saveRubberRequirement("parallel-project", requirement, true, "draft");
+  const pending = h.api().orders[0];
+  assert.equal(pending.stage, "converting-production");
+  assert.equal(pending.workflow.rubberForwarded, false);
+
+  h.api().saveRubberRequirement("parallel-project", { ...requirement, status: "received" }, true, "draft");
+  const continued = h.api().orders[0];
+  assert.equal(continued.workflow.rubberForwarded, true);
+  assert.equal(continued.stage, "sample-progress");
+});
+
+test("repeat Tooling and Rubber orders remain limited to existing By Production projects", () => {
+  const h = workflowHarness();
+  h.start(["tooling", "rubber"]);
+  h.save("tooling"); h.save("rubber"); h.save("mi");
+
+  const project = h.api().orders[0];
+  assert.equal(project.stage, "sample-progress");
+  assert.equal(h.queue.canRecordConvertingRequirement(project, "tooling"), true);
+  assert.equal(h.queue.canRecordConvertingRequirement(project, "rubber"), true);
+
+  const toolingCount = project.toolingOrders.length;
+  const rubberCount = project.rubberOrders.length;
+  h.save("tooling", false, "ordered");
+  h.save("rubber", false, "ordered");
+
+  const repeated = h.api().orders[0];
+  assert.equal(h.api().orders.length, 1);
+  assert.equal(repeated.stage, "sample-progress");
+  assert.equal(repeated.toolingOrders.length, toolingCount + 1);
+  assert.equal(repeated.rubberOrders.length, rubberCount + 1);
+
+  const byDesign = {
+    ...repeated,
+    workflow: { ...repeated.workflow, convertingRoute: "by_design" },
+  };
+  const offset = {
+    ...repeated,
+    workflow: { ...repeated.workflow, preparationType: "offset", convertingRoute: null },
+  };
+  assert.equal(h.queue.canRecordConvertingRequirement(byDesign, "tooling"), false);
+  assert.equal(h.queue.canRecordConvertingRequirement(byDesign, "rubber"), false);
+  assert.equal(h.queue.canRecordConvertingRequirement(offset, "tooling"), false);
+  assert.equal(h.queue.canRecordConvertingRequirement(offset, "rubber"), false);
+});
+
 test("cancelled projects leave every preparation queue", () => {
   const h = workflowHarness();
   h.start(["rubber", "tooling"]);

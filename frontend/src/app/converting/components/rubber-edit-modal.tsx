@@ -50,10 +50,11 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
   const [expectedDate] = useState(latest?.expectedDate ?? "");
   const [arrivalDate, setArrivalDate] = useState(latest?.arrivalDate ?? "");
   const [requestedBy, setRequestedBy] = useState(savedRequestedBy);
-  const [supplier] = useState(latest?.supplier ?? "");
+  const [supplier, setSupplier] = useState(latest?.supplier ?? "");
   const [invoiceNumber, setInvoiceNumber] = useState(latest?.invoiceNumber ?? "");
   const [price, setPrice] = useState(latest?.price ?? "");
   const [remark, setRemark] = useState(latest?.remark ?? "");
+  const canContinue = status === "received" || status === "available";
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -83,6 +84,7 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
         remark,
       },
       continueWorkflow,
+      "draft",
     );
     onClose();
   };
@@ -167,20 +169,20 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
               <input type="date" value={expectedDate} disabled />
             </label>
             <label className="modal-field">
-              <span>Received Date</span>
-              <input type="date" value={arrivalDate} onChange={(event) => setArrivalDate(event.target.value)} />
+              <span>Received Date *</span>
+              <input type="date" value={arrivalDate} onChange={(event) => setArrivalDate(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Supplier / Vendor</span>
-              <input value={supplier} disabled />
+              <span>Supplier / Vendor *</span>
+              <input value={supplier} onChange={(event) => setSupplier(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Invoice Number</span>
-              <input value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} />
+              <span>Invoice Number *</span>
+              <input value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} required />
             </label>
             <label className="modal-field">
-              <span>Price</span>
-              <input value={price} onChange={(event) => setPrice(event.target.value)} placeholder="Amount in IDR" />
+              <span>Price *</span>
+              <input value={price} onChange={(event) => setPrice(event.target.value)} placeholder="Amount in IDR" required />
             </label>
             <label className="modal-field modal-field-full">
               <span>Remark</span>
@@ -203,13 +205,13 @@ export function RubberEditModal({ order, onClose }: RubberEditModalProps) {
                 submitMode.current = "save";
               }}
             >
-              Save Requirement
+              Save Draft
             </Button>
             {!isDrawingReviewPending || parallelPreparation ? <Button
               type="submit"
               icon="arrow"
-              disabled={parallelPreparation && status !== "received" && status !== "available"}
-              title={parallelPreparation ? "Complete with Received or Available / Existing. Sample Progress waits for all selected preparation tasks." : undefined}
+              disabled={!canContinue}
+              title={canContinue ? undefined : "Status must be Received or Available / Existing to continue"}
               onClick={() => {
                 submitMode.current = "continue";
               }}

@@ -5,6 +5,7 @@ import { StandaloneRequirementModal } from "./standalone-requirement-modal";
 import { ToolingEditModal } from "./tooling-edit-modal";
 import { Button } from "@/components/ui/button";
 import { WorkflowStageView } from "@/components/workflow/workflow-stage-view";
+import { buildToolingExportReport } from "@/lib/date-range-export";
 
 /** Queue for approved projects and standalone tooling orders. */
 export function ToolingProgressView() {
@@ -25,6 +26,8 @@ export function ToolingProgressView() {
         queueTitle="Order Tooling Queue"
         summaryLanguage="en"
         queueCopy="Projects with Tooling planned from Incoming Design"
+        dateRangeExport={buildToolingExportReport}
+        convertingTableFilter="tooling"
         renderEditModal={({ order, onClose }) => (
           <ToolingEditModal order={order} onClose={onClose} />
         )}

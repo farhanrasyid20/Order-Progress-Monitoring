@@ -1,4 +1,11 @@
-import type { Order, PreparationOrderKind, StandaloneRequirementKind } from "@/types/order";
+import type {
+  Order,
+  OrderStatusTone,
+  MaterialRequestStatus,
+  PreparationOrderKind,
+  RequirementStatus,
+  StandaloneRequirementKind,
+} from "@/types/order";
 
 const preApprovalStages = new Set([
   "order",
@@ -13,6 +20,47 @@ const beforeIncomingPreparationIsSaved = new Set([
   "order",
   "design-incoming",
 ]);
+
+// Requirement queues show the exact selection saved in their Status dropdown.
+// Keep this presentation mapping local to the queues so flat project statuses
+// remain compatible with existing dashboard and workflow screens.
+const requirementStatusLabels: Record<RequirementStatus, string> = {
+  needed: "Needed",
+  ordered: "Ordered",
+  received: "Received",
+  available: "Available / Existing",
+  on_hold: "On Hold",
+  repair: "Repair",
+  issue: "Issue / Reorder",
+  cancelled: "Cancelled",
+};
+
+const requirementStatusTones: Record<RequirementStatus, OrderStatusTone> = {
+  needed: "warning",
+  ordered: "info",
+  received: "success",
+  available: "success",
+  on_hold: "warning",
+  repair: "warning",
+  issue: "danger",
+  cancelled: "neutral",
+};
+
+const materialRequestStatusLabels: Record<MaterialRequestStatus, string> = {
+  draft: "Draft",
+  requested: "Requested",
+  released: "Released",
+  received: "Received",
+  on_hold: "On Hold",
+};
+
+const materialRequestStatusTones: Record<MaterialRequestStatus, OrderStatusTone> = {
+  draft: "neutral",
+  requested: "info",
+  released: "success",
+  received: "success",
+  on_hold: "warning",
+};
 
 /** Read new multi-select data and gracefully understand records persisted by the old prototype. */
 export function selectedPreparationOrders(order: Order): PreparationOrderKind[] {
@@ -116,6 +164,18 @@ export function shouldAdvanceRequirementStage(order?: Order) {
  * A material request is one task per project. It may be requested independently
  * for Converting.
  */
+function materialRequestQueueDisplay(order: Order): Order {
+  const latest = order.materialRequests.at(-1);
+
+  return latest
+    ? {
+      ...order,
+      status: materialRequestStatusLabels[latest.status],
+      tone: materialRequestStatusTones[latest.status],
+    }
+    : order;
+}
+
 export function materialRequestQueueEntries(order: Order): Order[] {
   if (order.workflow.currentStatus === "cancelled") return [];
 
@@ -126,12 +186,12 @@ export function materialRequestQueueEntries(order: Order): Order[] {
   }
 
   if (hasParallelPreparation(order)) {
-    return isParallelPreparationPending(order) ? [{
+    return isParallelPreparationPending(order) ? [materialRequestQueueDisplay({
       ...order,
       process: "Material Request / MI",
       status: order.workflow.materialReady ? "MI Completed - Waiting for Other Preparation" : "Material Request / MI Pending",
       tone: order.workflow.materialReady ? "success" : "warning",
-    }] : [];
+    })] : [];
   }
 
   const preparationSaved = !beforeIncomingPreparationIsSaved.has(order.stage);
@@ -139,16 +199,27 @@ export function materialRequestQueueEntries(order: Order): Order[] {
   const isMaterialStage = order.stage === "material-request";
 
   return isConverting && preparationSaved && (order.workflow.materialRequested || isMaterialStage)
-    ? [order]
+    ? [materialRequestQueueDisplay(order)]
     : [];
 }
 
 export function requirementQueueDisplay(order: Order, kind: StandaloneRequirementKind): Order {
-  const hasDetails = (kind === "tooling" ? order.toolingOrders : order.rubberOrders).length > 0;
+  const records = kind === "tooling" ? order.toolingOrders : order.rubberOrders;
+  const latest = records.at(-1);
+  const hasDetails = records.length > 0;
   const label = kind === "tooling" ? "Tooling" : "Rubber";
   const completed = kind === "tooling"
     ? order.workflow.toolingReady && order.workflow.toolingForwarded
     : order.workflow.rubberReady && order.workflow.rubberForwarded;
+
+  if (latest) {
+    return {
+      ...order,
+      process: kind === "tooling" ? "Order Tooling" : "Order Rubber",
+      status: requirementStatusLabels[latest.status],
+      tone: requirementStatusTones[latest.status],
+    };
+  }
 
   return {
     ...order,

@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import type { ProjectVisibility } from "@/lib/active-project";
 
 export type OrderFiltersProps = {
   query: string;
@@ -10,13 +11,21 @@ export type OrderFiltersProps = {
   onQueryChange: (value: string) => void;
   onPicChange: (value: string) => void;
   onClear: () => void;
+  /** History & Archive retains the reset action; Incoming Design uses its project-status selector. */
+  showReset?: boolean;
   /** Incoming Design uses project type because workflow cards own status filtering. */
   preparationType?: string;
   onPreparationTypeChange?: (value: string) => void;
+  /** Opt-out for converting queues that only need Search and PIC controls. */
+  showPreparationType?: boolean;
+  searchPlaceholder?: string;
   /** Retained for the History & Archive view, which still filters closed records by status. */
   status?: string;
   statuses?: string[];
   onStatusChange?: (value: string) => void;
+  /** Incoming Design lifecycle filter; History & Archive keeps its existing status filter. */
+  projectVisibility?: ProjectVisibility;
+  onProjectVisibilityChange?: (value: ProjectVisibility) => void;
 };
 
 /** Search and select controls for filtering the order list. */
@@ -27,11 +36,16 @@ export function OrderFilters({
   people,
   onQueryChange,
   onPreparationTypeChange,
+  showPreparationType = true,
+  searchPlaceholder = "Search PSR, customer, or PIC...",
   onPicChange,
   status,
   statuses = [],
   onStatusChange,
+  projectVisibility,
+  onProjectVisibilityChange,
   onClear,
+  showReset = true,
 }: OrderFiltersProps) {
   const hasFilters = Boolean(query || preparationType || status || pic);
 
@@ -42,7 +56,7 @@ export function OrderFilters({
         <input
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search PSR, customer, or PIC..."
+          placeholder={searchPlaceholder}
           aria-label="Search projects"
         />
       </label>
@@ -69,7 +83,7 @@ export function OrderFilters({
             <option key={option} value={option}>{option}</option>
           ))}
         </select>
-      ) : (
+      ) : showPreparationType ? (
         <select
           value={preparationType ?? ""}
           onChange={(event) => onPreparationTypeChange?.(event.target.value)}
@@ -79,15 +93,26 @@ export function OrderFilters({
           <option value="converting">Converting</option>
           <option value="offset">Offset</option>
         </select>
-      )}
-      <Button
+      ) : null}
+      {typeof projectVisibility === "string" && onProjectVisibilityChange ? (
+        <select
+          value={projectVisibility}
+          onChange={(event) => onProjectVisibilityChange(event.target.value as ProjectVisibility)}
+          aria-label="Filter by project status"
+        >
+          <option value="all">Project Status: All</option>
+          <option value="active">Project Status: Active</option>
+          <option value="completed">Project Status: Completed</option>
+          <option value="cancelled">Project Status: Cancelled</option>
+        </select>
+      ) : showReset ? <Button
         type="button"
         variant="secondary"
         onClick={onClear}
         disabled={!hasFilters}
       >
         Reset Filters
-      </Button>
+      </Button> : null}
     </div>
   );
 }

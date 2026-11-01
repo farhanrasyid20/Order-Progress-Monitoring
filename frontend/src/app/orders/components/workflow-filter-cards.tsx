@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import type { Order, WorkflowStage } from "@/types/order";
 
 export type WorkflowPhase = "order" | "preparation" | "process" | "closing";
@@ -8,6 +9,7 @@ export type WorkflowFilterCardsProps = {
   orders: Order[];
   selectedPhase: WorkflowPhase | "";
   onPhaseChange: (phase: WorkflowPhase | "") => void;
+  onAll?: () => void;
 };
 
 type WorkflowCard = {
@@ -75,13 +77,14 @@ export function workflowPhaseForStage(stage: WorkflowStage): WorkflowPhase {
 }
 
 /**
- * The Incoming Design board is the compact, active-project view of the COTS
+ * The Incoming Design board is the compact project view of the COTS
  * flow. Cards are filters, rather than a second dashboard summary.
  */
 export function WorkflowFilterCards({
   orders,
   selectedPhase,
   onPhaseChange,
+  onAll,
 }: WorkflowFilterCardsProps) {
   const countForPhase = (phase: WorkflowPhase | "") =>
     phase ? orders.filter((order) => workflowPhaseForStage(order.stage) === phase).length : orders.length;
@@ -91,25 +94,33 @@ export function WorkflowFilterCards({
       <div className="workflow-filter-heading">
         <div>
           <h2>Workflow Status</h2>
-          <p>View all active projects or filter by workflow phase.</p>
+          <p>View projects or filter by workflow phase.</p>
         </div>
-        <strong>{orders.length} active</strong>
+        <strong>{orders.length} projects</strong>
       </div>
       <div className="workflow-filter-grid">
-        {workflowCards.map((card) => (
-          <button
-            type="button"
-            className={`workflow-filter-item ${selectedPhase === card.phase ? "is-active" : ""}`}
-            aria-pressed={selectedPhase === card.phase}
-            key={card.phase || "all"}
-            onClick={() =>
-              onPhaseChange(selectedPhase === card.phase ? "" : card.phase)
-            }
-          >
-            <span>{card.label}</span>
-            <strong>{countForPhase(card.phase)}</strong>
-            <small>{card.description}</small>
-          </button>
+        {workflowCards.map((card, index) => (
+          <Fragment key={card.phase || "all"}>
+            <button
+              type="button"
+              className={`workflow-filter-item ${selectedPhase === card.phase ? "is-active" : ""}`}
+              aria-pressed={selectedPhase === card.phase}
+              onClick={() => {
+                if (card.phase === "" && onAll) {
+                  onAll();
+                  return;
+                }
+                onPhaseChange(selectedPhase === card.phase ? "" : card.phase);
+              }}
+            >
+              <span>{card.label}</span>
+              <strong>{countForPhase(card.phase)}</strong>
+              <small>{card.description}</small>
+            </button>
+            {index < workflowCards.length - 1 ? (
+              <span className="workflow-filter-arrow" aria-hidden="true">→</span>
+            ) : null}
+          </Fragment>
         ))}
       </div>
     </section>

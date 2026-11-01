@@ -236,11 +236,13 @@ export type WorkflowOrdersContextValue = {
     orderNo: string,
     values: RequirementUpdateValues,
     continueWorkflow: boolean,
+    saveMode?: "draft" | "repeat",
   ) => void;
   saveRubberRequirement: (
     orderNo: string,
     values: RequirementUpdateValues,
     continueWorkflow: boolean,
+    saveMode?: "draft" | "repeat",
   ) => void;
   saveMaterialRequest: (
     orderNo: string,
@@ -1318,6 +1320,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
       orderNo: string,
       values: RequirementUpdateValues,
       continueWorkflow: boolean,
+      saveMode: "draft" | "repeat" = "repeat",
     ) => {
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
@@ -1330,18 +1333,19 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
             return order;
           }
 
-          const updateIncomingDraft =
-            isDrawingReviewPendingStage(order.stage) && order.toolingOrders.length > 0;
+          const replaceLatestRecord = order.toolingOrders.length > 0 &&
+            (isDrawingReviewPendingStage(order.stage) || saveMode === "draft");
+          const canContinueWorkflow = continueWorkflow && isReadyToContinueRequirement(values.status);
           const record = {
             ...values,
-            sequence: updateIncomingDraft
+            sequence: replaceLatestRecord
               ? order.toolingOrders.at(-1)?.sequence ?? order.toolingOrders.length
               : order.toolingOrders.length + 1,
           };
           const updated = appendHistory(
             {
               ...order,
-              toolingOrders: updateIncomingDraft
+              toolingOrders: replaceLatestRecord
                 ? [...order.toolingOrders.slice(0, -1), record]
                 : [...order.toolingOrders, record],
             },
@@ -1349,8 +1353,10 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
               process: "tooling_requirement",
               status: values.status,
               user: currentUserName,
-              changeSummary: updateIncomingDraft
-                ? "Tooling requirement updated while drawing review is pending."
+              changeSummary: replaceLatestRecord
+                ? isDrawingReviewPendingStage(order.stage)
+                  ? "Tooling requirement updated while drawing review is pending."
+                  : `Tooling draft updated to ${values.status}.`
                 : `Tooling ${values.requirementType} updated to ${values.status}.`,
               remark: values.remark.trim(),
             },
@@ -1359,14 +1365,16 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
             const ready = isReadyToContinueRequirement(values.status);
             const prepared = { ...updated, workflow: {
               ...updated.workflow, toolingReady: ready,
-              toolingForwarded: ready && (continueWorkflow || Boolean(order.workflow.toolingForwarded)),
+              toolingForwarded: ready && (canContinueWorkflow || Boolean(order.workflow.toolingForwarded)),
             } };
-            return isParallelPreparationComplete(prepared) ? moveToStage(prepared, "sample-progress") : prepared;
+            return canContinueWorkflow && isParallelPreparationComplete(prepared)
+              ? moveToStage(prepared, "sample-progress")
+              : prepared;
           }
           // These preparation details may be edited before drawing approval,
           // but must remain in their queue and cannot advance the workflow yet.
           if (isDrawingReviewPendingStage(order.stage)) return updated;
-          if (continueWorkflow) {
+          if (canContinueWorkflow) {
             const forwarded = {
               ...updated,
               workflow: { ...updated.workflow, toolingReady: isReadyToContinueRequirement(values.status), toolingForwarded: true },
@@ -1401,6 +1409,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
       orderNo: string,
       values: RequirementUpdateValues,
       continueWorkflow: boolean,
+      saveMode: "draft" | "repeat" = "repeat",
     ) => {
       setOrders((currentOrders) =>
         currentOrders.map((order) => {
@@ -1413,18 +1422,19 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
             return order;
           }
 
-          const updateIncomingDraft =
-            isDrawingReviewPendingStage(order.stage) && order.rubberOrders.length > 0;
+          const replaceLatestRecord = order.rubberOrders.length > 0 &&
+            (isDrawingReviewPendingStage(order.stage) || saveMode === "draft");
+          const canContinueWorkflow = continueWorkflow && isReadyToContinueRequirement(values.status);
           const record = {
             ...values,
-            sequence: updateIncomingDraft
+            sequence: replaceLatestRecord
               ? order.rubberOrders.at(-1)?.sequence ?? order.rubberOrders.length
               : order.rubberOrders.length + 1,
           };
           const updated = appendHistory(
             {
               ...order,
-              rubberOrders: updateIncomingDraft
+              rubberOrders: replaceLatestRecord
                 ? [...order.rubberOrders.slice(0, -1), record]
                 : [...order.rubberOrders, record],
             },
@@ -1432,8 +1442,10 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
               process: "rubber_requirement",
               status: values.status,
               user: currentUserName,
-              changeSummary: updateIncomingDraft
-                ? "Rubber requirement updated while drawing review is pending."
+              changeSummary: replaceLatestRecord
+                ? isDrawingReviewPendingStage(order.stage)
+                  ? "Rubber requirement updated while drawing review is pending."
+                  : `Rubber draft updated to ${values.status}.`
                 : `Rubber ${values.requirementType} updated to ${values.status}.`,
               remark: values.remark.trim(),
             },
@@ -1442,12 +1454,14 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
             const ready = isReadyToContinueRequirement(values.status);
             const prepared = { ...updated, workflow: {
               ...updated.workflow, rubberReady: ready,
-              rubberForwarded: ready && (continueWorkflow || Boolean(order.workflow.rubberForwarded)),
+              rubberForwarded: ready && (canContinueWorkflow || Boolean(order.workflow.rubberForwarded)),
             } };
-            return isParallelPreparationComplete(prepared) ? moveToStage(prepared, "sample-progress") : prepared;
+            return canContinueWorkflow && isParallelPreparationComplete(prepared)
+              ? moveToStage(prepared, "sample-progress")
+              : prepared;
           }
           if (isDrawingReviewPendingStage(order.stage)) return updated;
-          if (continueWorkflow) {
+          if (canContinueWorkflow) {
             const forwarded = {
               ...updated,
               workflow: { ...updated.workflow, rubberReady: isReadyToContinueRequirement(values.status), rubberForwarded: true },

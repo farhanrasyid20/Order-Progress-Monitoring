@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { TablePagination } from "@/components/ui/table-pagination";
 import { useTablePagination } from "@/components/ui/use-table-pagination";
+import { DateRangeExportControls } from "@/components/ui/date-range-export-controls";
 import type { Order } from "@/types/order";
 import { OrderCard } from "@/components/workflow/order-card";
 import { OrderFilters } from "./order-filters";
@@ -18,7 +18,11 @@ import {
   workflowPhaseForStage,
   type WorkflowPhase,
 } from "./workflow-filter-cards";
-import { isActiveProject } from "@/lib/active-project";
+import {
+  matchesProjectVisibility,
+  type ProjectVisibility,
+} from "@/lib/active-project";
+import { buildIncomingDesignExportReport } from "@/lib/date-range-export";
 
 export type OrdersViewProps = {
   initialAddModalOpen?: boolean;
@@ -41,6 +45,7 @@ export function OrdersView({
   const [query, setQuery] = useState("");
   const [preparationType, setPreparationType] = useState("");
   const [pic, setPic] = useState("");
+  const [projectVisibility, setProjectVisibility] = useState<ProjectVisibility>("active");
   const [workflowPhase, setWorkflowPhase] = useState<WorkflowPhase | "">("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(initialAddModalOpen);
   const [cancellingOrder, setCancellingOrder] = useState<Order | null>(null);
@@ -68,18 +73,18 @@ export function OrdersView({
     );
   }, [initialAddModalOpen]);
 
-  const incomingOrders = useMemo(
-    () => orders.filter(isActiveProject),
-    [orders],
+  const scopedOrders = useMemo(
+    () => orders.filter((order) => matchesProjectVisibility(order, projectVisibility)),
+    [orders, projectVisibility],
   );
   const people = useMemo(
-    () => Array.from(new Set(incomingOrders.map((order) => order.pic))),
-    [incomingOrders],
+    () => Array.from(new Set(scopedOrders.map((order) => order.pic))),
+    [scopedOrders],
   );
   const filteredOrders = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
 
-    return incomingOrders.filter((order) => {
+    return scopedOrders.filter((order) => {
       const matchesQuery = `${order.no} ${order.customer} ${order.product} ${order.pic} ${order.description}`
         .toLowerCase()
         .includes(normalizedQuery);
@@ -91,9 +96,13 @@ export function OrdersView({
         (!pic || order.pic === pic)
       );
     });
-  }, [incomingOrders, pic, preparationType, query, workflowPhase]);
+  }, [pic, preparationType, query, scopedOrders, workflowPhase]);
 
-  const pagination = useTablePagination(filteredOrders);
+  const pagination = useTablePagination(filteredOrders, 50);
+  const incomingExportReport = useMemo(
+    () => buildIncomingDesignExportReport(orders),
+    [orders],
+  );
   const updatedHistoryOrder = pendingHistoryOrderNo
     ? orders.find((order) => order.id === pendingHistoryOrderNo) ?? null
     : null;
@@ -106,9 +115,16 @@ export function OrdersView({
     setQuery("");
     setPreparationType("");
     setPic("");
+    setProjectVisibility("all");
     setWorkflowPhase("");
     resetPage();
   };
+  const projectListTitle = {
+    all: "All Projects",
+    active: "Active Projects",
+    completed: "Completed Projects",
+    cancelled: "Cancelled Projects",
+  }[projectVisibility];
 
   return (
     <>
@@ -144,12 +160,20 @@ export function OrdersView({
           setPic(value);
           resetPage();
         }}
+        projectVisibility={projectVisibility}
+        onProjectVisibilityChange={(value) => {
+          setProjectVisibility(value);
+          setWorkflowPhase("");
+          resetPage();
+        }}
         onClear={clearFilters}
+        showReset={false}
       />
 
       <WorkflowFilterCards
-        orders={incomingOrders}
+        orders={scopedOrders}
         selectedPhase={workflowPhase}
+        onAll={clearFilters}
         onPhaseChange={(phase) => {
           setWorkflowPhase(phase);
           resetPage();
@@ -157,18 +181,9 @@ export function OrdersView({
       />
 
       <OrderCard
-        title="Active Projects"
+        title={projectListTitle}
         subtitle={`${filteredOrders.length} projects found`}
-        action={
-          <Button
-            type="button"
-            variant="secondary"
-            icon="download"
-            onClick={onExport}
-          >
-            Export
-          </Button>
-        }
+        action={<DateRangeExportControls report={incomingExportReport} onExported={onExport} />}
       >
         <IncomingOrdersTable
           orders={pagination.pageItems}

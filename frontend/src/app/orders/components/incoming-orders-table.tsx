@@ -15,6 +15,8 @@ type PreparationCheck = {
 };
 
 function workflowStatusLabel(order: Order) {
+  if (order.workflow.currentStatus === "cancelled") return "Cancelled";
+
   if (order.stage === "order") {
     return order.lineage.entryType === "version_up"
       ? "New Project / Version Up"
@@ -36,6 +38,26 @@ function displayLastUpdate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function recordedAtValue(value: string) {
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+}
+
+/** Reads the newest non-empty Sample Progress note from this same project. */
+export function latestProductionNotes(order: Order): string | null {
+  const recordsWithNotes = (order.sampleProgress ?? []).filter((record) => record.notes.trim());
+  if (!recordsWithNotes.length) return null;
+
+  return recordsWithNotes
+    .reduce((latest, record) =>
+      recordedAtValue(record.recordedAt) >= recordedAtValue(latest.recordedAt)
+        ? record
+        : latest,
+    )
+    .notes
+    .trim();
 }
 
 function productionDesignLabel(order: Order) {
@@ -121,29 +143,36 @@ export function IncomingOrdersTable({ orders, onShowDetails }: IncomingOrdersTab
         <th>Action</th><th>Status</th><th>Preparation Check</th><th>PSR / Code</th><th>Production / Design</th>
         <th>Customer &amp; Product</th><th>PIC</th><th>Deadline</th>
       </tr></thead>
-      <tbody>{orders.map((order) => <tr key={order.id}>
-        <td>
-          <button
-            type="button"
-            className="table-detail-button table-detail-button-compact"
-            onClick={() => onShowDetails(order)}
-            aria-label={`Open details for ${order.no}`}
-            title="Open details"
-          >
-            <Icon name="eye" size={15} />
-            <span className="sr-only">Details</span>
-          </button>
-        </td>
-        <td className="incoming-status-cell">
-          <strong>{workflowStatusLabel(order)}</strong>
-          <span>Last update: {displayLastUpdate(order.updatedAt)}</span>
-        </td>
-        <td><PreparationChecklist order={order} /></td>
-        <td><strong className="order-number">{order.no}</strong></td>
-        <td>{productionDesignLabel(order)}</td>
-        <td><strong>{order.customer}</strong><span>{order.product}</span></td>
-        <td>{order.pic}</td><td>{order.deadline}</td>
-      </tr>)}</tbody>
+      <tbody>{orders.map((order) => {
+        const productionNotes = latestProductionNotes(order);
+
+        return <tr key={order.id}>
+          <td>
+            <button
+              type="button"
+              className="table-detail-button table-detail-button-compact"
+              onClick={() => onShowDetails(order)}
+              aria-label={`Open details for ${order.no}`}
+              title="Open details"
+            >
+              <Icon name="eye" size={15} />
+              <span className="sr-only">Details</span>
+            </button>
+          </td>
+          <td className="incoming-status-cell">
+            <strong>{workflowStatusLabel(order)}</strong>
+            <span>Last update: {displayLastUpdate(order.updatedAt)}</span>
+            {productionNotes ? <span className="incoming-production-note" title={productionNotes}>
+              Production Notes: {productionNotes}
+            </span> : null}
+          </td>
+          <td><PreparationChecklist order={order} /></td>
+          <td><strong className="order-number">{order.no}</strong></td>
+          <td>{productionDesignLabel(order)}</td>
+          <td><strong>{order.customer}</strong><span>{order.product}</span></td>
+          <td>{order.pic}</td><td>{order.deadline}</td>
+        </tr>;
+      })}</tbody>
     </table>
     {orders.length === 0 ? <div className="empty-state"><div><Icon name="search" /></div><h3>No projects found</h3><p>Try adjusting the workflow or project filters.</p></div> : null}
   </div>;

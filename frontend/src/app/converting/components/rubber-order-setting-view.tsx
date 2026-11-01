@@ -5,6 +5,7 @@ import { RubberEditModal } from "./rubber-edit-modal";
 import { StandaloneRequirementModal } from "./standalone-requirement-modal";
 import { Button } from "@/components/ui/button";
 import { WorkflowStageView } from "@/components/workflow/workflow-stage-view";
+import { buildRubberExportReport } from "@/lib/date-range-export";
 
 /** Queue for projects and standalone orders being configured for rubber. */
 export function RubberOrderSettingView() {
@@ -25,6 +26,8 @@ export function RubberOrderSettingView() {
         icon="box"
         queueTitle="Order Rubber Queue"
         queueCopy="Projects with Rubber planned from Incoming Design"
+        dateRangeExport={buildRubberExportReport}
+        convertingTableFilter="rubber"
         renderEditModal={({ order, onClose }) => (
           <RubberEditModal order={order} onClose={onClose} />
         )}
