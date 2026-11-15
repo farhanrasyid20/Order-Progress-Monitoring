@@ -61,10 +61,15 @@ export type ProjectMainDataKey =
   | "finishing"
   | "fgWeight";
 
+export type BoardMaterialLayerKey =
+  | "liner1" | "fluting1" | "liner2" | "middleLiner" | "fluting2" | "liner3"
+  | "paperboardType" | "paperboardGsm";
+
 export type OffsetProjectDataKey =
   | "fgQuantity" | "imposition" | "grammage" | "printingSide" | "printingMachine"
   | "varnish" | "lamination" | "coatingSide" | "specialEffect";
-export type ProjectMainData = Record<ProjectMainDataKey, string> & Partial<Record<OffsetProjectDataKey, string>>;
+export type ProjectMainData = Record<ProjectMainDataKey, string> &
+  Partial<Record<OffsetProjectDataKey | BoardMaterialLayerKey, string>>;
 export type PreparationType = "converting" | "offset";
 export type ConvertingRoute = "by_design" | "by_production";
 export type PreparationRoute = ConvertingRoute | "offset";

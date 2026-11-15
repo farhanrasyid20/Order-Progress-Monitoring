@@ -113,6 +113,8 @@ export function StandaloneRequirementModal({
   }, [onClose]);
 
   const canContinue = status === "received" || status === "available";
+  // Incoming Design saves a preparation-order detail before the plan itself is persisted.
+  const requiresIncomingDetailDates = Boolean(onSaveRequirement);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -123,6 +125,10 @@ export function StandaloneRequirementModal({
         return;
       }
       if (!requestedBy.trim()) { setError("Order By / PIC is required."); return; }
+      if (requiresIncomingDetailDates && (!orderDate || !expectedDate)) {
+        setError("Order Date and Expected Arrival Date are required for Incoming Design preparation orders.");
+        return;
+      }
       const requirement: RequirementUpdateValues = { requirementType, status, requestedBy: requestedBy.trim(), supplier, orderDate: orderDate || null, expectedDate: expectedDate || null, arrivalDate: arrivalDate || null, invoiceNumber, price, remark };
       if (onSaveRequirement) onSaveRequirement(requirement);
       else (kind === "tooling" ? saveToolingRequirement : saveRubberRequirement)(selectedProject.id, requirement, submitMode.current === "continue" && canContinue);
@@ -299,14 +305,15 @@ export function StandaloneRequirementModal({
               </select>
             </label>
             <label className="modal-field">
-              <span>Order Date</span>
-              <input type="date" value={orderDate} onChange={(event) => setOrderDate(event.target.value)} />
+              <span>Order Date {requiresIncomingDetailDates ? <b className="project-form-required">*</b> : null}</span>
+              <input type="date" value={orderDate} required={requiresIncomingDetailDates} onChange={(event) => setOrderDate(event.target.value)} />
             </label>
             <label className="modal-field">
-              <span>Expected Arrival Date</span>
+              <span>Expected Arrival Date {requiresIncomingDetailDates ? <b className="project-form-required">*</b> : null}</span>
               <input
                 type="date"
                 value={expectedDate}
+                required={requiresIncomingDetailDates}
                 onChange={(event) => setExpectedDate(event.target.value)}
               />
             </label>

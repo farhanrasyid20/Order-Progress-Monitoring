@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { useBoardTypes } from "@/components/board-types/board-types-provider";
 import type { Order, ProjectFormDraft } from "@/types/order";
 import { getProjectFormConfig, getProjectFieldValue, isFieldVisible } from "@/app/orders/components/project-form-config";
 import { DetailGrid, RequirementDetails } from "./requirement-details";
@@ -24,6 +27,7 @@ function Records({ records, labels }: { records: object[]; labels: Record<string
 
 /** Read-only archive of all retained project inputs, including earlier versions. */
 export function ArchiveProjectDetails({ order, offsetOnly = false }: { order: Order; offsetOnly?: boolean }) {
+  const { boardTypes } = useBoardTypes();
   if (offsetOnly && order.stage === "offset-material-request") {
     return <div className="archive-stage-details"><MaterialRequestDetails order={order} /></div>;
   }
@@ -63,7 +67,7 @@ export function ArchiveProjectDetails({ order, offsetOnly = false }: { order: Or
         ["Version", String(order.lineage.versionNumber)], ["Created At", order.createdAt],
         ["Description", order.description], ["Material", order.material], ["Priority", order.priority],
       ]} />
-      {getProjectFormConfig(draft).map((section) => <section key={section.id} className="project-form-section">
+      {getProjectFormConfig(draft, boardTypes).map((section) => <section key={section.id} className="project-form-section">
         <h3>{section.title}</h3>
         <DetailGrid fields={section.fields.filter((field) => isFieldVisible(field, draft) && field.key !== "drawingLink").map((field) => {
           const value = getProjectFieldValue(draft, field);

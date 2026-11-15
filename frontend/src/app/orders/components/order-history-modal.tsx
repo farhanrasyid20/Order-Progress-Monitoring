@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState } from "react";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
+import { useBoardTypes } from "@/components/board-types/board-types-provider";
 import { IncomingPreparationDetails } from "./incoming-preparation-details";
 import type { PreparationWorkflowUpdate } from "@/types/order";
 import { DrawingEditModal } from "@/app/design-drawing/components/drawing-edit-modal";
@@ -79,6 +80,7 @@ export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparatio
   const [isAddingIssue, setIsAddingIssue] = useState(false);
   const [issueSaved, setIssueSaved] = useState(false);
   const { editProject } = useWorkflowOrders();
+  const { boardTypes } = useBoardTypes();
   const history = [...order.processHistory].reverse();
   const drawingNetworkPath = (order.workflow as typeof order.workflow & { drawingNetworkPath?: string | null }).drawingNetworkPath;
   const savedDrawingHref = drawingHref(order.workflow.drawingLink, drawingNetworkPath);
@@ -93,7 +95,7 @@ export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparatio
     deadline: order.deadline,
     drawingLink: order.workflow.drawingLink ?? "",
   };
-  const projectSections = getProjectFormConfig(detailValues);
+  const projectSections = getProjectFormConfig(detailValues, boardTypes);
   const routeSection = projectSections.find((section) => section.id === "process-route");
   const projectInformationSection = projectSections.find((section) => section.id === "project-information");
   const remainingSections = projectSections.filter(

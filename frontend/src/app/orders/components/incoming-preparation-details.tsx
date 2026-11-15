@@ -112,6 +112,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
   };
 
   const draft = draftFor(order);
+  const requirementFor = (kind: PreparationOrderKind) => kind === "tooling" ? draft.toolingRequirement : draft.rubberRequirement;
   const savedDraft = draftFromOrder(order);
   const hasChanges = draft.route !== savedDraft.route ||
     draft.materialRequested !== savedDraft.materialRequested ||
@@ -125,17 +126,21 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
   const preparationOrderLocked = !draft.materialRequested;
   const selectedKinds = draft.preparationOrders.filter((kind): kind is PreparationOrderKind => Boolean(kind));
   const hasIncompleteRow = draft.preparationOrders.some((kind) => !kind);
+  const missingRequirementDetails = selectedKinds.filter((kind) => {
+    const requirement = requirementFor(kind);
+    return !requirement?.orderDate || !requirement.expectedDate;
+  });
   const canAddPreparationOrder = draft.route === "by_production" && draft.preparationOrders.length < preparationOrderOptions.length && !hasIncompleteRow;
-  const canUpdatePreparation = !isCancelled && isPreparation && !hasIncompleteRow && hasChanges;
+  const canUpdatePreparation = !isCancelled && isPreparation && !hasIncompleteRow && !missingRequirementDetails.length && hasChanges;
   const updateTitle = isCancelled ? "This project has already been cancelled"
     : !isPreparation ? "Only new incoming projects can update their preparation plan"
     : hasIncompleteRow ? "Complete any empty preparation-order row first"
+    : missingRequirementDetails.length ? `Complete Order Date and Expected Arrival Date for ${missingRequirementDetails.map(kindLabel).join(" and ")}`
     : !hasChanges ? "Make changes before updating"
     : "Save the preparation plan and move the project to Progress Drawing";
   const networkPath = drawingNetworkPath(order);
   const savedDrawingHref = drawingHref(order.workflow.drawingLink, networkPath);
 
-  const requirementFor = (kind: PreparationOrderKind) => kind === "tooling" ? draft.toolingRequirement : draft.rubberRequirement;
   const updatePreparationRow = (index: number, nextKind: PreparationOrderKind | null) => {
     const nextRows = [...draft.preparationOrders];
     const previousKind = nextRows[index];
@@ -219,6 +224,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
           {canAddPreparationOrder ? <button type="button" className="preparation-add-button" disabled={isCancelled || !isPreparation || preparationOrderLocked} title={preparationOrderLocked ? "Select Next Preparation first" : undefined} onClick={() => updateDraft(order, { preparationOrders: [...draft.preparationOrders, null] })}><Icon name="plus" size={14} /> Add Preparation Order</button> : null}
           {preparationOrderLocked && isPreparation ? <span className="preparation-empty">Select Next Preparation before choosing or adding a preparation order.</span> : null}
           {!draft.preparationOrders.length ? <span className="preparation-empty">Tooling and Rubber are optional for Converting: Production.</span> : null}
+          {missingRequirementDetails.length ? <span className="preparation-empty">Complete Order Date and Expected Arrival Date for {missingRequirementDetails.map(kindLabel).join(" and ")} before updating.</span> : null}
         </div>
       </div> : null}
 

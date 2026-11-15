@@ -2,11 +2,18 @@ import type {
   ProjectFormDraft,
   ProjectMainData,
   ProjectMainDataKey,
+  BoardMaterialLayerKey,
   OffsetProjectDataKey,
 } from "@/types/order";
+import {
+  boardLayerLabels,
+  getBoardTypeLayers,
+  type BoardType,
+} from "@/components/board-types/board-types-provider";
 
 export type ProjectFormFieldKey =
   | ProjectMainDataKey
+  | BoardMaterialLayerKey
   | OffsetProjectDataKey
   | "entryType"
   | "previousProjectCode"
@@ -126,14 +133,7 @@ export const projectFormConfig: readonly ProjectFormSection[] = [
       { key: "partNo2", source: "mainData", label: "PartNo2", type: "text" },
       { key: "set", source: "mainData", label: "Set", type: "text" },
       { key: "sub", source: "mainData", label: "Sub", type: "text" },
-      {
-        key: "singDoub", source: "mainData", label: "SingDoub", type: "select",
-        options: [
-          { label: "Select...", value: "" },
-          { label: "Singel Wall", value: "Singel Wall" },
-          { label: "Double Wall", value: "Double Wall" },
-        ],
-      },
+      { key: "singDoub", source: "mainData", label: "Board Type", type: "select", options: [{ label: "Select...", value: "" }] },
     ],
   },
   {
@@ -154,11 +154,7 @@ export const projectFormConfig: readonly ProjectFormSection[] = [
     id: "material",
     title: "Material",
     fields: [
-      { key: "boardQua", source: "mainData", label: "BoardQua", type: "text" },
-      { key: "corFlut", source: "mainData", label: "CorFlut", type: "text" },
-      { key: "creaseL", source: "mainData", label: "CreaseL", type: "text" },
-      { key: "creaseW", source: "mainData", label: "CreaseW", type: "text" },
-      { key: "slotting", source: "mainData", label: "Slotting", type: "text" },
+      // Replaced at runtime by the selected Board Type material structure.
     ],
   },
   {
@@ -315,7 +311,7 @@ export function getProjectFieldValue(
   field: ProjectFormField,
 ) {
   return field.source === "mainData"
-    ? (draft.mainData[field.key as ProjectMainDataKey | OffsetProjectDataKey] ?? "")
+    ? (draft.mainData[field.key as ProjectMainDataKey | BoardMaterialLayerKey | OffsetProjectDataKey] ?? "")
     : draft[field.key as keyof Omit<ProjectFormDraft, "mainData">];
 }
 
@@ -325,8 +321,60 @@ const offsetSelect = (key: ProjectFormFieldKey, label: string, values: readonly 
 });
 
 /** Offset specifications follow the client workbook; assignment and notes stay shared. */
-export function getProjectFormConfig(draft: ProjectFormDraft): readonly ProjectFormSection[] {
-  if (draft.preparationType !== "offset") return projectFormConfig;
+function boardTypeForDraft(draft: ProjectFormDraft, boardTypes: readonly BoardType[]) {
+  return boardTypes.find((boardType) =>
+    boardType.id === draft.mainData.singDoub || boardType.name === draft.mainData.singDoub,
+  );
+}
+
+function convertingFormConfig(draft: ProjectFormDraft, boardTypes: readonly BoardType[]) {
+  const selectedBoardType = boardTypeForDraft(draft, boardTypes);
+  const boardTypeOptions = [
+    { label: "Select...", value: "" },
+    ...boardTypes
+      .filter((boardType) => boardType.status === "Active" || boardType.id === draft.mainData.singDoub || boardType.name === draft.mainData.singDoub)
+      .map((boardType) => ({ label: boardType.name, value: boardType.name })),
+  ];
+  if (draft.mainData.singDoub && !selectedBoardType) {
+    boardTypeOptions.push({ label: draft.mainData.singDoub, value: draft.mainData.singDoub });
+  }
+
+  return projectFormConfig.map((section) => {
+    if (section.id === "project-information") {
+      return {
+        ...section,
+        fields: section.fields.map((field) => field.key === "singDoub" ? { ...field, options: boardTypeOptions } : field),
+      };
+    }
+    if (section.id === "material") {
+      const hasLegacyMaterial = ["boardQua", "corFlut", "creaseL", "creaseW", "slotting"]
+        .some((key) => Boolean(draft.mainData[key as ProjectMainDataKey]?.trim()));
+      return {
+        ...section,
+        fields: !selectedBoardType && hasLegacyMaterial ? [
+          { key: "boardQua" as const, source: "mainData" as const, label: "BoardQua", type: "text" as const },
+          { key: "corFlut" as const, source: "mainData" as const, label: "CorFlut", type: "text" as const },
+          { key: "creaseL" as const, source: "mainData" as const, label: "CreaseL", type: "text" as const },
+          { key: "creaseW" as const, source: "mainData" as const, label: "CreaseW", type: "text" as const },
+          { key: "slotting" as const, source: "mainData" as const, label: "Slotting", type: "text" as const },
+        ] : getBoardTypeLayers(selectedBoardType?.category).map((key) => ({
+          key,
+          source: "mainData" as const,
+          label: key === "fluting1"
+            ? `${selectedBoardType?.category === "Single Wall" ? "Fluting" : "Fluting 1"}${selectedBoardType?.fluteType ? ` (${selectedBoardType.fluteType.charAt(0)})` : ""}`
+            : key === "fluting2"
+              ? `Fluting 2${selectedBoardType?.fluteType ? ` (${selectedBoardType.fluteType.charAt(1) || selectedBoardType.fluteType})` : ""}`
+              : boardLayerLabels[key],
+          type: "text" as const,
+        })),
+      };
+    }
+    return section;
+  });
+}
+
+export function getProjectFormConfig(draft: ProjectFormDraft, boardTypes: readonly BoardType[] = []): readonly ProjectFormSection[] {
+  if (draft.preparationType !== "offset") return convertingFormConfig(draft, boardTypes);
   const section = (id: string) => projectFormConfig.find(section => section.id === id)!;
   return [
     section("process-route"),

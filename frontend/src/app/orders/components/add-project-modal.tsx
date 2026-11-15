@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
+import { useBoardTypes } from "@/components/board-types/board-types-provider";
 import { useAuth } from "@/components/auth/auth-provider";
 import type {
   PreparationType,
@@ -54,8 +55,8 @@ function isHttpLink(value: string) {
   }
 }
 
-function validateDraft(draft: ProjectFormDraft): ProjectFormErrors {
-  return getProjectFormConfig(draft).reduce<ProjectFormErrors>((errors, section) => {
+function validateDraft(draft: ProjectFormDraft, boardTypes: ReturnType<typeof useBoardTypes>["boardTypes"]): ProjectFormErrors {
+  return getProjectFormConfig(draft, boardTypes).reduce<ProjectFormErrors>((errors, section) => {
     section.fields.forEach((field) => {
       if (!isFieldVisible(field, draft)) {
         return;
@@ -90,6 +91,7 @@ function inputDate(value: string) {
 export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalProps) {
   const titleId = useId();
   const { nextProjectCode } = useWorkflowOrders();
+  const { boardTypes } = useBoardTypes();
   const { user } = useAuth();
   const [draft, setDraft] = useState<ProjectFormDraft>(() => order ? {
     mainData: { ...order.mainData },
@@ -116,7 +118,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
     if (isJoinModalOpen) joinDialogRef.current?.showModal();
     else joinDialogRef.current?.close();
   }, [isJoinModalOpen]);
-  const invalidFields = getProjectFormConfig(draft).flatMap(section => section.fields)
+  const invalidFields = getProjectFormConfig(draft, boardTypes).flatMap(section => section.fields)
     .filter(field => isFieldVisible(field, draft) && errors[field.key]);
 
   useEffect(() => {
@@ -133,11 +135,21 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
   const updateField = (field: ProjectFormField, value: string) => {
     setDraft((current) => {
       if (field.source === "mainData") {
+        const selectedBoardType = field.key === "singDoub"
+          ? boardTypes.find((boardType) => boardType.id === value || boardType.name === value)
+          : undefined;
+        const materialValue = ["liner1", "fluting1", "liner2", "middleLiner", "fluting2", "liner3", "paperboardType", "paperboardGsm"].includes(field.key)
+          ? value.replace(/^\s*([a-z])/, (_, letter: string) => letter.toUpperCase())
+          : value;
+        const clearedLayers = field.key === "singDoub"
+          ? Object.fromEntries(["liner1", "fluting1", "liner2", "middleLiner", "fluting2", "liner3", "paperboardType", "paperboardGsm"].map((key) => [key, ""]))
+          : {};
         return {
           ...current,
           mainData: {
             ...current.mainData,
-            [field.key as ProjectMainDataKey]: value,
+            ...clearedLayers,
+            [field.key as ProjectMainDataKey]: field.key === "singDoub" && selectedBoardType ? selectedBoardType.name : materialValue,
           },
         };
       }
@@ -176,7 +188,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const validationErrors = validateDraft(draft);
+    const validationErrors = validateDraft(draft, boardTypes);
 
     if (Object.keys(validationErrors).length) {
       setErrors(validationErrors);
@@ -336,7 +348,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
 
         <div className="project-form-scroll">
           <form className="modal-form project-form" onSubmit={handleSubmit} noValidate>
-            {getProjectFormConfig(draft).map((section) => (
+              {getProjectFormConfig(draft, boardTypes).map((section) => (
               <section className="project-form-section" key={section.id}>
                 <div className="project-form-section-heading">
                   <h3>{section.title}</h3>
@@ -391,7 +403,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
             setJoinOptionError("Masukkan nama pilihan yang valid.");
             return;
           }
-          const field = getProjectFormConfig(draft).flatMap(section => section.fields).find(field => field.key === "manfJoin1");
+          const field = getProjectFormConfig(draft, boardTypes).flatMap(section => section.fields).find(field => field.key === "manfJoin1");
           if (!field) return;
           const values = [...(field.options ?? []).map(option => option.value), ...customJoinOptions, draft.mainData.manfJoin1];
           const existing = values.find(option => option.toLowerCase() === value.toLowerCase());

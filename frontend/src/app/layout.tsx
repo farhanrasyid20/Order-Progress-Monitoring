@@ -4,6 +4,7 @@ import AppFrame from "@/components/layout/app-frame";
 import { IssuesProvider } from "@/components/issues/issue-provider";
 import { AuthProvider } from "@/components/auth/auth-provider";
 import { AuthenticatedWorkflowProvider } from "@/components/auth/authenticated-workflow-provider";
+import { BoardTypesProvider } from "@/components/board-types/board-types-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,11 +18,13 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <UsersProvider>
           <AuthProvider>
-            <AuthenticatedWorkflowProvider>
-              <IssuesProvider>
-                <AppFrame>{children}</AppFrame>
-              </IssuesProvider>
-            </AuthenticatedWorkflowProvider>
+            <BoardTypesProvider>
+              <AuthenticatedWorkflowProvider>
+                <IssuesProvider>
+                  <AppFrame>{children}</AppFrame>
+                </IssuesProvider>
+              </AuthenticatedWorkflowProvider>
+            </BoardTypesProvider>
           </AuthProvider>
         </UsersProvider>
       </body>

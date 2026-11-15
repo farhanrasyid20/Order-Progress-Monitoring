@@ -407,6 +407,21 @@ function mergeMainData(order: Order, values: Partial<OrderFormValues>): ProjectM
   };
 }
 
+const boardMaterialKeys = [
+  "liner1", "fluting1", "liner2", "middleLiner", "fluting2", "liner3", "paperboardType", "paperboardGsm",
+] as const;
+
+/** Material entries are normalized again at persistence time, including imported form values. */
+function normalizeBoardMaterialCapitalization(mainData: ProjectMainData): ProjectMainData {
+  return {
+    ...mainData,
+    ...Object.fromEntries(boardMaterialKeys.map((key) => [
+      key,
+      (mainData[key] ?? "").replace(/^\s*([a-z])/, (_, letter: string) => letter.toUpperCase()),
+    ])),
+  } as ProjectMainData;
+}
+
 function applyOrderValues(order: Order, values: Partial<OrderFormValues>): Order {
   return {
     ...order,
@@ -891,7 +906,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
             versionNumber: 0,
           };
       const mainData = {
-        ...values.mainData,
+        ...normalizeBoardMaterialCapitalization(values.mainData),
         mcNo: values.mainData.mcNo.trim() || code,
       };
       const stage = "order" as const;
@@ -1269,7 +1284,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
         : [];
       return appendHistory({
         ...order,
-        mainData: { ...values.mainData },
+        mainData: normalizeBoardMaterialCapitalization(values.mainData),
         customer: values.mainData.custName || "-",
         product: values.mainData.component || "-",
         description: values.mainData.remark || "-",

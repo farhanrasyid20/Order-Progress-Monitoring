@@ -112,6 +112,7 @@ export const navigationItems: readonly NavigationItem[] = [
     group: "closing",
   },
   { label: "Master Data", href: "/users", icon: "users", group: "system" },
+  { label: "Board Type Management", href: "/board-types", icon: "settings", group: "system" },
 ];
 
 export const workspaceNavigationItems = navigationItems.filter(
