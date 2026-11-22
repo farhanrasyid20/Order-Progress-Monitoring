@@ -34,7 +34,7 @@ export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetSta
     advanceOrder(order.id, {
       pic,
       deadline: order.deadline,
-      description: notes.trim() || `${title} completed.`,
+      description: notes.trim(),
     });
     onClose();
   };

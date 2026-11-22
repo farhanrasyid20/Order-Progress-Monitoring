@@ -43,7 +43,7 @@ export function IssueDetailModal({ issue: initialIssue, onClose }: { issue: Issu
           <h3>Issue Information</h3>
           <Badge tone={issue.status === "Open" ? "warning" : "success"}>{issue.status}</Badge>
           <DetailGrid fields={[
-            ["Incoming Design / PSR / Code", project?.no || issue.projectCode],
+            ["Incoming Design / Code", project?.no || issue.projectCode],
             ["Source / Customer / Machine", project?.customer || issue.source],
             ["Part No / Code", project?.mainData.partNo || issue.partCode],
             ["Product / Description", project?.product !== "-" ? project?.product || issue.productDescription : issue.productDescription],

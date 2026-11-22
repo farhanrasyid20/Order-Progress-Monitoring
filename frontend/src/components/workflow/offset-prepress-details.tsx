@@ -5,7 +5,7 @@ import { DetailGrid } from "./requirement-details";
 
 export function OffsetPrepressDetails({ order, showMaterialRequest = false, showPlate = false, showVarnish = false, showPress = false, fullProjectInformation = false }: { order: Order; showMaterialRequest?: boolean; showPlate?: boolean; showVarnish?: boolean; showPress?: boolean; fullProjectInformation?: boolean }) {
   const fields: [string, string | undefined][] = [
-    ["PSR / Code", order.no],
+    ["Code", order.no],
     ["MC No. / Code", order.mainData.mcNo],
     ["Customer", order.customer],
     ["Material", order.mainData.boardQua || order.material],

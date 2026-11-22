@@ -119,6 +119,57 @@ test("project creation and drawing status audit use the account rather than proj
   assert.equal(h.api().orders[0].processHistory[0].user, "Anantha");
 });
 
+test("new project Codes use a monthly YYMMNNN sequence without changing stored Codes", () => {
+  const h = workflowHarness();
+  const { nextOrderCode } = h.load(path.resolve(__dirname, "../src/components/workflow/workflow-provider.tsx"));
+  const november = new Date(2026, 10, 22, 9, 0, 0);
+  const december = new Date(2026, 11, 1, 9, 0, 0);
+  const existing = [
+    { no: "2611001" },
+    { no: "2611003" },
+    { no: "2610009" },
+    { no: "PSR#260860" },
+  ];
+
+  assert.equal(nextOrderCode(existing, november), "2611004");
+  assert.equal(nextOrderCode(existing, december), "2612001");
+  assert.equal(existing[3].no, "PSR#260860");
+
+  const { createEmptyProjectFormDraft } = h.load(path.resolve(__dirname, "../src/app/orders/components/project-form-config.ts"));
+  const values = createEmptyProjectFormDraft();
+  values.preparationType = "converting";
+  values.convertingRoute = "by_design";
+  values.mainData.component = "Sequential Code";
+  values.mainData.custName = "Customer";
+  h.states[0] = [];
+  h.api().addProject(values);
+  h.api().addProject(values);
+  const [second, first] = h.api().orders;
+  assert.match(first.no, /^\d{7}$/);
+  assert.match(second.no, /^\d{7}$/);
+  assert.equal(Number(second.no.slice(-3)), Number(first.no.slice(-3)) + 1);
+  assert.notEqual(first.id, second.id);
+});
+
+test("legacy PSR Codes migrate to monthly Codes without changing project IDs or lineage", () => {
+  const h = workflowHarness();
+  const { migrateLegacyProjectCodes } = h.load(path.resolve(__dirname, "../src/components/workflow/workflow-provider.tsx"));
+  const original = structuredClone(h.api().orders[0]);
+  const legacy = {
+    ...original,
+    id: "stable-project-id",
+    no: "PSR#260860",
+    createdAt: "2026-11-18T00:00:00.000Z",
+    mainData: { ...original.mainData, mcNo: "PSR#260860" },
+    lineage: { entryType: "new", rootProjectNo: "PSR#260860", sourceProjectNo: null, versionNumber: 0 },
+  };
+  const migrated = migrateLegacyProjectCodes([legacy])[0];
+  assert.equal(migrated.id, "stable-project-id");
+  assert.equal(migrated.no, "2611001");
+  assert.equal(migrated.mainData.mcNo, "2611001");
+  assert.equal(migrated.lineage.rootProjectNo, "2611001");
+});
+
 function permutations(items) {
   return items.length === 0 ? [[]] : items.flatMap((item, index) =>
     permutations(items.filter((_, i) => i !== index)).map((rest) => [item, ...rest]));
@@ -463,6 +514,107 @@ test("Offset keeps its Material to Plate route", () => {
   } }];
   h.save("mi");
   assert.equal(h.api().orders[0].stage, "offset-plate");
+});
+
+test("Offset moves from Incoming Design to Prepress only after Prepress is selected", () => {
+  const h = workflowHarness();
+  const incoming = structuredClone(h.api().orders[0]);
+  const mainData = {
+    ...incoming.mainData,
+    component: "Offset carton",
+    pantoneCount: "2",
+    specialColourCount: "1",
+    emboss: "Yes",
+  };
+  h.states[0] = [{
+    ...incoming,
+    id: "offset-incoming-test",
+    no: "PSR-OFFSET",
+    mainData,
+    stage: "order",
+    processHistory: [],
+    workflow: {
+      ...incoming.workflow,
+      preparationType: "offset",
+      convertingRoute: null,
+      preparationOrders: [],
+      productionOrder: null,
+      materialRequested: false,
+      currentStatus: "new",
+    },
+  }];
+
+  h.api().completeIncomingPreparation("offset-incoming-test", {
+    route: "offset",
+    offsetNextPreparation: "prepress",
+    preparationOrders: [],
+    productionOrder: null,
+    materialRequested: false,
+    remark: "",
+  });
+
+  const moved = h.api().orders[0];
+  assert.equal(h.api().orders.length, 1);
+  assert.equal(moved.id, "offset-incoming-test");
+  assert.equal(moved.stage, "offset-prepress");
+  assert.deepEqual(moved.mainData, mainData);
+  assert.ok(moved.processHistory.some((entry) => entry.process === "incoming_preparation"));
+  assert.ok(moved.processHistory.some((entry) => entry.process === "Prepress" && entry.changeSummary === "Moved to Prepress."));
+});
+
+test("Offset retains only the relevant handoff remark for each destination stage", () => {
+  const h = workflowHarness();
+  const incoming = structuredClone(h.api().orders[0]);
+  h.states[0] = [{
+    ...incoming,
+    id: "offset-handoff-test",
+    stage: "order",
+    mainData: { ...incoming.mainData, remark: "Master project remark" },
+    processHistory: [],
+    workflow: {
+      ...incoming.workflow,
+      preparationType: "offset",
+      convertingRoute: null,
+      preparationOrders: [],
+      productionOrder: null,
+      materialRequested: false,
+      currentStatus: "new",
+    },
+  }];
+
+  h.api().completeIncomingPreparation("offset-handoff-test", {
+    route: "offset", offsetNextPreparation: "prepress", preparationOrders: [], productionOrder: null,
+    materialRequested: false, remark: "Waiting proof color",
+  });
+  let project = h.api().orders[0];
+  assert.equal(project.stage, "offset-prepress");
+  assert.equal(project.workflow.offsetHandoffRemark, "Waiting proof color");
+  assert.equal(project.mainData.remark, "Master project remark");
+
+  h.api().advanceOrder("offset-handoff-test", {
+    pic: project.pic,
+    deadline: project.deadline,
+    description: "Waiting material",
+  });
+  project = h.api().orders[0];
+  assert.equal(project.stage, "offset-material-request");
+  assert.equal(project.workflow.offsetHandoffRemark, "Waiting material");
+  assert.equal(project.mainData.remark, "Master project remark");
+  assert.ok(project.processHistory.some((entry) =>
+    entry.process === "handoff_details_updated" && entry.remark === "Waiting material",
+  ));
+
+  h.api().advanceOrder("offset-handoff-test", {
+    pic: project.pic,
+    deadline: project.deadline,
+    description: "",
+  });
+  project = h.api().orders[0];
+  assert.equal(project.stage, "offset-plate");
+  assert.equal(project.workflow.offsetHandoffRemark, "");
+  assert.ok(project.processHistory.some((entry) =>
+    entry.process === "handoff_details_updated" && entry.stage === "offset-material-request" && entry.remark === "",
+  ));
 });
 
 test("standalone requirements keep their direct Material to Sample route", () => {

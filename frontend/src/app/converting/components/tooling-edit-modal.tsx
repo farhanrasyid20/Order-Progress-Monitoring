@@ -126,7 +126,7 @@ export function ToolingEditModal({ order, onClose }: ToolingEditModalProps) {
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-form-grid">
             <label className="modal-field">
-              <span>PSR / Code</span>
+              <span>Code</span>
               <input value={order.no} disabled />
             </label>
             <label className="modal-field"><span>Customer</span><input value={order.customer} disabled /></label>

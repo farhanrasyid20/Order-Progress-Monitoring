@@ -142,7 +142,7 @@ export default function IssueLogPage() {
               <tr>
                 <th scope="col" className="issue-actions-cell">Action</th>
                 <th scope="col" className="issue-status-cell">Status</th>
-                <th scope="col">PSR / Code</th>
+                <th scope="col">Code</th>
                 <th scope="col">Customer &amp; Product</th>
                 <th scope="col">Error</th>
                 <th scope="col">Designer</th>

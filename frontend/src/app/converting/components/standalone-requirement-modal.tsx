@@ -238,7 +238,7 @@ export function StandaloneRequirementModal({
                 </select>
               </label>
               {!project && !eligibleProjects.length ? <p className="project-form-error">No active or repeat {kindLabel} projects are available. Add the first {kindLabel.toLowerCase()} order from Incoming Design first.</p> : null}
-              <label className="modal-field"><span>PSR / Code</span><input value={selectedProject?.no ?? ""} readOnly /></label>
+              <label className="modal-field"><span>Code</span><input value={selectedProject?.no ?? ""} readOnly /></label>
             </> : null}
             <label className="modal-field">
               <span>Customer</span>

@@ -7,6 +7,7 @@ import { useEffect, useId } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { englishOffsetLabel } from "@/lib/offset-labels";
+import { offsetHandoffStatus } from "@/lib/offset-handoff-status";
 import type { Order, ProcessHistoryRecord, StandaloneRequirementKind } from "@/types/order";
 import { SampleDecisionDetails } from "./sample-decision-details";
 import { ReadyToSubmitDetails } from "./ready-to-submit-details";
@@ -143,7 +144,7 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
             </div>
             <div>
               <span>Status</span>
-              <strong>{order.status}</strong>
+              <strong>{offsetHandoffStatus(order)}</strong>
             </div>
             <div>
               <span>Last Update</span>

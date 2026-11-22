@@ -357,7 +357,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
                 <div className="modal-form-grid project-form-grid">
                   {section.id === "process-route" ? (
                     <label className="modal-field">
-                      <span>PSR / Code</span>
+                      <span>Code</span>
                       <input type="text" value={order?.no ?? nextProjectCode} readOnly />
                     </label>
                   ) : null}

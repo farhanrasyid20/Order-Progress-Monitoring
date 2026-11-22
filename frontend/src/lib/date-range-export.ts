@@ -190,7 +190,7 @@ function report(
 }
 
 const incomingColumns = [
-  "PSR / Code",
+  "Code",
   "Customer",
   "Product / Component",
   "Production / Design",
@@ -213,7 +213,7 @@ export function buildIncomingDesignExportReport(orders: readonly Order[]): DateR
       id: `incoming-${order.id}`,
       date: createdDate,
       values: {
-        "PSR / Code": valueOrDash(order.no),
+        Code: valueOrDash(order.no),
         Customer: valueOrDash(order.customer),
         "Product / Component": productComponent(order),
         "Production / Design": productionDesignLabel(order),
@@ -237,7 +237,7 @@ function requirementExportReport(
 ): DateRangeExportReport {
   const label = kind === "tooling" ? "Tooling" : "Rubber";
   const columns = [
-    "PSR / Code",
+    "Code",
     "Customer",
     "Product / Component",
     `${label} Type`,
@@ -266,7 +266,7 @@ function requirementExportReport(
         id: `${order.id}-${kind}-${record.sequence}`,
         date: orderDate,
         values: {
-          "PSR / Code": valueOrDash(order.no),
+          Code: valueOrDash(order.no),
           Customer: valueOrDash(order.customer),
           "Product / Component": productComponent(order),
           [`${label} Type`]: valueOrDash(record.requirementType),
@@ -298,7 +298,7 @@ export function buildRubberExportReport(orders: readonly Order[]): DateRangeExpo
 }
 
 const materialRequestColumns = [
-  "PSR / Code",
+  "Code",
   "Customer",
   "Product / Component",
   "MI Number",
@@ -325,7 +325,7 @@ export function buildMaterialRequestExportReport(orders: readonly Order[]): Date
         id: `${order.id}-material-request-${record.sequence}`,
         date: requestDate,
         values: {
-          "PSR / Code": valueOrDash(order.no),
+          Code: valueOrDash(order.no),
           Customer: valueOrDash(order.customer),
           "Product / Component": productComponent(order),
           "MI Number": valueOrDash(record.miNumber),
@@ -349,7 +349,7 @@ export function buildMaterialRequestExportReport(orders: readonly Order[]): Date
 }
 
 const sampleProgressColumns = [
-  "PSR / Code",
+  "Code",
   "Customer",
   "Product / Component",
   "Sample Number",
@@ -373,7 +373,7 @@ export function buildSampleProgressExportReport(orders: readonly Order[]): DateR
         id: `${order.id}-sample-progress-${record.sequence}`,
         date: progressDate,
         values: {
-          "PSR / Code": valueOrDash(order.no),
+          Code: valueOrDash(order.no),
           Customer: valueOrDash(order.customer),
           "Product / Component": productComponent(order),
           "Sample Number": valueOrDash(record.sampleNumber),

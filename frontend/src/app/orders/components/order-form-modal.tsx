@@ -118,11 +118,11 @@ export function OrderFormModal({
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-form-grid">
             <label className="modal-field">
-              <span>PSR / Code</span>
+              <span>Code</span>
               <input
                 value={psrCode}
                 onChange={(event) => setPsrCode(event.target.value)}
-                placeholder="cth. PSR#260849"
+                placeholder="e.g. 2611001"
                 disabled={isEditing}
                 autoFocus={!isEditing}
                 required={!isEditing}

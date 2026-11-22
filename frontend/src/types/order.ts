@@ -67,7 +67,11 @@ export type BoardMaterialLayerKey =
 
 export type OffsetProjectDataKey =
   | "fgQuantity" | "imposition" | "grammage" | "printingSide" | "printingMachine"
-  | "varnish" | "lamination" | "coatingSide" | "specialEffect";
+  | "varnish" | "lamination" | "coatingSide"
+  /** Retained to display projects created by the earlier single-effect form. */
+  | "specialEffect"
+  | "pantoneCount" | "specialColourCount"
+  | "emboss" | "deboss" | "hotprint" | "spotUv";
 export type ProjectMainData = Record<ProjectMainDataKey, string> &
   Partial<Record<OffsetProjectDataKey | BoardMaterialLayerKey, string>>;
 export type PreparationType = "converting" | "offset";
@@ -85,6 +89,8 @@ export type PreparationOrderSelection =
 export type DesignDecision = "approve" | "revision";
 export type PreparationWorkflowUpdate = {
   route: PreparationRoute;
+  /** Offset projects leave Incoming Design only after Prepress is selected. */
+  offsetNextPreparation?: "prepress";
   /** Legacy single value consumed by older screens. */
   productionOrder: PreparationOrderSelection | null;
   /** Canonical selection for new Incoming Design. Never contains duplicates. */
@@ -245,6 +251,8 @@ export type ProjectWorkflow = {
   preparationOrders?: PreparationOrderKind[];
   productionOrder: PreparationOrderSelection | null;
   materialRequested: boolean;
+  /** Latest Offset handoff note, displayed as the status for its destination stage. */
+  offsetHandoffRemark?: string;
   currentStage: ProjectCurrentStage;
   currentProcess: string;
   currentStatus: ProjectCurrentStatus;

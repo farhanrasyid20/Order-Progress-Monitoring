@@ -4,6 +4,7 @@ import { DEFAULT_TABLE_PAGE_SIZE } from "@/components/ui/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { englishOffsetLabel } from "@/lib/offset-labels";
+import { offsetHandoffStatus } from "@/lib/offset-handoff-status";
 import type { Order, StandaloneRequirementKind } from "@/types/order";
 
 export type OrderTableProps = {
@@ -101,13 +102,13 @@ export function OrderTable({
           <col style={{ width: "11%" }} />
         </colgroup>
         <thead><tr>
-          <th scope="col">Action</th><th scope="col">Status</th><th scope="col">PSR / Code</th>
+          <th scope="col">Action</th><th scope="col">Status</th><th scope="col">Code</th>
           <th scope="col">Current Process</th><th scope="col">Customer &amp; Product</th>
           <th scope="col">{personLabel}</th><th scope="col">Deadline</th>
         </tr></thead>
         <tbody>{visibleOrders.map(order => <tr key={`${order.id}-${order.materialRequestSource ?? "project"}`}>
           {actionCell(order)}
-          <td><Badge tone={order.tone}>{order.status}</Badge></td>
+          <td><Badge tone={order.tone}>{offsetHandoffStatus(order)}</Badge></td>
           <td><strong className="order-number">{order.no}</strong>{order.requirementBranch ? <span>{order.requirementBranch === "tooling" ? "Tooling" : "Rubber"}</span> : null}</td>
           <td>{englishOffsetLabel(order.process)}</td>
           <td><strong>{order.customer}</strong><span>{order.product}</span></td>
@@ -126,7 +127,7 @@ export function OrderTable({
       <table>
         <thead>
           <tr>
-            <th>PSR / Code</th>
+            <th>Code</th>
             <th>Customer &amp; Product</th>
             {!compact ? <th>Description</th> : null}
             {!compact ? <th>Material</th> : null}
@@ -201,7 +202,7 @@ export function OrderTable({
                 </td>
               ) : null}
               <td>
-                <Badge tone={order.tone}>{order.status}</Badge>
+                <Badge tone={order.tone}>{offsetHandoffStatus(order)}</Badge>
               </td>
               {hasActions ? actionCell(order) : null}
             </tr>

@@ -63,7 +63,7 @@ export function ArchiveProjectDetails({ order, offsetOnly = false }: { order: Or
     {offsetOnly ? <ProjectInformation order={order} /> : null}
     {!offsetOnly ? <Section title="Incoming Design">
       <DetailGrid fields={[
-        ["PSR / Code", order.no], ["Root Project", order.lineage.rootProjectNo],
+        ["Code", order.no], ["Root Project", order.lineage.rootProjectNo],
         ["Version", String(order.lineage.versionNumber)], ["Created At", order.createdAt],
         ["Description", order.description], ["Material", order.material], ["Priority", order.priority],
       ]} />

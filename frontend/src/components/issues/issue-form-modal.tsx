@@ -62,7 +62,7 @@ export function IssueFormModal({ editing, projectId, onClose, onSaved }: IssueFo
                   </select>
                 </label>
                 {!activeOrders.length && !editing ? <small className="project-form-error">No active Incoming Design projects available.</small> : null}
-                <label className="modal-field"><span>PSR / Code</span><input value={projectInfo.projectCode} readOnly /></label>
+                <label className="modal-field"><span>Code</span><input value={projectInfo.projectCode} readOnly /></label>
                 <label className="modal-field"><span>Source / Customer / Machine</span><input value={projectInfo.source} readOnly={!isLegacyIssue} required onChange={(event) => updateForm("source", event.target.value)} /></label>
                 <label className="modal-field"><span>Part No / Code</span><input value={projectInfo.partCode} readOnly={!isLegacyIssue} onChange={(event) => updateForm("partCode", event.target.value)} /></label>
                 <label className="modal-field"><span>Description</span><input value={projectInfo.productDescription} readOnly={!isLegacyIssue} onChange={(event) => updateForm("productDescription", event.target.value)} /></label>

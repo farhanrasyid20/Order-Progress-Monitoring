@@ -318,3 +318,81 @@ test("Incoming Design uses the newest non-empty Sample Progress production note"
   const css = sourceFile("app/globals.css");
   assert.match(css, /\.incoming-production-note\s*\{[^}]*overflow:\s*hidden[^}]*text-overflow:\s*ellipsis[^}]*white-space:\s*nowrap[^}]*\}/s);
 });
+
+test("Offset queue status displays only its stored handoff remark", () => {
+  const { OrderTable } = load(path.resolve(sourceRoot, "components/workflow/order-table.tsx"));
+  const { ProjectHistoryModal } = load(path.resolve(sourceRoot, "components/workflow/project-history-modal.tsx"));
+  const offsetOrder = (stage, offsetHandoffRemark) => ({
+    ...makeOrder(),
+    stage,
+    status: "Waiting for Prepress",
+    workflow: {
+      ...makeOrder().workflow,
+      preparationType: "offset",
+      convertingRoute: null,
+      offsetHandoffRemark,
+    },
+  });
+
+  const remarkMarkup = renderToStaticMarkup(React.createElement(OrderTable, {
+    orders: [offsetOrder("offset-prepress", "Waiting proof color")],
+    queueLayout: true,
+  }));
+  assert.match(remarkMarkup, /Waiting proof color/);
+  assert.doesNotMatch(remarkMarkup, /Waiting for Prepress/);
+
+  const emptyMarkup = renderToStaticMarkup(React.createElement(OrderTable, {
+    orders: [offsetOrder("offset-material-request", "")],
+    queueLayout: true,
+  }));
+  assert.match(emptyMarkup, />-</);
+  assert.doesNotMatch(emptyMarkup, /Waiting for Prepress/);
+
+  const legacyIncomingMarkup = renderToStaticMarkup(React.createElement(OrderTable, {
+    orders: [{
+      ...offsetOrder("offset-prepress", ""),
+      processHistory: [
+        { process: "incoming_preparation", status: "updated", date: "2026-11-18T01:00:00.000Z", user: "Design", remark: "Waiting proof color" },
+        { process: "Prepress", status: "Waiting for Prepress", date: "2026-11-18T01:01:00.000Z", user: "System", remark: "" },
+      ],
+    }],
+    queueLayout: true,
+  }));
+  assert.match(legacyIncomingMarkup, /Waiting proof color/);
+  assert.doesNotMatch(legacyIncomingMarkup, /Waiting for Prepress/);
+
+  const legacyIncomingOrder = {
+    ...offsetOrder("offset-prepress", ""),
+    no: "PSR#260860",
+    processHistory: [
+      { process: "incoming_preparation", status: "updated", date: "2026-11-18T01:00:00.000Z", user: "Design", remark: "continue next preperation" },
+      { process: "Prepress", status: "Waiting for Prepress", date: "2026-11-18T01:01:00.000Z", user: "System", remark: "" },
+    ],
+  };
+  const legacyModalMarkup = renderToStaticMarkup(React.createElement(ProjectHistoryModal, {
+    order: legacyIncomingOrder,
+    offsetDetails: true,
+    onClose: () => {},
+  }));
+  assert.match(legacyModalMarkup, /<span>Status<\/span><strong>continue next preperation<\/strong>/);
+  assert.doesNotMatch(legacyModalMarkup, /<span>Status<\/span><strong>Waiting for Prepress<\/strong>/);
+
+  const legacyMaterialMarkup = renderToStaticMarkup(React.createElement(OrderTable, {
+    orders: [{
+      ...offsetOrder("offset-material-request", ""),
+      processHistory: [
+        { process: "handoff_details_updated", stage: "offset-prepress", status: "updated", date: "2026-11-18T02:00:00.000Z", user: "Design", remark: "Waiting material" },
+        { process: "Offset Material / Create MI", status: "Waiting for Offset Material", date: "2026-11-18T02:01:00.000Z", user: "System", remark: "" },
+      ],
+    }],
+    queueLayout: true,
+  }));
+  assert.match(legacyMaterialMarkup, /Waiting material/);
+
+  const emptyModalMarkup = renderToStaticMarkup(React.createElement(ProjectHistoryModal, {
+    order: offsetOrder("offset-material-request", ""),
+    offsetDetails: true,
+    onClose: () => {},
+  }));
+  assert.match(emptyModalMarkup, /<span>Status<\/span><strong>-<\/strong>/);
+});

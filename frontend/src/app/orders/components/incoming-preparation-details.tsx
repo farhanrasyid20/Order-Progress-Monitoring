@@ -61,6 +61,7 @@ function draftFromOrder(order: Order): PreparationDraft {
   const preparationOrders = selectedOrdersFromWorkflow(order);
   return {
     route: order.workflow.preparationType === "offset" ? "offset" : order.workflow.convertingRoute ?? "by_design",
+    offsetNextPreparation: undefined,
     productionOrder: preparationOrders[0] ?? null,
     preparationOrders,
     materialRequested: order.workflow.materialRequested,
@@ -85,8 +86,8 @@ function kindLabel(kind: PreparationOrderKind) {
 
 function finalPreparationStatus(order: Order, draft: PreparationDraft) {
   if (order.workflow.currentStatus === "cancelled" || !isPreparationOrder(order)) return order.status;
+  if (draft.route === "offset") return draft.offsetNextPreparation === "prepress" ? "Prepress" : "Select Next Preparation";
   if (draft.materialRequested) return "Request Material / Create MI";
-  if (draft.route === "offset") return "Order Tooling / Plate";
   const selected = draft.preparationOrders.filter((kind): kind is PreparationOrderKind => Boolean(kind));
   if (selected.length === 2) return "Order Tooling & Order Rubber";
   if (selected[0]) return kindLabel(selected[0]);
@@ -115,6 +116,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
   const requirementFor = (kind: PreparationOrderKind) => kind === "tooling" ? draft.toolingRequirement : draft.rubberRequirement;
   const savedDraft = draftFromOrder(order);
   const hasChanges = draft.route !== savedDraft.route ||
+    draft.offsetNextPreparation !== savedDraft.offsetNextPreparation ||
     draft.materialRequested !== savedDraft.materialRequested ||
     draft.remark !== savedDraft.remark ||
     draft.preparationOrders.length !== savedDraft.preparationOrders.length ||
@@ -123,6 +125,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
     !requirementsEqual(draft.rubberRequirement, savedDraft.rubberRequirement);
   const isCancelled = order.workflow.currentStatus === "cancelled";
   const isPreparation = isPreparationOrder(order);
+  const isOffset = draft.route === "offset";
   const preparationOrderLocked = !draft.materialRequested;
   const selectedKinds = draft.preparationOrders.filter((kind): kind is PreparationOrderKind => Boolean(kind));
   const hasIncompleteRow = draft.preparationOrders.some((kind) => !kind);
@@ -131,11 +134,13 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
     return !requirement?.orderDate || !requirement.expectedDate;
   });
   const canAddPreparationOrder = draft.route === "by_production" && draft.preparationOrders.length < preparationOrderOptions.length && !hasIncompleteRow;
-  const canUpdatePreparation = !isCancelled && isPreparation && !hasIncompleteRow && !missingRequirementDetails.length && hasChanges;
+  const canUpdatePreparation = !isCancelled && isPreparation && !hasIncompleteRow && !missingRequirementDetails.length &&
+    (!isOffset || draft.offsetNextPreparation === "prepress") && hasChanges;
   const updateTitle = isCancelled ? "This project has already been cancelled"
     : !isPreparation ? "Only new incoming projects can update their preparation plan"
     : hasIncompleteRow ? "Complete any empty preparation-order row first"
     : missingRequirementDetails.length ? `Complete Order Date and Expected Arrival Date for ${missingRequirementDetails.map(kindLabel).join(" and ")}`
+    : isOffset && draft.offsetNextPreparation !== "prepress" ? "Select Prepress as Next Preparation"
     : !hasChanges ? "Make changes before updating"
     : "Save the preparation plan and move the project to Progress Drawing";
   const networkPath = drawingNetworkPath(order);
@@ -189,7 +194,16 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
 
       <label className="modal-field material-request-field">
         <span>Next Preparation</span>
-        <select
+        {isOffset ? <select
+          className="preparation-select"
+          value={draft.offsetNextPreparation ?? ""}
+          aria-label={`Select next preparation for ${order.no}`}
+          disabled={isCancelled || !isPreparation}
+          onChange={(event) => updateDraft(order, { offsetNextPreparation: event.target.value === "prepress" ? "prepress" : undefined })}
+        >
+          <option value="">Select next step...</option>
+          <option value="prepress">Prepress</option>
+        </select> : <select
           className="preparation-select"
           value={draft.materialRequested ? "requested" : ""}
           aria-label={`Select material request for ${order.no}`}
@@ -198,7 +212,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
         >
           <option value="">Select next step...</option>
           <option value="requested">Request Material / Create MI</option>
-        </select>
+        </select>}
       </label>
 
       {draft.route === "by_production" ? <div className="modal-field modal-field-full">

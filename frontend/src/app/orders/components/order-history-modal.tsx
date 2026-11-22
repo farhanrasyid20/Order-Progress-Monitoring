@@ -219,7 +219,7 @@ export function OrderHistoryModal({ order, onClose, onCancel, onUpdatePreparatio
               </div>
               <dl className="incoming-detail-grid">
                 <div>
-                  <dt>PSR / Code</dt>
+                  <dt>Code</dt>
                   <dd>{order.no}</dd>
                 </div>
                 {routeSection?.fields.filter((field) => isFieldVisible(field, detailValues)).map(renderDetailField)}

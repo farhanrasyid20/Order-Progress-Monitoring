@@ -278,8 +278,33 @@ const mainDataKeys: readonly ProjectMainDataKey[] = [
   "fgWeight",
 ];
 
+/**
+ * These keys remain optional in the persisted type so browser data created
+ * before the Offset form existed can still be loaded unchanged. New drafts
+ * initialize them explicitly so every new Offset field is persisted.
+ */
+const offsetProjectDataKeys: readonly OffsetProjectDataKey[] = [
+  "fgQuantity",
+  "imposition",
+  "grammage",
+  "printingSide",
+  "printingMachine",
+  "varnish",
+  "lamination",
+  "coatingSide",
+  "specialEffect",
+  "pantoneCount",
+  "specialColourCount",
+  "emboss",
+  "deboss",
+  "hotprint",
+  "spotUv",
+];
+
 export function createEmptyProjectMainData(): ProjectMainData {
-  return Object.fromEntries(mainDataKeys.map((key) => [key, ""])) as ProjectMainData;
+  return Object.fromEntries(
+    [...mainDataKeys, ...offsetProjectDataKeys].map((key) => [key, ""]),
+  ) as ProjectMainData;
 }
 
 export function createEmptyProjectFormDraft(): ProjectFormDraft {
@@ -381,6 +406,7 @@ export function getProjectFormConfig(draft: ProjectFormDraft, boardTypes: readon
     { id: "project-information", title: "Project Information", fields: [
       { key: "mcNo", source: "mainData", label: "MC No. / Code", type: "text" },
       { key: "custName", source: "mainData", label: "Customer Name", placeholder: "Enter customer name", type: "text", required: true },
+      { key: "component", source: "mainData", label: "Description / Component", placeholder: "Enter description or component", type: "text" },
       offsetSelect("boardQua", "Material", ["Woodfree", "Art Paper", "Art Cartoon", "Ivory", "Duplex", "Aceboard", "Kraft", "Tesliner"]),
       { key: "fgQuantity", source: "mainData", label: "FG Qty (SHT)", type: "text" },
       { key: "imposition", source: "mainData", label: "Imposition / UP", type: "text" },
@@ -388,18 +414,34 @@ export function getProjectFormConfig(draft: ProjectFormDraft, boardTypes: readon
       offsetSelect("printingSide", "Printing Side", ["1 side", "2 side"]),
       offsetSelect("printingMachine", "Machine", ["CD102", "SM102", "Sumitomo", "GTO54", "SC900", "SG1115"]),
     ] },
-    { id: "dimensions", title: "Dimensions", fields: section("dimensions").fields.filter(field => ["width", "length", "weight"].includes(field.key)) },
-    { ...section("printing-colour"), fields: section("printing-colour").fields.map((field, index) => ({
-      ...field,
-      label: index === 0 ? "Printing" : "Colours " + index,
-    })) },
+    { id: "dimensions", title: "Dimensions", fields: section("dimensions").fields
+      .filter(field => ["width", "length", "weight"].includes(field.key))
+      .map(field => field.key === "weight" ? { ...field, required: false } : field) },
+    { ...section("printing-colour"), fields: [
+      ...section("printing-colour").fields.map((field, index) => ({
+        ...field,
+        label: index === 0 ? "Printing" : "Colours " + index,
+      })),
+      { key: "pantoneCount", source: "mainData", label: "Pantone (Qty)", type: "text" },
+      { key: "specialColourCount", source: "mainData", label: "Special Colour (Qty)", type: "text" },
+    ] },
     { id: "coatings", title: "Coatings", fields: [
       offsetSelect("varnish", "Varnish", ["WB Block Varnish", "WB Spot Varnish", "OPV Block Varnish", "OPV Spot Varnish"]),
       offsetSelect("lamination", "Lamination", ["Glossy", "Matte"]),
       offsetSelect("coatingSide", "Coating Side", ["1 side", "2 side"]),
     ] },
     { id: "special-effect", title: "Special Effect", fields: [
-      offsetSelect("specialEffect", "Special Effect", ["Emboss", "Deboss", "Hotprint Gold/Silver", "Spot UV"]),
+      offsetSelect("emboss", "Emboss", ["Yes", "No"]),
+      offsetSelect("deboss", "Deboss", ["Yes", "No"]),
+      offsetSelect("hotprint", "Hotprint Gold/Silver", ["Yes", "No"]),
+      offsetSelect("spotUv", "Spot UV", ["Yes", "No"]),
+      {
+        key: "specialEffect",
+        source: "mainData",
+        label: "Legacy Special Effect",
+        type: "text",
+        visibleWhen: (draft) => Boolean(draft.mainData.specialEffect?.trim()),
+      },
     ] },
     section("assignment-target"),
     section("notes"),

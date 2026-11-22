@@ -177,7 +177,7 @@ export function WorkflowStageView({
           onClear={clearTableFilters}
           showPreparationType={false}
           showReset={false}
-          searchPlaceholder="Search PSR, customer, or product..."
+          searchPlaceholder="Search Code, customer, or product..."
         />
       ) : null}
 

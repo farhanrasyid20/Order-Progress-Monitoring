@@ -266,13 +266,17 @@ export type WorkflowOrdersContextValue = {
 
 const WorkflowOrdersContext = createContext<WorkflowOrdersContextValue | null>(null);
 
-function nextOrderNumber(currentOrders: Order[]) {
+/** Generates the next monthly Code as YYMMNNN without changing existing codes. */
+export function nextOrderCode(currentOrders: readonly Pick<Order, "no">[], now = new Date()) {
+  const prefix = `${String(now.getFullYear() % 100).padStart(2, "0")}${String(now.getMonth() + 1).padStart(2, "0")}`;
   const highestSequence = currentOrders.reduce((highest, order) => {
-    const sequence = Number(/^PSR#(\d+)/i.exec(order.no.trim())?.[1]);
-    return Number.isFinite(sequence) ? Math.max(highest, sequence) : highest;
+    const match = new RegExp(`^${prefix}(\\d{3})$`).exec(order.no.trim());
+    const sequence = Number(match?.[1]);
+    return Number.isInteger(sequence) ? Math.max(highest, sequence) : highest;
   }, 0);
 
-  return `PSR#${highestSequence + 1}`;
+  if (highestSequence >= 999) throw new Error(`Monthly Code sequence exhausted for ${prefix}.`);
+  return `${prefix}${String(highestSequence + 1).padStart(3, "0")}`;
 }
 
 function normalizeProjectCode(value: string) {
@@ -431,6 +435,20 @@ function applyOrderValues(order: Order, values: Partial<OrderFormValues>): Order
   };
 }
 
+/** Offset handoffs must not turn a process note into the project master remark. */
+function applyOffsetHandoffValues(order: Order, values: Partial<OrderFormValues>): Order {
+  return {
+    ...order,
+    pic: values.pic ?? order.pic,
+    deadline: values.deadline ?? order.deadline,
+    workflow: {
+      ...order.workflow,
+      offsetHandoffRemark: values.description?.trim() ?? "",
+    },
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function hasOrderValues(values: Partial<OrderFormValues>) {
   return Object.values(values).some((value) => value !== undefined && value !== "");
 }
@@ -540,6 +558,7 @@ function finalPreparationStatus(values: PreparationWorkflowUpdate) {
 function isCompleteIncomingPreparation(values: PreparationWorkflowUpdate) {
   // Tooling/Rubber and Request Material are independent preparation tasks.
   // A remark is optional; only the selected route is needed to start drawing.
+  if (values.route === "offset") return values.offsetNextPreparation === "prepress";
   return Boolean(values.route);
 }
 
@@ -568,6 +587,14 @@ function isConvertingRequirementStage(stage: WorkflowStage) {
   return stage === "converting-production" ||
     stage === "tooling-progress" ||
     stage === "rubber-order-setting";
+}
+
+function isOffsetWorkflowStage(stage: WorkflowStage) {
+  return stage === "offset-prepress" ||
+    stage === "offset-material-request" ||
+    stage === "offset-plate" ||
+    stage === "offset-varnish" ||
+    stage === "offset-press";
 }
 
 /** Tooling/Rubber are visible as planning items while a drawing awaits review. */
@@ -601,6 +628,9 @@ function applyIncomingPreparation(
       ...order.workflow,
       preparationType: values.route === "offset" ? "offset" : "converting",
       convertingRoute: values.route === "offset" ? null : values.route,
+      offsetHandoffRemark: values.route === "offset"
+        ? values.remark.trim()
+        : order.workflow.offsetHandoffRemark,
       preparationOrders,
       productionOrder,
       materialRequested,
@@ -826,12 +856,67 @@ function normalizePersistedOrder(order: Order): Order {
   };
 }
 
+function codePrefixForDate(value: string) {
+  const date = new Date(value);
+  const safeDate = Number.isNaN(date.getTime()) ? new Date() : date;
+  return `${String(safeDate.getFullYear() % 100).padStart(2, "0")}${String(safeDate.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Migrates only legacy PSR Codes while retaining each project's stable internal ID. */
+export function migrateLegacyProjectCodes(orders: readonly Order[]): Order[] {
+  const usedSequences = new Map<string, number>();
+  const replacements = new Map<string, string>();
+  const isLegacyPsrCode = (value: string) => /^PSR(?:#|\s|$)/i.test(value.trim());
+
+  for (const order of orders) {
+    const match = /^(\d{4})(\d{3})$/.exec(order.no.trim());
+    if (match) usedSequences.set(match[1], Math.max(usedSequences.get(match[1]) ?? 0, Number(match[2])));
+  }
+
+  for (const order of [...orders].sort((left, right) =>
+    left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id),
+  )) {
+    if (!isLegacyPsrCode(order.no)) continue;
+    const prefix = codePrefixForDate(order.createdAt);
+    const nextSequence = (usedSequences.get(prefix) ?? 0) + 1;
+    if (nextSequence > 999) throw new Error(`Monthly Code sequence exhausted for ${prefix}.`);
+    usedSequences.set(prefix, nextSequence);
+    replacements.set(normalizeProjectCode(order.no), `${prefix}${String(nextSequence).padStart(3, "0")}`);
+  }
+
+  return orders.map((order) => {
+    const code = replacements.get(normalizeProjectCode(order.no));
+    if (!code) return order;
+    const rootProjectNo = replacements.get(normalizeProjectCode(order.lineage.rootProjectNo)) ?? order.lineage.rootProjectNo;
+    const sourceProjectNo = order.lineage.sourceProjectNo
+      ? replacements.get(normalizeProjectCode(order.lineage.sourceProjectNo)) ?? order.lineage.sourceProjectNo
+      : null;
+    return {
+      ...order,
+      no: code,
+      mainData: {
+        ...order.mainData,
+        mcNo: order.mainData.mcNo === order.no ? code : order.mainData.mcNo,
+      },
+      lineage: {
+        ...order.lineage,
+        rootProjectNo,
+        sourceProjectNo,
+      } as ProjectLineage,
+    };
+  });
+}
+
+function normalizePersistedOrders(orders: readonly Order[]) {
+  return migrateLegacyProjectCodes(orders.map(normalizePersistedOrder));
+}
+
 /**
  * Browser-persisted prototype state. New records use the nested Project model, while the flat
  * display fields keep the existing dashboard and queue UI working unchanged.
  */
 export function WorkflowOrdersProvider({ children, currentUserRole = "design", currentUserName = "System" }: { children: ReactNode; currentUserRole?: ProjectRole; currentUserName?: string }) {
-  const [orders, setOrders] = useState<Order[]>(() => initialOrders.map(normalizePersistedOrder));
+  const [orders, setOrders] = useState<Order[]>(() => normalizePersistedOrders(initialOrders));
   const [storageReady, setStorageReady] = useState(false);
   const designFileUrls = useRef<string[]>([]);
   const moveToStage = useCallback((order: Order, stage: WorkflowStage, options: { preserveStatus?: boolean } = {}) =>
@@ -848,7 +933,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
           order && typeof order.id === "string" && typeof order.projectDate === "string" &&
           order.workflow && order.mainData && order.lineage && Array.isArray(order.processHistory),
         )) {
-          setOrders((parsed as Order[]).map(normalizePersistedOrder));
+          setOrders(normalizePersistedOrders(parsed as Order[]));
         }
       }
     } catch {
@@ -895,7 +980,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
     }
     setOrders((currentOrders) => {
       const createdAt = new Date().toISOString();
-      const code = nextOrderNumber(currentOrders);
+      const code = nextOrderCode(currentOrders);
       const lineage: ProjectLineage =
         values.entryType === "version_up"
           ? createVersionUpLineage(currentOrders, values.previousProjectCode)
@@ -995,7 +1080,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
     ) => {
       setOrders((currentOrders) => {
         const createdAt = new Date().toISOString();
-        const code = nextOrderNumber(currentOrders);
+        const code = nextOrderCode(currentOrders);
         const stage = standaloneRequirementStage(kind);
         const details = workflowStageDetails[stage];
         const mainData = createStandaloneRequirementMainData(code, values);
@@ -1651,8 +1736,9 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
             return order;
           }
 
-          let updatedOrder = hasOrderValues(values)
-            ? appendHistory(applyOrderValues(order, values), {
+          const isOffsetHandoff = order.workflow.preparationType === "offset" && isOffsetWorkflowStage(order.stage);
+          let updatedOrder = (isOffsetHandoff || hasOrderValues(values))
+            ? appendHistory(isOffsetHandoff ? applyOffsetHandoffValues(order, values) : applyOrderValues(order, values), {
               process: "handoff_details_updated",
               stage: order.stage,
               pic: values.pic ?? order.pic,
@@ -1719,7 +1805,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
       currentUserRole,
       updateDrawingStatus,
       orders,
-      nextProjectCode: nextOrderNumber(orders),
+      nextProjectCode: nextOrderCode(orders),
       addProject,
       editProject,
       createStandaloneRequirementOrder,
