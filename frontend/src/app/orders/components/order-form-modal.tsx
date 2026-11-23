@@ -118,7 +118,7 @@ export function OrderFormModal({
         <form className="modal-form" onSubmit={handleSubmit}>
           <div className="modal-form-grid">
             <label className="modal-field">
-              <span>Code</span>
+              <span>Sample Number</span>
               <input
                 value={psrCode}
                 onChange={(event) => setPsrCode(event.target.value)}

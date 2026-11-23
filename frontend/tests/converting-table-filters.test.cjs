@@ -206,9 +206,9 @@ test("Converting Search and PIC controls remain scoped and preserve OrderFilters
     ...props,
     showPreparationType: false,
     showReset: false,
-    searchPlaceholder: "Search Code, customer, or product...",
+    searchPlaceholder: "Search Sample Number, customer, or product...",
   }));
-  assert.match(convertingMarkup, /Search Code, customer, or product/);
+  assert.match(convertingMarkup, /Search Sample Number, customer, or product/);
   assert.match(convertingMarkup, /PIC: All/);
   assert.doesNotMatch(convertingMarkup, /Preparation Type: All/);
   assert.doesNotMatch(convertingMarkup, /Reset Filters/);

@@ -8,13 +8,20 @@ const statusLabels: Record<MaterialRequestStatus, string> = {
   received: "Received", on_hold: "On Hold",
 };
 
+const offsetNextStepLabels = {
+  tooling_plate: "Tooling / Plate",
+  varnish: "Block / Spot Varnish",
+} as const;
+
 export function MaterialRequestRecordDetails({ record }: { record: MaterialRequestRecord }) {
-  return <DetailGrid fields={[
+  const fields: [string, string | null | undefined][] = [
     ["MI Number", record.miNumber], ["MI Status", statusLabels[record.status] ?? record.status],
     ["Requested By", record.requestedBy], ["Request Date", record.requestDate],
     ["Material", record.material], ["Quantity", record.quantity],
     ["Unit", record.unit], ["Remark", record.remark],
-  ]} />;
+  ];
+  if (record.offsetNextStep) fields.splice(2, 0, ["Next Step", offsetNextStepLabels[record.offsetNextStep]]);
+  return <DetailGrid fields={fields} />;
 }
 
 export function MaterialRequestDetails({ order, allSources = false, fullProjectInformation = false }: { order: Order; allSources?: boolean; fullProjectInformation?: boolean }) {

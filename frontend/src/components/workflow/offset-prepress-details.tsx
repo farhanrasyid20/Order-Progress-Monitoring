@@ -2,30 +2,13 @@ import { ProjectInformation } from "./project-information";
 import type { Order } from "@/types/order";
 import { MaterialRequestRecordDetails } from "./material-request-details";
 import { DetailGrid } from "./requirement-details";
+import { OffsetToolingDetails } from "./offset-tooling-details";
 
 export function OffsetPrepressDetails({ order, showMaterialRequest = false, showPlate = false, showVarnish = false, showPress = false, fullProjectInformation = false }: { order: Order; showMaterialRequest?: boolean; showPlate?: boolean; showVarnish?: boolean; showPress?: boolean; fullProjectInformation?: boolean }) {
-  const fields: [string, string | undefined][] = [
-    ["Code", order.no],
-    ["MC No. / Code", order.mainData.mcNo],
-    ["Customer", order.customer],
-    ["Material", order.mainData.boardQua || order.material],
-    ["FG Qty (SHT)", order.mainData.fgQuantity],
-    ["Imposition / UP", order.mainData.imposition],
-    ["Gramatur", order.mainData.grammage],
-    ["Printing Side", order.mainData.printingSide],
-    ["Machine", order.mainData.printingMachine],
-    ["Designer", order.pic],
-    ["Deadline", order.deadline],
-  ];
   const latest = order.processHistory.filter((record, index, history) =>
     record.process === "handoff_details_updated" &&
     (record.stage === "offset-prepress" || (!record.stage &&
       ["Material Request / MI", "Offset Material / Create MI", "Offset Material Request"].includes(history[index + 1]?.process)))
-  ).at(-1);
-
-  const latestPlate = order.processHistory.filter((record, index, history) =>
-    record.process === "handoff_details_updated" &&
-    (record.stage === "offset-plate" || (!record.stage && history[index + 1]?.process === "Block / Spot Varnish"))
   ).at(-1);
 
   const latestVarnish = order.processHistory.filter((record, index, history) =>
@@ -41,11 +24,22 @@ export function OffsetPrepressDetails({ order, showMaterialRequest = false, show
   const latestMaterial = order.materialRequests.filter(record => record.source === order.materialRequestSource).at(-1);
 
   return <>
-    {fullProjectInformation ? <ProjectInformation order={order} full /> : <section className="requirement-detail-section project-information" aria-label="Project Information">
-      <h3>Project Information</h3>
-      <DetailGrid fields={fields} />
-      {order.workflow.drawingLink ? <a className="drawing-link" href={order.workflow.drawingLink} target="_blank" rel="noopener noreferrer">{order.workflow.drawingFileName ?? "Open Drawing"}</a> : null}
-    </section>}
+    <ProjectInformation order={order} full={fullProjectInformation} />
+    <section className="requirement-detail-section" aria-label="Prepress Details">
+      <h3>Prepress Details</h3>
+      {order.offsetPrepress ? <DetailGrid fields={[
+        ["No JO / PN / Code", order.offsetPrepress.noJoPnCode],
+        ["ID Plate", order.offsetPrepress.idPlate],
+        ["Plate Type", order.offsetPrepress.plateType],
+        ["Proof Color", order.offsetPrepress.proofColor],
+        ["Plot", order.offsetPrepress.plot],
+        ["Plate", order.offsetPrepress.plate],
+        ["Ink", order.offsetPrepress.ink],
+        ["Remark", order.offsetPrepress.remark],
+        ["Recorded At", order.offsetPrepress.recordedAt],
+        ["Updated By", order.offsetPrepress.updatedBy],
+      ]} /> : <div className="material-details-empty" role="status"><p>No prepress details have been recorded.</p></div>}
+    </section>
     <section className="requirement-detail-section" aria-label="Prepress - Latest Input">
       <h3>Prepress - Latest Input</h3>
       {latest ? <DetailGrid fields={[
@@ -57,12 +51,9 @@ export function OffsetPrepressDetails({ order, showMaterialRequest = false, show
       <h3>Material Request / MI Details - Latest Input</h3>
       {latestMaterial ? <MaterialRequestRecordDetails record={latestMaterial} /> : <div className="material-details-empty" role="status"><p>No material request details have been recorded.</p></div>}
     </section> : null}
-    {showPlate || showVarnish || showPress ? <section className="requirement-detail-section" aria-label="Tooling / Plate - Latest Input">
-      <h3>Tooling / Plate - Latest Input</h3>
-      {latestPlate ? <DetailGrid fields={[
-        ["PIC", latestPlate.pic], ["Target Completion Date", latestPlate.deadline],
-        ["Process Notes", latestPlate.remark], ["Recorded At", latestPlate.date], ["Updated By", latestPlate.user],
-      ]} /> : <div className="material-details-empty" role="status"><p>No tooling / plate input has been recorded.</p></div>}
+    {showPlate || showVarnish || showPress ? <section className="requirement-detail-section" aria-label="Tooling / Plate Details">
+      <h3>Tooling / Plate Details</h3>
+      <OffsetToolingDetails order={order} />
     </section> : null}
     {showVarnish || showPress ? <section className="requirement-detail-section" aria-label="Block / Spot Varnish - Latest Input">
       <h3>Block / Spot Varnish - Latest Input</h3>

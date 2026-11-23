@@ -59,9 +59,13 @@ export default function IssueLogPage() {
     });
   }, [categoryFilter, issues, query, statusFilter]);
   const pagination = useTablePagination(filteredIssues);
-
-  const openCount = issues.filter((issue) => issue.status === "Open").length;
-  const closedCount = issues.length - openCount;
+  const clearFilters = () => {
+    setQuery("");
+    setStatusFilter("all");
+    setCategoryFilter("all");
+    pagination.resetPage();
+  };
+  const hasFilters = Boolean(query || statusFilter !== "all" || categoryFilter !== "all");
 
   const openCreate = () => {
     setEditing(null);
@@ -83,47 +87,28 @@ export default function IssueLogPage() {
         <Button icon="plus" onClick={openCreate}>Add Issue</Button>
       </div>
 
-      <section className="summary-grid process-summary">
-        <article className="summary-card">
-          <div className="summary-icon blue"><Icon name="alert" /></div>
-          <div className="summary-label">Total Issues</div>
-          <strong className="summary-value">{issues.length}</strong>
-          <span className="summary-meta">All sources</span>
-        </article>
-        <article className="summary-card">
-          <div className="summary-icon blue"><Icon name="clock" /></div>
-          <div className="summary-label">Open</div>
-          <strong className="summary-value">{openCount}</strong>
-          <span className="summary-meta">Action required</span>
-        </article>
-        <article className="summary-card">
-          <div className="summary-icon green"><Icon name="check" /></div>
-          <div className="summary-label">Closed</div>
-          <strong className="summary-value">{closedCount}</strong>
-          <span className="summary-meta">Resolved issues</span>
-        </article>
+      <section className="filter-card card" aria-label="Search and filter issues">
+        <label className="search-field">
+          <Icon name="search" />
+          <input value={query} onChange={(event) => { setQuery(event.target.value); pagination.resetPage(); }} placeholder="Search Sample Number, customer, product, error, or designer..." aria-label="Search issues" />
+        </label>
+        <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value as "all" | IssueStatus); pagination.resetPage(); }} aria-label="Filter by issue status">
+          <option value="all">Status: All</option>
+          <option value="Open">Open</option>
+          <option value="Closed">Closed</option>
+        </select>
+        <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); pagination.resetPage(); }} aria-label="Filter by issue category">
+          <option value="all">Category: All</option>
+          {categories.map((category) => <option key={category}>{category}</option>)}
+        </select>
+        <Button type="button" variant="secondary" onClick={clearFilters} disabled={!hasFilters}>Reset Filters</Button>
       </section>
 
       <section className="card full-orders issue-log-card">
         <div className="section-head issue-toolbar">
           <div>
             <h2>Issue List</h2>
-            <p>Filter by status, category, customer, machine, or part code.</p>
-          </div>
-          <div className="issue-filters">
-            <label>
-              <span className="sr-only">Search issues</span>
-              <input value={query} onChange={(event) => { setQuery(event.target.value); pagination.resetPage(); }} placeholder="Search issues..." />
-            </label>
-            <select value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value as "all" | IssueStatus); pagination.resetPage(); }}>
-              <option value="all">All statuses</option>
-              <option value="Open">Open</option>
-              <option value="Closed">Closed</option>
-            </select>
-            <select value={categoryFilter} onChange={(event) => { setCategoryFilter(event.target.value); pagination.resetPage(); }}>
-              <option value="all">All categories</option>
-              {categories.map((category) => <option key={category}>{category}</option>)}
-            </select>
+            <p>{filteredIssues.length} of {issues.length} issues found.</p>
           </div>
         </div>
         <div className="table-wrap issue-table-wrap">
@@ -142,7 +127,7 @@ export default function IssueLogPage() {
               <tr>
                 <th scope="col" className="issue-actions-cell">Action</th>
                 <th scope="col" className="issue-status-cell">Status</th>
-                <th scope="col">Code</th>
+                <th scope="col">Sample Number</th>
                 <th scope="col">Customer &amp; Product</th>
                 <th scope="col">Error</th>
                 <th scope="col">Designer</th>

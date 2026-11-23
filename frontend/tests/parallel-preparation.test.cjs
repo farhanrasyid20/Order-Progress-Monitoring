@@ -119,7 +119,43 @@ test("project creation and drawing status audit use the account rather than proj
   assert.equal(h.api().orders[0].processHistory[0].user, "Anantha");
 });
 
-test("new project Codes use a monthly YYMMNNN sequence without changing stored Codes", () => {
+test("Offset Dimensions match Converting, retain all values, and keep Weight optional", () => {
+  const h = workflowHarness();
+  const config = h.load(path.resolve(__dirname, "../src/app/orders/components/project-form-config.ts"));
+  const values = config.createEmptyProjectFormDraft();
+  values.preparationType = "offset";
+  values.mainData.component = "Offset carton";
+  values.mainData.custName = "Customer";
+  Object.assign(values.mainData, {
+    width: "210", length: "297", dieCutSht: "4", iSizeL: "200",
+    iSizeW: "150", iSizeH: "80", weight: "", fgWeight: "0.45",
+  });
+
+  const dimensions = (draft) => config.getProjectFormConfig(draft)
+    .find((section) => section.id === "dimensions").fields;
+  const convertingValues = { ...values, preparationType: "converting", convertingRoute: "by_design" };
+  const offsetDimensions = dimensions(values);
+  const convertingDimensions = dimensions(convertingValues);
+
+  assert.deepEqual(offsetDimensions.map((field) => [field.key, field.label, field.type]), convertingDimensions.map((field) => [field.key, field.label, field.type]));
+  assert.deepEqual(offsetDimensions.map((field) => field.key), ["width", "length", "dieCutSht", "iSizeL", "iSizeW", "iSizeH", "weight", "fgWeight"]);
+  assert.equal(offsetDimensions.find((field) => field.key === "weight").required, false);
+  assert.equal(convertingDimensions.find((field) => field.key === "weight").required, true);
+
+  h.api().addProject(values);
+  const created = h.api().orders[0];
+  for (const key of offsetDimensions.map((field) => field.key)) {
+    assert.equal(created.mainData[key], values.mainData[key]);
+  }
+
+  const edited = { ...values, mainData: { ...created.mainData, iSizeH: "85", fgWeight: "0.48" } };
+  h.api().editProject(created.id, edited);
+  const saved = h.api().orders[0];
+  assert.equal(saved.mainData.iSizeH, "85");
+  assert.equal(saved.mainData.fgWeight, "0.48");
+});
+
+test("new Sample Numbers use a monthly YYMMNNN sequence without changing stored numbers", () => {
   const h = workflowHarness();
   const { nextOrderCode } = h.load(path.resolve(__dirname, "../src/components/workflow/workflow-provider.tsx"));
   const november = new Date(2026, 10, 22, 9, 0, 0);
@@ -151,7 +187,7 @@ test("new project Codes use a monthly YYMMNNN sequence without changing stored C
   assert.notEqual(first.id, second.id);
 });
 
-test("legacy PSR Codes migrate to monthly Codes without changing project IDs or lineage", () => {
+test("legacy PSR Sample Numbers migrate to monthly Sample Numbers without changing project IDs or lineage", () => {
   const h = workflowHarness();
   const { migrateLegacyProjectCodes } = h.load(path.resolve(__dirname, "../src/components/workflow/workflow-provider.tsx"));
   const original = structuredClone(h.api().orders[0]);
@@ -516,6 +552,133 @@ test("Offset keeps its Material to Plate route", () => {
   assert.equal(h.api().orders[0].stage, "offset-plate");
 });
 
+test("Offset MI persists its Next Step without changing the approved Material handoff", () => {
+  const h = workflowHarness();
+  h.start(["rubber"]);
+  const order = h.states[0][0];
+  h.states[0] = [{ ...order, id: "offset-mi-next-step", stage: "offset-material-request", workflow: {
+    ...order.workflow, preparationType: "offset", convertingRoute: null, preparationOrders: [], productionOrder: null,
+  } }];
+  const values = {
+    miNumber: "OMI-TEST", status: "released", requestedBy: "PIC", requestDate: "2026-11-23",
+    material: "Ivory", quantity: "1000", unit: "sheet", remark: "Material ready", offsetNextStep: "varnish",
+  };
+
+  h.api().saveMaterialRequest("offset-mi-next-step", values, false);
+  let saved = h.api().orders[0];
+  assert.equal(saved.stage, "offset-material-request");
+  assert.equal(saved.materialRequests.at(-1).offsetNextStep, "varnish");
+  assert.match(saved.processHistory.at(-1).changeSummary, /Next step: Block \/ Spot Varnish/);
+
+  h.api().saveMaterialRequest("offset-mi-next-step", { ...values, offsetNextStep: "tooling_plate" }, true);
+  saved = h.api().orders[0];
+  assert.equal(saved.stage, "offset-plate");
+  assert.equal(saved.materialRequests.at(-1).offsetNextStep, "tooling_plate");
+});
+
+test("Offset Tooling / Plate stores selectable records without changing project mainData", () => {
+  const h = workflowHarness();
+  const incoming = structuredClone(h.api().orders[0]);
+  const mainData = { ...incoming.mainData, custName: "Offset Customer", component: "Offset carton", boardQua: "Ivory", imposition: "4 UP" };
+  h.states[0] = [{
+    ...incoming,
+    id: "offset-tooling-test",
+    stage: "offset-plate",
+    mainData,
+    processHistory: [],
+    workflow: { ...incoming.workflow, preparationType: "offset", convertingRoute: null, currentStatus: "in_progress" },
+  }];
+  const values = {
+    mcNo: "MC-PL-01", grammage: "310 gsm", openWidth: "700", openLength: "1000",
+    priority: "Hard", machine: "DC TMZ", orderDate: "2026-11-23", receivedDate: "2026-11-25",
+    supplier: "Plate Supplier", invoiceNumber: "INV-PL-01", price: "500000", remark: "Tooling note",
+  };
+
+  h.api().createOffsetTooling("offset-tooling-test", values);
+  let saved = h.api().orders[0];
+  assert.equal(saved.stage, "offset-plate");
+  assert.equal(saved.offsetToolingRecords.length, 1);
+  assert.deepEqual({ ...saved.offsetToolingRecords[0], id: undefined, recordedAt: undefined, updatedBy: undefined }, { ...values, id: undefined, recordedAt: undefined, updatedBy: undefined });
+  const firstToolingId = saved.offsetToolingRecords[0].id;
+  assert.deepEqual(saved.mainData, mainData);
+  assert.ok(saved.processHistory.some((entry) => entry.process === "offset_tooling"));
+
+  h.api().createOffsetTooling("offset-tooling-test", { ...values, mcNo: "MC-PL-02", machine: "DC Flat" });
+  saved = h.api().orders[0];
+  assert.equal(saved.offsetToolingRecords.length, 2);
+  assert.equal(saved.offsetToolingId, saved.offsetToolingRecords[1].id);
+  h.api().selectOffsetTooling("offset-tooling-test", firstToolingId);
+  saved = h.api().orders[0];
+  assert.equal(saved.stage, "offset-plate");
+  assert.equal(saved.offsetToolingId, firstToolingId);
+  h.api().updateOffsetTooling("offset-tooling-test", firstToolingId, { ...values, receivedDate: "2026-11-26" });
+  saved = h.api().orders[0];
+  assert.equal(saved.offsetToolingRecords.find((record) => record.id === firstToolingId).receivedDate, "2026-11-26");
+});
+
+test("manual Offset Tooling is retained independently without creating or changing a project", () => {
+  const h = workflowHarness();
+  const before = structuredClone(h.api().orders);
+  h.api().createManualOffsetTooling({
+    mcNo: "TOOL-MANUAL-01", customer: "Manual Customer", description: "Manual plate", material: "Ivory",
+    imposition: "2 UP", pic: "PIC", grammage: "310 gsm", openWidth: "700", openLength: "1000",
+    priority: "Medium", machine: "DC Flat", orderDate: "", receivedDate: "", supplier: "", invoiceNumber: "", price: "", remark: "",
+  });
+  const current = h.api();
+  assert.equal(current.orders.length, before.length);
+  assert.deepEqual(current.orders, before);
+  assert.equal(current.manualOffsetToolingRecords.length, 1);
+  assert.equal(current.manualOffsetToolingRecords[0].mcNo, "TOOL-MANUAL-01");
+  assert.equal(current.manualOffsetToolingRecords[0].receivedDate, "");
+});
+
+test("Offset project selects a compatible catalog tooling record without changing stage", () => {
+  const h = workflowHarness();
+  const original = structuredClone(h.api().orders[0]);
+  h.api().createManualOffsetTooling({
+    mcNo: "TOOL-CATALOG-01", customer: "Catalog Customer", description: "Catalog carton", material: "Ivory",
+    imposition: "4 UP", pic: "PIC", grammage: "310 gsm", openWidth: "700", openLength: "1000",
+    priority: "Medium", machine: "DC Flat", orderDate: "", receivedDate: "", supplier: "", invoiceNumber: "", price: "", remark: "",
+  });
+  const toolingId = h.api().offsetToolingCatalog[0].id;
+  h.states[0] = [{
+    ...original,
+    id: "offset-catalog-select-test",
+    stage: "offset-plate",
+    mainData: { ...original.mainData, custName: "Catalog Customer", boardQua: "Ivory", imposition: "4 UP" },
+    processHistory: [],
+    workflow: { ...original.workflow, preparationType: "offset", convertingRoute: null, currentStatus: "in_progress" },
+  }];
+  h.api().selectOffsetTooling("offset-catalog-select-test", toolingId);
+  const selected = h.api().orders[0];
+  assert.equal(selected.stage, "offset-plate");
+  assert.equal(selected.offsetToolingId, toolingId);
+  assert.equal(selected.processHistory.at(-1).process, "offset_tooling_selected");
+});
+
+test("received manual tooling updates the shared record and related project history", () => {
+  const h = workflowHarness();
+  const original = structuredClone(h.api().orders[0]);
+  const values = {
+    mcNo: "TOOL-RECEIVED-01", customer: "Received Customer", description: "Carton", material: "Ivory",
+    imposition: "2 UP", pic: "PIC", grammage: "310 gsm", openWidth: "700", openLength: "1000",
+    priority: "Medium", machine: "DC Flat", orderDate: "", receivedDate: "", supplier: "", invoiceNumber: "", price: "", remark: "",
+  };
+  h.api().createManualOffsetTooling(values);
+  const toolingId = h.api().offsetToolingCatalog[0].id;
+  h.states[0] = [{
+    ...original, id: "offset-tooling-received-test", stage: "offset-plate", processHistory: [],
+    mainData: { ...original.mainData, custName: "Received Customer", boardQua: "Ivory", imposition: "2 UP" },
+    workflow: { ...original.workflow, preparationType: "offset", convertingRoute: null, currentStatus: "in_progress" },
+  }];
+  h.api().selectOffsetTooling("offset-tooling-received-test", toolingId);
+  h.api().updateManualOffsetTooling(toolingId, { ...values, receivedDate: "2026-11-25", supplier: "Plate Supplier" });
+  const current = h.api();
+  assert.equal(current.offsetToolingCatalog[0].receivedDate, "2026-11-25");
+  assert.equal(current.orders[0].stage, "offset-plate");
+  assert.match(current.orders[0].processHistory.at(-1).changeSummary, /received on 2026-11-25/);
+});
+
 test("Offset moves from Incoming Design to Prepress only after Prepress is selected", () => {
   const h = workflowHarness();
   const incoming = structuredClone(h.api().orders[0]);
@@ -560,6 +723,52 @@ test("Offset moves from Incoming Design to Prepress only after Prepress is selec
   assert.deepEqual(moved.mainData, mainData);
   assert.ok(moved.processHistory.some((entry) => entry.process === "incoming_preparation"));
   assert.ok(moved.processHistory.some((entry) => entry.process === "Prepress" && entry.changeSummary === "Moved to Prepress."));
+});
+
+test("Offset Prepress saves its own details and hands off only to Material", () => {
+  const h = workflowHarness();
+  const incoming = structuredClone(h.api().orders[0]);
+  const mainData = { ...incoming.mainData, remark: "Master Offset remark", fgQuantity: "1000" };
+  h.states[0] = [{
+    ...incoming,
+    id: "offset-prepress-test",
+    stage: "offset-prepress",
+    mainData,
+    processHistory: [],
+    workflow: {
+      ...incoming.workflow,
+      preparationType: "offset",
+      convertingRoute: null,
+      currentStatus: "in_progress",
+      offsetHandoffRemark: "Incoming handoff",
+    },
+  }];
+  const values = {
+    noJoPnCode: "JO-01",
+    idPlate: "PL-100",
+    plateType: "CD102",
+    proofColor: "Ready",
+    plot: "Ready",
+    plate: "Waiting",
+    ink: "Waiting Ink",
+    remark: "Waiting material",
+  };
+
+  h.api().saveOffsetPrepress("offset-prepress-test", values, false);
+  let saved = h.api().orders[0];
+  assert.equal(saved.stage, "offset-prepress");
+  assert.deepEqual({ ...saved.offsetPrepress, recordedAt: undefined, updatedBy: undefined }, { ...values, recordedAt: undefined, updatedBy: undefined });
+  assert.deepEqual(saved.mainData, mainData);
+  assert.equal(saved.workflow.offsetHandoffRemark, "Incoming handoff");
+  assert.ok(saved.processHistory.some((entry) => entry.process === "offset_prepress" && entry.remark === "Waiting material"));
+
+  h.api().saveOffsetPrepress("offset-prepress-test", { ...values, plate: "Ready", remark: "Material ready" }, true);
+  saved = h.api().orders[0];
+  assert.equal(saved.stage, "offset-material-request");
+  assert.equal(saved.offsetPrepress.plate, "Ready");
+  assert.equal(saved.workflow.offsetHandoffRemark, "Material ready");
+  assert.deepEqual(saved.mainData, mainData);
+  assert.ok(saved.processHistory.some((entry) => entry.process === "Offset Material / Create MI"));
 });
 
 test("Offset retains only the relevant handoff remark for each destination stage", () => {

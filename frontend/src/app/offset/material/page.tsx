@@ -1,3 +1,5 @@
+"use client";
+
 import { OffsetMaterialRequestView } from "../components";
 
 export default function OffsetMaterialPage() {

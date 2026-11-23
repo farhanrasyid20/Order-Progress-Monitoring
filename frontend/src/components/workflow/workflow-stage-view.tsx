@@ -15,6 +15,7 @@ import { isInRequirementQueue, requirementQueueDisplay, materialRequestQueueEntr
 import type { DateRangeExportReport } from "@/lib/date-range-export";
 import type { IconName } from "@/components/ui/icon";
 import { OrderFilters } from "@/app/orders/components/order-filters";
+import { QueueTableFilters, type QueueFilterControl } from "@/components/workflow/queue-table-filters";
 import type { MaterialRequestStatus, Order, RequirementStatus, WorkflowStage } from "@/types/order";
 
 export type WorkflowEditModalRenderProps = {
@@ -23,6 +24,19 @@ export type WorkflowEditModalRenderProps = {
 };
 
 type ConvertingTableFilterKind = "tooling" | "rubber" | "material" | "sample";
+
+export type QueueTableFilter = {
+  key: string;
+  label: string;
+  valuesFor: (orders: readonly Order[]) => readonly string[];
+  matches: (order: Order, value: string) => boolean;
+};
+
+export type QueueTableFilterConfig = {
+  searchPlaceholder: string;
+  matchesSearch: (order: Order, normalizedQuery: string) => boolean;
+  filters: readonly QueueTableFilter[];
+};
 
 const requirementStatusOptions: readonly RecordFilterOption[] = [
   { value: "needed", label: "Needed" },
@@ -79,6 +93,7 @@ export type WorkflowStageViewProps = {
   dateRangeExport?: (orders: readonly Order[]) => DateRangeExportReport;
   /** Enables only the requested Converting table filters and contextual PIC display. */
   convertingTableFilter?: ConvertingTableFilterKind;
+  queueTableFilters?: QueueTableFilterConfig;
   renderEditModal: (props: WorkflowEditModalRenderProps) => ReactNode;
 };
 
@@ -97,6 +112,7 @@ export function WorkflowStageView({
   summaryLanguage,
   dateRangeExport,
   convertingTableFilter,
+  queueTableFilters,
   renderEditModal,
   editActionLabel,
 }: WorkflowStageViewProps) {
@@ -106,6 +122,7 @@ export function WorkflowStageView({
   const [query, setQuery] = useState("");
   const [pic, setPic] = useState("");
   const [recordStatus, setRecordStatus] = useState("");
+  const [queueFilterValues, setQueueFilterValues] = useState<Record<string, string>>({});
   const queueOrders = useMemo(
     () => stage === "tooling-progress" || stage === "rubber-order-setting"
       ? orders.filter((order) => isInRequirementQueue(order, stage === "tooling-progress" ? "tooling" : "rubber"))
@@ -120,7 +137,14 @@ export function WorkflowStageView({
       : [],
     [convertingTableFilter, queueOrders],
   );
+  const queueFilterControls = useMemo<QueueFilterControl[]>(() => queueTableFilters
+    ? queueTableFilters.filters.map((filter) => ({ key: filter.key, label: filter.label, options: Array.from(new Set(filter.valuesFor(queueOrders).filter(Boolean))).sort() }))
+    : [], [queueOrders, queueTableFilters]);
   const filteredQueueOrders = useMemo(() => {
+    if (queueTableFilters) {
+      const normalizedQuery = query.trim().toLowerCase();
+      return queueOrders.filter((order) => queueTableFilters.matchesSearch(order, normalizedQuery) && queueTableFilters.filters.every((filter) => !queueFilterValues[filter.key] || filter.matches(order, queueFilterValues[filter.key])));
+    }
     if (!convertingTableFilter) return queueOrders;
 
     const normalizedQuery = query.trim().toLowerCase();
@@ -134,7 +158,7 @@ export function WorkflowStageView({
 
       return matchesQuery && matchesPic && matchesStatus;
     });
-  }, [convertingTableFilter, pic, query, queueOrders, recordStatus]);
+  }, [convertingTableFilter, pic, query, queueFilterValues, queueOrders, queueTableFilters, recordStatus]);
   const pagination = useTablePagination(filteredQueueOrders);
   const exportReport = useMemo(
     () => dateRangeExport ? dateRangeExport(orders) : null,
@@ -146,6 +170,7 @@ export function WorkflowStageView({
     setQuery("");
     setPic("");
     setRecordStatus("");
+    setQueueFilterValues({});
     resetPage();
   };
 
@@ -159,7 +184,7 @@ export function WorkflowStageView({
         {pageAction}
       </div>
 
-      {convertingTableFilter ? (
+      {queueTableFilters ? <QueueTableFilters query={query} searchPlaceholder={queueTableFilters.searchPlaceholder} controls={queueFilterControls} values={queueFilterValues} onQueryChange={(value) => { setQuery(value); resetPage(); }} onValueChange={(key, value) => { setQueueFilterValues((current) => ({ ...current, [key]: value })); resetPage(); }} onReset={clearTableFilters} /> : convertingTableFilter ? (
         <OrderFilters
           query={query}
           preparationType=""
@@ -177,9 +202,9 @@ export function WorkflowStageView({
           onClear={clearTableFilters}
           showPreparationType={false}
           showReset={false}
-          searchPlaceholder="Search Code, customer, or product..."
+          searchPlaceholder="Search Sample Number, customer, or product..."
         />
-      ) : null}
+      ) : queueTableFilters ? null : <ProcessSummary icon={icon} language={summaryLanguage} />}
 
       {hasRecordFilterCards && convertingTableFilter ? (
         <RecordFilterCards
@@ -196,7 +221,7 @@ export function WorkflowStageView({
         />
       ) : stage === "tooling-progress" || stage === "rubber-order-setting" ? (
         <RequirementStatusSummary orders={queueOrders} kind={stage === "tooling-progress" ? "tooling" : "rubber"} icon={icon} />
-      ) : <ProcessSummary icon={icon} language={summaryLanguage} />}
+      ) : null}
 
       <OrderCard
         title={queueTitle}

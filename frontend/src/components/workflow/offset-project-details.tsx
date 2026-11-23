@@ -18,7 +18,7 @@ export function OffsetProjectDetails({ order }: { order: Order }) {
     key={section.id} className="requirement-detail-section project-form-section" aria-label={section.title}>
     <h3>{section.title}</h3>
     <dl className="incoming-detail-grid">
-      {section.id === "process-route" ? <div><dt>Code</dt><dd>{order.no}</dd></div> : null}
+      {section.id === "process-route" ? <div><dt>Sample Number</dt><dd>{order.no}</dd></div> : null}
       {section.fields.filter(field => isFieldVisible(field, draft)).map(field => {
         const value = getProjectFieldValue(draft, field);
         const display = value.trim() ? field.options?.find(option => option.value === value)?.label ?? value : "-";

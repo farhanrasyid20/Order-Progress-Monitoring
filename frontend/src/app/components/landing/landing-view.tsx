@@ -109,7 +109,7 @@ function LandingWorkflowCard({ column, orders }: LandingWorkflowCardProps) {
               </div>
               <dl className="landing-order-details">
                 <div>
-                  <dt>Order code</dt>
+                  <dt>Sample Number</dt>
                   <dd className="landing-order-code">{order.no}</dd>
                 </div>
                 <div>

@@ -5,7 +5,7 @@ import { isParallelPreparationPending } from "@/lib/requirement-queue";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import type { MaterialRequestStatus, Order } from "@/types/order";
+import type { MaterialRequestStatus, OffsetMaterialNextStep, Order } from "@/types/order";
 
 export type MaterialRequestModalProps = {
   order: Order;
@@ -50,6 +50,9 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
   const [quantity, setQuantity] = useState(latest?.quantity ?? "");
   const [unit, setUnit] = useState(latest?.unit ?? "sheet");
   const [remark, setRemark] = useState(latest?.remark ?? "");
+  const [offsetNextStep, setOffsetNextStep] = useState<OffsetMaterialNextStep | "">(
+    offset ? latest?.offsetNextStep ?? "" : "",
+  );
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -77,6 +80,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
         quantity,
         unit,
         remark,
+        ...(offset ? { offsetNextStep: offsetNextStep || undefined } : {}),
       },
       continueWorkflow,
     );
@@ -133,6 +137,18 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
                 ))}
               </select>
             </label>
+            {offset ? <label className="modal-field">
+              <span>Next Step</span>
+              <select
+                value={offsetNextStep}
+                onChange={(event) => setOffsetNextStep(event.target.value as OffsetMaterialNextStep | "")}
+              >
+                <option value="">Select next step...</option>
+                <option value="tooling_plate">Tooling / Plate</option>
+                <option value="varnish">Block / Spot Varnish</option>
+              </select>
+              <small>Saved as a planning choice. Material handoff remains unchanged until Offset routing is approved.</small>
+            </label> : null}
             <label className="modal-field">
               <span>Requested By</span>
               <input value={requestedBy} disabled />

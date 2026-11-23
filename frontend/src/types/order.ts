@@ -180,9 +180,18 @@ export type MaterialRequestStatus =
   | "received"
   | "on_hold";
 
+/**
+ * A planning choice made from Offset MI. It deliberately does not control a
+ * workflow handoff yet, so Plate and Varnish can gain independent readiness
+ * rules (including parallel work) without changing saved MI records.
+ */
+export type OffsetMaterialNextStep = "tooling_plate" | "varnish";
+
 export type MaterialRequestRecord = {
   sequence: number;
   source?: StandaloneRequirementKind;
+  /** Present only for Offset MI records; omitted by Converting and legacy data. */
+  offsetNextStep?: OffsetMaterialNextStep;
   miNumber: string;
   status: MaterialRequestStatus;
   requestedBy: string;
@@ -235,6 +244,80 @@ export type OffsetSpkRecord = {
 };
 
 export type OffsetSpkValues = Omit<OffsetSpkRecord, "id" | "createdAt">;
+
+export type OffsetPlateType = "" | "GTO54" | "CD102" | "SM102" | "SUMITOMO";
+
+export type OffsetPrepressValues = {
+  noJoPnCode: string;
+  idPlate: string;
+  plateType: OffsetPlateType;
+  proofColor: string;
+  plot: string;
+  plate: string;
+  ink: string;
+  remark: string;
+};
+
+export type OffsetPrepressRecord = OffsetPrepressValues & {
+  recordedAt: string;
+  updatedBy: string;
+};
+
+/** Dedicated Tooling / Plate input for Offset; it does not reuse Converting tooling records. */
+export type OffsetToolingPriority = "Low" | "Medium" | "Hard";
+export type OffsetToolingMachine = "Auto Haido" | "Auto Jingya" | "Baozika" | "DC Manual" | "DC TMZ" | "DC Flat";
+
+export type OffsetToolingValues = {
+  mcNo: string;
+  grammage: string;
+  openWidth: string;
+  openLength: string;
+  priority: OffsetToolingPriority | "";
+  machine: OffsetToolingMachine | "";
+  orderDate: string;
+  receivedDate: string;
+  supplier: string;
+  invoiceNumber: string;
+  price: string;
+  remark: string;
+};
+
+export type OffsetToolingLegacyRecord = OffsetToolingValues & {
+  recordedAt: string;
+  updatedBy: string;
+};
+
+export type OffsetToolingRecord = OffsetToolingLegacyRecord & {
+  id: string;
+};
+
+/** A projectless Offset tooling record, retained for later project selection. */
+export type ManualOffsetToolingValues = OffsetToolingValues & {
+  customer: string;
+  description: string;
+  material: string;
+  imposition: string;
+  pic: string;
+};
+
+export type ManualOffsetToolingRecord = ManualOffsetToolingValues & {
+  id: string;
+  recordedAt: string;
+  updatedBy: string;
+};
+
+/** Read-only catalog projection built from manual records and project-owned records. */
+export type OffsetToolingCatalogRecord = OffsetToolingValues & {
+  id: string;
+  customer: string;
+  description: string;
+  material: string;
+  imposition: string;
+  pic: string;
+  recordedAt: string;
+  updatedBy: string;
+  sourceProjectId?: string;
+};
 
 export type ProjectWorkflow = {
   drawingStatus?: DrawingStatus;
@@ -323,6 +406,14 @@ export type Order = {
   rubberOrders: RubberOrderRecord[];
   materialRequests: MaterialRequestRecord[];
   offsetSpks: OffsetSpkRecord[];
+  /** Optional so projects created before the Offset Prepress form remain compatible. */
+  offsetPrepress?: OffsetPrepressRecord;
+  /** Optional so projects created before the Offset Tooling / Plate form remain compatible. */
+  offsetTooling?: OffsetToolingLegacyRecord;
+  /** Offset-only tooling records belong to this project; they are not a global tooling master. */
+  offsetToolingRecords?: OffsetToolingRecord[];
+  /** The record currently selected for this project's Tooling / Plate work. */
+  offsetToolingId?: string;
   processHistory: ProcessHistoryRecord[];
   createdAt: string;
   updatedAt: string;

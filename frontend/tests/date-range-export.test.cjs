@@ -257,7 +257,7 @@ test("report fields and CSV output retain module data and escape cells", () => {
 
   const csv = exporter.createCsv(incoming.columns, incoming.rows);
   assert.match(csv, /"Waiting, ""approval""\nnext line"/);
-  assert.ok(csv.startsWith('"Code"'));
+  assert.ok(csv.startsWith('"Sample Number"'));
   assert.equal(csv.charCodeAt(0), '"'.charCodeAt(0));
   assert.equal(exporter.exportFileName(incoming, "2026-08-01", "2026-10-31"), "incoming-design-2026-08-01-to-2026-10-31.csv");
 });

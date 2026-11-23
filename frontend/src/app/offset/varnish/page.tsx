@@ -1,4 +1,16 @@
+"use client";
+
 import { OffsetStageView } from "../components";
+import type { QueueTableFilterConfig } from "@/components/workflow/workflow-stage-view";
+
+const varnishFilters: QueueTableFilterConfig = {
+  searchPlaceholder: "Search Sample Number, customer, product, varnish, or coating...",
+  matchesSearch: (order, query) => !query || [order.no, order.customer, order.product, order.mainData.varnish, order.mainData.coatingSide].some((value) => value?.toLowerCase().includes(query)),
+  filters: [
+    { key: "varnish", label: "Varnish", valuesFor: (orders) => orders.map((order) => order.mainData.varnish ?? ""), matches: (order, value) => order.mainData.varnish === value },
+    { key: "coatingSide", label: "Coating Side", valuesFor: (orders) => orders.map((order) => order.mainData.coatingSide ?? ""), matches: (order, value) => order.mainData.coatingSide === value },
+  ],
+};
 
 export default function OffsetVarnishPage() {
   return (
@@ -9,6 +21,7 @@ export default function OffsetVarnishPage() {
       queueTitle="Block / Spot Varnish Queue"
       queueCopy="Offset plates ready for varnish preparation"
       nextLabel="Press / Printing"
+      queueTableFilters={varnishFilters}
     />
   );
 }

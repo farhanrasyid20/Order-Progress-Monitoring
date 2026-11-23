@@ -193,8 +193,8 @@ export function StandaloneRequirementModal({
                 ? `Edit ${kindLabel.toLowerCase()} details for this project. Changes save directly without changing its workflow stage.`
                 : `Enter ${kindLabel.toLowerCase()} details, then click Update in Incoming Design to submit the project.`
               : usesExistingProject
-                ? `Select a project code to add its ${kindLabel.toLowerCase()} details.`
-                : `Enter the order manually when no project code exists yet. The system will generate an internal code after saving.`}</p>
+                ? `Select a sample number to add its ${kindLabel.toLowerCase()} details.`
+                : `Enter the order manually when no sample number exists yet. The system will generate a sample number after saving.`}</p>
           </div>
           <button
             type="button"
@@ -220,8 +220,8 @@ export function StandaloneRequirementModal({
                   setError("");
                 }}
               >
-                <option value="existing">Existing project / PSR code</option>
-                <option value="manual">No project code yet (manual entry)</option>
+                <option value="existing">Existing project / sample number</option>
+                <option value="manual">No sample number yet (manual entry)</option>
               </select>
             </label> : null}
             {usesExistingProject ? <>
@@ -238,7 +238,7 @@ export function StandaloneRequirementModal({
                 </select>
               </label>
               {!project && !eligibleProjects.length ? <p className="project-form-error">No active or repeat {kindLabel} projects are available. Add the first {kindLabel.toLowerCase()} order from Incoming Design first.</p> : null}
-              <label className="modal-field"><span>Code</span><input value={selectedProject?.no ?? ""} readOnly /></label>
+              <label className="modal-field"><span>Sample Number</span><input value={selectedProject?.no ?? ""} readOnly /></label>
             </> : null}
             <label className="modal-field">
               <span>Customer</span>

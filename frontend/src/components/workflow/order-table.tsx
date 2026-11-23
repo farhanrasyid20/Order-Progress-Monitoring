@@ -102,7 +102,7 @@ export function OrderTable({
           <col style={{ width: "11%" }} />
         </colgroup>
         <thead><tr>
-          <th scope="col">Action</th><th scope="col">Status</th><th scope="col">Code</th>
+          <th scope="col">Action</th><th scope="col">Status</th><th scope="col">Sample Number</th>
           <th scope="col">Current Process</th><th scope="col">Customer &amp; Product</th>
           <th scope="col">{personLabel}</th><th scope="col">Deadline</th>
         </tr></thead>
@@ -127,7 +127,7 @@ export function OrderTable({
       <table>
         <thead>
           <tr>
-            <th>Code</th>
+            <th>Sample Number</th>
             <th>Customer &amp; Product</th>
             {!compact ? <th>Description</th> : null}
             {!compact ? <th>Material</th> : null}

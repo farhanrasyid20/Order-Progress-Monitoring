@@ -37,7 +37,7 @@ export function OrderFilters({
   onQueryChange,
   onPreparationTypeChange,
   showPreparationType = true,
-  searchPlaceholder = "Search Code, customer, or PIC...",
+  searchPlaceholder = "Search Sample Number, customer, or PIC...",
   onPicChange,
   status,
   statuses = [],

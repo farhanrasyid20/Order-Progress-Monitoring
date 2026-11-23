@@ -69,9 +69,9 @@ export const projectFormConfig: readonly ProjectFormSection[] = [
       {
         key: "previousProjectCode",
         source: "project",
-        label: "Previous Project Code",
+        label: "Previous Sample Number",
         type: "text",
-        placeholder: "Enter the previous project code",
+        placeholder: "Enter the previous sample number",
         required: (draft) => draft.entryType === "version_up",
         visibleWhen: (draft) => draft.entryType === "version_up",
       },
@@ -414,8 +414,10 @@ export function getProjectFormConfig(draft: ProjectFormDraft, boardTypes: readon
       offsetSelect("printingSide", "Printing Side", ["1 side", "2 side"]),
       offsetSelect("printingMachine", "Machine", ["CD102", "SM102", "Sumitomo", "GTO54", "SC900", "SG1115"]),
     ] },
+    // Keep Offset structurally identical to Converting here. Weight is the
+    // one intentional exception: Offset projects may be saved before it is
+    // known, so it must remain optional even though Converting requires it.
     { id: "dimensions", title: "Dimensions", fields: section("dimensions").fields
-      .filter(field => ["width", "length", "weight"].includes(field.key))
       .map(field => field.key === "weight" ? { ...field, required: false } : field) },
     { ...section("printing-colour"), fields: [
       ...section("printing-colour").fields.map((field, index) => ({

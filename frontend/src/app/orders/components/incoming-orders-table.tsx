@@ -140,7 +140,7 @@ export function IncomingOrdersTable({ orders, onShowDetails }: IncomingOrdersTab
   return <div className="table-wrap">
     <table className="incoming-orders-table">
       <thead><tr>
-        <th>Action</th><th>Status</th><th>Preparation Check</th><th>Code</th><th>Production / Design</th>
+        <th>Action</th><th>Status</th><th>Preparation Check</th><th>Sample Number</th><th>Production / Design</th>
         <th>Customer &amp; Product</th><th>PIC</th><th>Deadline</th>
       </tr></thead>
       <tbody>{orders.map((order) => {

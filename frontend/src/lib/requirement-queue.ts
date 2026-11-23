@@ -130,7 +130,7 @@ export function isInRequirementQueue(order: Order, kind: StandaloneRequirementKi
 /**
  * A project gets one initial Tooling/Rubber selection from Incoming Design.
  * Once that first detail exists, a later repeat order is deliberately entered
- * from the corresponding converting sidebar by selecting the same PSR code.
+ * from the corresponding converting sidebar by selecting the same Sample Number.
  */
 export function canAddRepeatRequirement(order: Order, kind: StandaloneRequirementKind) {
   const records = kind === "tooling" ? order.toolingOrders : order.rubberOrders;
@@ -149,7 +149,7 @@ export function canAddRepeatRequirement(order: Order, kind: StandaloneRequiremen
     records.length > 0;
 }
 
-/** Allows an initial queued task or a later repeat order for its PSR code. */
+/** Allows an initial queued task or a later repeat order for its Sample Number. */
 export function canRecordConvertingRequirement(order: Order, kind: StandaloneRequirementKind) {
   return isInRequirementQueue(order, kind) || canAddRepeatRequirement(order, kind);
 }

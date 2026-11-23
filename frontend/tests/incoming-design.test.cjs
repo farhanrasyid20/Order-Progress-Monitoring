@@ -396,3 +396,60 @@ test("Offset queue status displays only its stored handoff remark", () => {
   }));
   assert.match(emptyModalMarkup, /<span>Status<\/span><strong>-<\/strong>/);
 });
+
+test("every Offset Details modal renders the complete shared Add Project master data", () => {
+  const { ProjectHistoryModal } = load(path.resolve(sourceRoot, "components/workflow/project-history-modal.tsx"));
+  const mainData = {
+    ...makeOrder().mainData,
+    mcNo: "MC-001",
+    component: "Offset carton",
+    custName: "Customer Offset",
+    boardQua: "Ivory",
+    fgQuantity: "1000",
+    imposition: "4 UP",
+    grammage: "310 gsm",
+    printingSide: "2 side",
+    printingMachine: "CD102",
+    width: "600",
+    length: "900",
+    weight: "250",
+    printing: "Yes",
+    colours: "CMYK",
+    colour2: "Pantone 123",
+    pantoneCount: "1",
+    specialColourCount: "2",
+    varnish: "WB Spot Varnish",
+    lamination: "Matte",
+    coatingSide: "1 side",
+    emboss: "Yes",
+    deboss: "No",
+    hotprint: "Yes",
+    spotUv: "No",
+    remark: "Master remark",
+  };
+  const expectedMasterFields = [
+    "Description / Component", "Offset carton", "Pantone (Qty)", "Special Colour (Qty)",
+    "Emboss", "Deboss", "Hotprint Gold/Silver", "Spot UV", "Master remark",
+  ];
+
+  for (const stage of ["offset-prepress", "offset-material-request", "offset-plate", "offset-varnish", "offset-press"]) {
+    const markup = renderToStaticMarkup(React.createElement(ProjectHistoryModal, {
+      order: {
+        ...makeOrder(),
+        stage,
+        no: "2611001",
+        mainData,
+        workflow: {
+          ...makeOrder().workflow,
+          preparationType: "offset",
+          convertingRoute: null,
+          offsetHandoffRemark: "Handoff remark",
+        },
+      },
+      offsetDetails: true,
+      onClose: () => {},
+    }));
+    expectedMasterFields.forEach((value) => assert.ok(markup.includes(value), `${stage} should include ${value}`));
+    assert.ok(markup.includes("Handoff remark"), `${stage} should retain the shared Offset Status`);
+  }
+});
