@@ -3,6 +3,7 @@ import type {
   OffsetPreparationBranchRecord,
   OffsetPreparationPlan,
   OffsetPreparationPlanValues,
+  Order,
 } from "@/types/order";
 
 const preparationKinds: readonly OffsetPreparationBranchKind[] = ["material", "tooling", "varnish"];
@@ -59,4 +60,17 @@ export function appendOffsetPreparationRecords(
     });
   }
   return records;
+}
+
+/**
+ * Queue projection for the independent Offset Varnish branch. It deliberately
+ * does not inspect the linear project stage or Material/Tooling readiness:
+ * the submitted project-owned branch record is the sole admission evidence.
+ */
+export function isOffsetVarnishQueueOrder(order: Order) {
+  return order.workflow.preparationType === "offset" &&
+    order.workflow.currentStatus !== "cancelled" &&
+    order.offsetPreparationRecords?.some((record) =>
+      record.projectId === order.id && record.kind === "varnish" && record.state === "submitted",
+    ) === true;
 }

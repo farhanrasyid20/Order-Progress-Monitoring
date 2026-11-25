@@ -3,6 +3,7 @@
 import { OffsetPrepressDetails } from "./offset-prepress-details";
 import { OffsetPrepressPreparationDetails } from "./offset-prepress-preparation-details";
 import { OffsetProjectDetails } from "./offset-project-details";
+import { OffsetVarnishDetails } from "./offset-varnish-details";
 
 import { useEffect, useId } from "react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ export type ProjectHistoryModalProps = {
   sampleProgress?: boolean;
   archiveDetails?: boolean;
   offsetDetails?: boolean;
+  /** Keeps Prepress controls available when the persistent Prepress queue shows a later-stage Offset project. */
+  showOffsetPrepressPreparation?: boolean;
 };
 
 function displayHistoryTime(value: string) {
@@ -83,13 +86,13 @@ function historyChange(record: ProcessHistoryRecord) {
 }
 
 /** Shared audit detail for records after they move beyond Incoming Design. */
-export function ProjectHistoryModal({ order, onClose, onPreparationUpdated, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false, offsetDetails = false }: ProjectHistoryModalProps) {
+export function ProjectHistoryModal({ order, onClose, onPreparationUpdated, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false, offsetDetails = false, showOffsetPrepressPreparation = false }: ProjectHistoryModalProps) {
   const titleId = useId();
   const qcDetails = order.stage === "quality-control" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
   const faDetails = order.stage === "fa-report" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
   const readyDetails = order.stage === "submit-sample" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
   const decisionDetails = order.stage === "sample-completed" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
-  const prepressDetails = Boolean(offsetDetails && order.stage === "offset-prepress");
+  const prepressDetails = Boolean(offsetDetails && (order.stage === "offset-prepress" || showOffsetPrepressPreparation));
   const offsetMaterialDetails = order.workflow.preparationType === "offset" && order.stage === "offset-material-request" && (offsetDetails || materialRequest);
   const offsetPlateDetails = Boolean(offsetDetails && order.stage === "offset-plate");
   const offsetVarnishDetails = Boolean(offsetDetails && order.stage === "offset-varnish");
@@ -167,7 +170,7 @@ export function ProjectHistoryModal({ order, onClose, onPreparationUpdated, requ
             {decisionDetails ? <SampleDecisionDetails order={order} /> : null}
           </> : <>
           {order.workflow.preparationType === "offset" && !standardOffsetDetails && !archiveDetails && !offsetDetails && !requirementKind && !materialRequest && !sampleProgress ? <OffsetProjectDetails order={order} /> : null}
-          {standardOffsetDetails ? <OffsetPrepressDetails order={order} fullProjectInformation={archiveDetails} showMaterialRequest={offsetMaterialDetails || offsetPlateDetails} showPlate={offsetPlateDetails} showVarnish={offsetVarnishDetails} showPress={offsetPressDetails || offsetQcDetails || offsetFaDetails || offsetReadyDetails || offsetDecisionDetails || offsetArchiveDetails} /> : offsetDetails ? <ArchiveProjectDetails order={order} offsetOnly /> : null}
+          {offsetVarnishDetails ? <OffsetVarnishDetails order={order} /> : standardOffsetDetails ? <OffsetPrepressDetails order={order} fullProjectInformation={archiveDetails} showMaterialRequest={offsetMaterialDetails || offsetPlateDetails} showPlate={offsetPlateDetails} showPress={offsetPressDetails || offsetQcDetails || offsetFaDetails || offsetReadyDetails || offsetDecisionDetails || offsetArchiveDetails} /> : offsetDetails ? <ArchiveProjectDetails order={order} offsetOnly /> : null}
           {requirementKind ? <RequirementDetails order={order} kind={requirementKind} /> : null}
           {materialRequest && !offsetDetails && !offsetMaterialDetails ? <MaterialRequestDetails order={order} /> : null}
           {(archiveDetails && order.workflow.preparationType !== "offset") || sampleProgress || (order.requirementBranch && !archiveDetails && !offsetDetails && !requirementKind && !materialRequest) ? <SampleProgressDetails order={order} fullProjectInformation={archiveDetails} /> : null}

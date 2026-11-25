@@ -310,6 +310,18 @@ export type OffsetPreparationBranchRecord = {
   updatedBy: string;
 };
 
+/** Monitoring state for the submitted Offset Varnish branch only. */
+export type OffsetVarnishStatus = "Waiting" | "In Progress" | "Ready" | "Revision Required";
+export type OffsetVarnishValues = {
+  status: OffsetVarnishStatus | "";
+  remark: string;
+};
+export type OffsetVarnishRecord = Omit<OffsetVarnishValues, "status"> & {
+  status: OffsetVarnishStatus;
+  updatedAt: string;
+  updatedBy: string;
+};
+
 /** Dedicated Tooling / Plate input for Offset; it does not reuse Converting tooling records. */
 export type OffsetToolingPriority = "Low" | "Medium" | "Hard";
 export type OffsetToolingMachine = "Auto Haido" | "Auto Jingya" | "Baozika" | "DC Manual" | "DC TMZ" | "DC Flat";
@@ -467,6 +479,8 @@ export type Order = {
   offsetPreparationPlan?: OffsetPreparationPlan;
   /** Immutable-per-kind submission records for the future parallel Offset queues. */
   offsetPreparationRecords?: OffsetPreparationBranchRecord[];
+  /** Kept independently from the master remark and every other preparation branch. */
+  offsetVarnish?: OffsetVarnishRecord;
   processHistory: ProcessHistoryRecord[];
   createdAt: string;
   updatedAt: string;

@@ -8,6 +8,7 @@ import type { WorkflowStage } from "@/types/order";
 import { OffsetStageModal } from "./offset-stage-modal";
 import { OffsetPrepressModal } from "./offset-prepress-modal";
 import { OffsetToolingAddModal, OffsetToolingEditModal } from "./offset-tooling-management-modals";
+import { OffsetVarnishModal } from "./offset-varnish-modal";
 import type { QueueTableFilterConfig } from "@/components/workflow/workflow-stage-view";
 
 export type OffsetStageViewProps = {
@@ -53,6 +54,8 @@ export function OffsetStageView({
           ? <OffsetPrepressModal order={order} onClose={onClose} />
           : stage === "offset-plate"
             ? <OffsetToolingEditModal order={order} onClose={onClose} />
+            : stage === "offset-varnish"
+              ? <OffsetVarnishModal order={order} onClose={onClose} />
             : <OffsetStageModal order={order} onClose={onClose} title={title} nextLabel={nextLabel} />
       )}
     />

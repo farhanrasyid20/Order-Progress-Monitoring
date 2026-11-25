@@ -29,6 +29,7 @@ import type {
   OffsetSpkStatus,
   OffsetSpkValues,
   OffsetPrepressValues,
+  OffsetVarnishValues,
   OffsetPreparationPlanValues,
   OffsetToolingValues,
   ManualOffsetToolingValues,
@@ -266,6 +267,8 @@ export type WorkflowOrdersContextValue = {
     values: OffsetPrepressValues,
     continueWorkflow: boolean,
   ) => void;
+  /** Saves only the submitted Varnish monitoring branch; it never advances the project. */
+  saveOffsetVarnish: (orderNo: string, values: OffsetVarnishValues) => void;
   /** Saves only the Offset parallel-preparation plan; it never moves a workflow stage. */
   saveOffsetPreparationPlan: (orderNo: string, values: OffsetPreparationPlanValues) => void;
   /** Submits the Material branch of an Offset preparation plan and opens its MI queue. */
@@ -490,6 +493,15 @@ export function validateOffsetPrepressValues(values: OffsetPrepressValues) {
   return "";
 }
 
+/** Validation is shared by the Varnish form and provider so invalid saves cannot persist. */
+export function validateOffsetVarnishValues(values: OffsetVarnishValues) {
+  if (!(["Waiting", "In Progress", "Ready", "Revision Required"] as const).includes(values.status as "Waiting")) {
+    return "Select a Varnish Status.";
+  }
+  if (values.status === "Revision Required" && !values.remark.trim()) return "Remark is required when Varnish Status is Revision Required.";
+  return "";
+}
+
 function appendHistory(
   order: Order,
   entry: Pick<Order["processHistory"][number], "process" | "status" | "user" | "changeSummary" | "remark" | "stage" | "pic" | "deadline" | "source">,
@@ -508,6 +520,68 @@ function appendHistory(
     ],
     updatedAt,
   };
+}
+
+function hasVerifiedOffsetVarnishSubmission(order: Order, plan: NonNullable<Order["offsetPreparationPlan"]>) {
+  const hasSubmittedMaterialRecord = order.offsetPreparationRecords?.some((record) =>
+    record.projectId === order.id && record.kind === "material" && record.state === "submitted",
+  );
+  return order.processHistory.some((entry) => {
+    if (entry.status !== "submitted") return false;
+    if (entry.process === "offset_varnish") return true;
+    if (entry.process !== "offset_preparation_plan") return false;
+    const isBranchSpecificVarnish = /\bvarnish\b/i.test(entry.changeSummary ?? "");
+    // Earlier releases submitted Material/Tooling during the same parent Update
+    // but retained a selected Varnish branch as draft.  The parent submission,
+    // submitted Material branch, and submitted plan Material state together are
+    // the valid correlation; a standalone draft never satisfies this evidence.
+    const isCorrelatedLegacyUpdate = Boolean(
+      plan.material.state === "submitted" &&
+      hasSubmittedMaterialRecord &&
+      /^Offset Material preparation submitted\b/i.test(entry.changeSummary ?? ""),
+    );
+    if (!isBranchSpecificVarnish && !isCorrelatedLegacyUpdate) return false;
+    const planUpdatedAt = Date.parse(plan.updatedAt);
+    const submittedAt = Date.parse(entry.date);
+    return Number.isNaN(planUpdatedAt) || Number.isNaN(submittedAt) || submittedAt >= planUpdatedAt;
+  });
+}
+
+/** Restores only a missing Varnish branch with branch-specific submission evidence. */
+export function reconcileOffsetVarnishSubmission(order: Order, timestamp: string) {
+  const plan = order.offsetPreparationPlan;
+  if (
+    order.workflow.preparationType !== "offset" ||
+    order.workflow.currentStatus === "cancelled" ||
+    order.workflow.currentStatus === "completed" ||
+    plan?.projectId !== order.id ||
+    !plan.varnish ||
+    order.offsetPreparationRecords?.some((record) => record.projectId === order.id && record.kind === "varnish")
+  ) return order;
+
+  const verifiedHistory = plan.varnish.state === "draft" && hasVerifiedOffsetVarnishSubmission(order, plan);
+  if (plan.varnish.state !== "submitted" && !verifiedHistory) return order;
+
+  const recoveredPlan = verifiedHistory
+    ? { ...plan, varnish: { state: "submitted" as const }, updatedAt: timestamp, updatedBy: "System" }
+    : plan;
+  const records = appendOffsetPreparationRecords(order.offsetPreparationRecords, recoveredPlan, "System", timestamp);
+  if (records.length === (order.offsetPreparationRecords?.length ?? 0)) return order;
+
+  return appendHistory({
+    ...order,
+    offsetPreparationPlan: recoveredPlan,
+    offsetPreparationRecords: records,
+  }, {
+    process: "offset_varnish",
+    stage: "offset-varnish",
+    status: "submitted",
+    user: "System",
+    changeSummary: verifiedHistory
+      ? "Offset Block / Spot Varnish monitoring recovered from a verified prior submission."
+      : "Offset Block / Spot Varnish record restored from a submitted preparation.",
+    remark: "",
+  });
 }
 
 function firstStageAfterDesignApproval(order: Order): WorkflowStage {
@@ -904,6 +978,13 @@ export function normalizePersistedOrder(order: Order): Order {
     offsetSpks: order.offsetSpks ?? [],
     offsetToolingRecords,
     offsetToolingId,
+    offsetVarnish: order.offsetVarnish ? {
+      ...order.offsetVarnish,
+      status: ["Waiting", "In Progress", "Ready", "Revision Required"].includes(order.offsetVarnish.status)
+        ? order.offsetVarnish.status
+        : "Waiting",
+      remark: order.offsetVarnish.remark ?? "",
+    } : undefined,
     workflow: {
       ...order.workflow,
       preparationOrders,
@@ -990,7 +1071,10 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
           order && typeof order.id === "string" && typeof order.projectDate === "string" &&
           order.workflow && order.mainData && order.lineage && Array.isArray(order.processHistory),
         )) {
-          setOrders(normalizePersistedOrders(parsed as Order[]));
+          const restoredAt = new Date().toISOString();
+          setOrders(normalizePersistedOrders(parsed as Order[]).map((order) =>
+            reconcileOffsetVarnishSubmission(order, restoredAt),
+          ));
         }
       }
       const savedManualTooling = window.localStorage.getItem("cots-offset-manual-tooling-v1");
@@ -1793,6 +1877,29 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
     [currentUserName],
   );
 
+  const saveOffsetVarnish = useCallback(
+    (orderNo: string, values: OffsetVarnishValues) => {
+      if (validateOffsetVarnishValues(values)) return;
+      setOrders((currentOrders) => currentOrders.map((order) => {
+        const submitted = order.offsetPreparationRecords?.some((record) =>
+          record.projectId === order.id && record.kind === "varnish" && record.state === "submitted",
+        );
+        if (!matchesOrder(order, orderNo) || order.workflow.preparationType !== "offset" || !submitted || order.workflow.currentStatus === "cancelled") return order;
+        const timestamp = new Date().toISOString();
+        const varnish = { status: values.status as Exclude<OffsetVarnishValues["status"], "">, remark: values.remark.trim(), updatedAt: timestamp, updatedBy: currentUserName };
+        return appendHistory({ ...order, offsetVarnish: varnish }, {
+          process: "offset_varnish",
+          stage: "offset-varnish",
+          status: varnish.status,
+          user: currentUserName,
+          changeSummary: `Offset Block / Spot Varnish status updated to ${varnish.status}.`,
+          remark: varnish.remark,
+        });
+      }));
+    },
+    [currentUserName],
+  );
+
   const saveOffsetPreparationPlan = useCallback(
     (orderNo: string, values: OffsetPreparationPlanValues) => {
       setOrders((currentOrders) => currentOrders.map((order) => {
@@ -1874,7 +1981,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
           remark: plan.remark ?? "",
         });
 
-        const submitted = tooling ? appendHistory(prepared, {
+        let submitted = tooling ? appendHistory(prepared, {
           process: "offset_tooling",
           stage: "offset-plate",
           status: "submitted",
@@ -1882,6 +1989,19 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
           changeSummary: `Offset Tooling / Plate ${tooling.mcNo.trim() || "record"} submitted from Prepress.`,
           remark: plan.remark ?? "",
         }) : prepared;
+
+        const varnishWasCreated = records.some((record) => record.projectId === order.id && record.kind === "varnish") &&
+          !(order.offsetPreparationRecords ?? []).some((record) => record.projectId === order.id && record.kind === "varnish");
+        if (varnishWasCreated) {
+          submitted = appendHistory(submitted, {
+            process: "offset_varnish",
+            stage: "offset-varnish",
+            status: "submitted",
+            user: currentUserName,
+            changeSummary: "Offset Block / Spot Varnish monitoring submitted from Prepress.",
+            remark: plan.remark ?? "",
+          });
+        }
 
         return moveToStage({
           ...submitted,
@@ -2180,6 +2300,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
       saveRubberRequirement,
       saveMaterialRequest,
       saveOffsetPrepress,
+      saveOffsetVarnish,
       saveOffsetPreparationPlan,
       submitOffsetMaterialPreparation,
       saveOffsetTooling,
@@ -2210,6 +2331,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
       manualOffsetToolingRecords,
       saveMaterialRequest,
       saveOffsetPrepress,
+      saveOffsetVarnish,
       saveOffsetPreparationPlan,
       submitOffsetMaterialPreparation,
       saveOffsetTooling,

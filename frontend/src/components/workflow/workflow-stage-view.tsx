@@ -12,6 +12,7 @@ import { useTablePagination } from "@/components/ui/use-table-pagination";
 import { DateRangeExportControls } from "@/components/ui/date-range-export-controls";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { isInRequirementQueue, requirementQueueDisplay, materialRequestQueueEntries } from "@/lib/requirement-queue";
+import { isOffsetVarnishQueueOrder } from "@/lib/offset-preparation";
 import type { DateRangeExportReport } from "@/lib/date-range-export";
 import type { IconName } from "@/components/ui/icon";
 import { OrderFilters } from "@/app/orders/components/order-filters";
@@ -24,7 +25,7 @@ export type WorkflowEditModalRenderProps = {
 };
 
 type ConvertingTableFilterKind = "tooling" | "rubber" | "material" | "sample" | "offset-tooling";
-type QueueStatusPresentation = "tooling" | "rubber" | "material" | "offset-prepress" | "offset-material" | "offset-tooling";
+type QueueStatusPresentation = "tooling" | "rubber" | "material" | "offset-prepress" | "offset-material" | "offset-tooling" | "varnish";
 
 export type QueueTableFilter = {
   key: string;
@@ -135,6 +136,7 @@ export function WorkflowStageView({
       : stage === "offset-plate" ? orders.filter((order) => order.workflow.preparationType === "offset" && order.workflow.currentStatus !== "cancelled" && (
         order.stage === "offset-plate" || order.offsetPreparationRecords?.some((record) => record.kind === "tooling" && record.state === "submitted")
       ))
+      : stage === "offset-varnish" ? orders.filter(isOffsetVarnishQueueOrder)
       : stage === "offset-prepress" ? orders.filter((order) => order.workflow.preparationType === "offset" && order.workflow.currentStatus !== "cancelled" && order.workflow.currentStatus !== "completed")
       : orders.filter((order) => order.stage === stage),
     [orders, stage],
@@ -186,6 +188,8 @@ export function WorkflowStageView({
           ? "offset-material"
           : stage === "offset-plate"
             ? "offset-tooling"
+            : stage === "offset-varnish"
+              ? "varnish"
             : undefined;
   const clearTableFilters = () => {
     setQuery("");
@@ -284,7 +288,7 @@ export function WorkflowStageView({
         <ProjectHistoryModal order={historyOrder} onClose={() => setHistoryOrder(null)} onPreparationUpdated={stage === "offset-prepress" ? () => {
           setToastMessage(`Preparation for ${historyOrder.no} was updated and moved to Material Request / MI.`);
           window.setTimeout(() => setToastMessage(""), 3200);
-        } : undefined} offsetDetails={stage.startsWith("offset-")} requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined} materialRequest={stage === "material-request" || stage === "offset-material-request"} sampleProgress={stage === "sample-progress"} />
+        } : undefined} offsetDetails={stage.startsWith("offset-")} showOffsetPrepressPreparation={stage === "offset-prepress"} requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined} materialRequest={stage === "material-request" || stage === "offset-material-request"} sampleProgress={stage === "sample-progress"} />
       ) : null}
       {toastMessage ? <div className="toast-message" role="status">{toastMessage}</div> : null}
     </>

@@ -17,9 +17,9 @@ export default function OffsetVarnishPage() {
     <OffsetStageView
       stage="offset-varnish"
       title="Block / Spot Varnish"
-      copy="Prepare blocks or spot varnish before jobs move to the printing press."
+      copy="Monitor Block / Spot Varnish readiness independently alongside Material and Tooling."
       queueTitle="Block / Spot Varnish Queue"
-      queueCopy="Offset plates ready for varnish preparation"
+      queueCopy="Submitted Varnish monitoring requirements for Offset projects"
       nextLabel="Press / Printing"
       queueTableFilters={varnishFilters}
     />

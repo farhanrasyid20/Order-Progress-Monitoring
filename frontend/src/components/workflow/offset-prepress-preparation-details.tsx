@@ -41,8 +41,8 @@ export function OffsetPrepressPreparationDetails({ order, onClose, onSubmitted }
           draft: draft ?? savedPlan?.tooling?.draft,
         },
       } : {}),
-      // Varnish remains draft-only until its separate integration is approved.
-      ...(selected.includes("varnish") ? { varnish: { state: varnishSubmitted ? "submitted" as const : "draft" as const } } : {}),
+      // A selected Varnish branch becomes submitted only with a successful parent Update.
+      ...(selected.includes("varnish") ? { varnish: { state: materialState === "submitted" || varnishSubmitted ? "submitted" as const : "draft" as const } } : {}),
       remark,
     };
   };

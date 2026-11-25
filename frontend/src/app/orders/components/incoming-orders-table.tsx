@@ -88,6 +88,11 @@ function isOffsetToolingReady(order: Order) {
   return toolingSubmitted && (record?.status === "received" || record?.status === "available");
 }
 
+function isOffsetVarnishReady(order: Order) {
+  const submitted = order.offsetPreparationRecords?.some((record) => record.projectId === order.id && record.kind === "varnish" && record.state === "submitted");
+  return submitted && order.offsetVarnish?.status === "Ready";
+}
+
 export function preparationChecks(order: Order): PreparationCheck[] {
   const taskOrders = order.workflow.preparationOrders ?? [];
   const selected = (kind: "tooling" | "rubber") =>
@@ -107,10 +112,8 @@ export function preparationChecks(order: Order): PreparationCheck[] {
         state: isOffsetToolingReady(order) ? "complete" as const : "empty" as const,
       }] : []),
       ...(plan?.varnish ? [{
-        // Varnish has no operational queue until Prompt 7, so it can never
-        // appear ready merely from a draft or submitted plan selection.
         label: "Block / Spot Varnish",
-        state: "empty" as const,
+        state: isOffsetVarnishReady(order) ? "complete" as const : "empty" as const,
       }] : []),
     ];
   }

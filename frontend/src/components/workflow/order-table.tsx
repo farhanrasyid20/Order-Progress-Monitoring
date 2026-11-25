@@ -7,7 +7,7 @@ import { englishOffsetLabel } from "@/lib/offset-labels";
 import { offsetHandoffStatus } from "@/lib/offset-handoff-status";
 import type { MaterialRequestStatus, Order, RequirementStatus, StandaloneRequirementKind } from "@/types/order";
 
-type QueueStatusPresentation = "tooling" | "rubber" | "material" | "offset-prepress" | "offset-material" | "offset-tooling";
+type QueueStatusPresentation = "tooling" | "rubber" | "material" | "offset-prepress" | "offset-material" | "offset-tooling" | "varnish";
 
 const requirementStatusLabels: Record<RequirementStatus, string> = {
   needed: "Needed", ordered: "Ordered", received: "Received", available: "Available / Existing",
@@ -64,6 +64,7 @@ function selectedQueueStatus(order: Order, presentation: QueueStatusPresentation
     const record = order.offsetToolingRecords?.find((item) => item.id === order.offsetToolingId) ?? order.offsetToolingRecords?.at(-1);
     return requirementStatusLabels[record?.status ?? "needed"];
   }
+  if (presentation === "varnish") return order.offsetVarnish?.status ?? "Waiting";
   return requirementStatusLabels.needed;
 }
 
@@ -82,6 +83,7 @@ function prepressStatusSummary(order: Order) {
 }
 
 function previousStageRemark(order: Order, presentation: QueueStatusPresentation) {
+  if (presentation === "varnish") return order.offsetVarnish?.remark.trim() || "-";
   if (presentation.startsWith("offset-")) {
     if (presentation === "offset-material") {
       return order.workflow.offsetHandoffRemark?.trim() ||
