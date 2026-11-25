@@ -76,7 +76,19 @@ function stateFor(
   return isSelected ? "pending" : "empty";
 }
 
-function preparationChecks(order: Order): PreparationCheck[] {
+function isOffsetMaterialReady(order: Order) {
+  const materialSubmitted = order.offsetPreparationPlan?.projectId === order.id && order.offsetPreparationPlan.material.state === "submitted";
+  const status = order.materialRequests.at(-1)?.status;
+  return materialSubmitted && (status === "released" || status === "received");
+}
+
+function isOffsetToolingReady(order: Order) {
+  const toolingSubmitted = order.offsetPreparationPlan?.projectId === order.id && order.offsetPreparationPlan.tooling?.state === "submitted";
+  const record = order.offsetToolingRecords?.find((item) => item.id === order.offsetToolingId) ?? order.offsetToolingRecords?.at(-1);
+  return toolingSubmitted && (record?.status === "received" || record?.status === "available");
+}
+
+export function preparationChecks(order: Order): PreparationCheck[] {
   const taskOrders = order.workflow.preparationOrders ?? [];
   const selected = (kind: "tooling" | "rubber") =>
     order.workflow.productionOrder === kind ||
@@ -84,11 +96,22 @@ function preparationChecks(order: Order): PreparationCheck[] {
     taskOrders.includes(kind);
 
   if (order.workflow.preparationType === "offset") {
+    const plan = order.offsetPreparationPlan?.projectId === order.id ? order.offsetPreparationPlan : undefined;
     return [
       {
-        label: "Req. Material",
-        state: order.workflow.materialRequested ? "complete" : "empty",
+        label: "Material / MI",
+        state: isOffsetMaterialReady(order) ? "complete" : "empty",
       },
+      ...(plan?.tooling ? [{
+        label: "Tooling / Plate",
+        state: isOffsetToolingReady(order) ? "complete" as const : "empty" as const,
+      }] : []),
+      ...(plan?.varnish ? [{
+        // Varnish has no operational queue until Prompt 7, so it can never
+        // appear ready merely from a draft or submitted plan selection.
+        label: "Block / Spot Varnish",
+        state: "empty" as const,
+      }] : []),
     ];
   }
 

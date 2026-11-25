@@ -63,7 +63,8 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
 
-  const canContinue = !isParallelPreparationPending(order) || status === "released" || status === "received";
+  const canContinue = (!isParallelPreparationPending(order) || status === "released" || status === "received") &&
+    (!offset || Boolean(offsetNextStep));
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -147,7 +148,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
                 <option value="tooling_plate">Tooling / Plate</option>
                 <option value="varnish">Block / Spot Varnish</option>
               </select>
-              <small>Saved as a planning choice. Material handoff remains unchanged until Offset routing is approved.</small>
+              <small>Required before Save &amp; Continue. The project will be sent to the selected Offset queue.</small>
             </label> : null}
             <label className="modal-field">
               <span>Requested By</span>
@@ -197,7 +198,7 @@ function MaterialRequestForm({ order, onClose, offset = false }: MaterialRequest
               type="submit"
               icon="arrow"
               disabled={!canContinue}
-              title={canContinue ? undefined : "MI status must be Released or Received to continue"}
+              title={canContinue ? undefined : offset && !offsetNextStep ? "Select the next Offset step to continue" : "MI status must be Released or Received to continue"}
               onClick={() => {
                 submitMode.current = "continue";
               }}

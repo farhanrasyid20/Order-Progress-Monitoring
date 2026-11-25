@@ -28,9 +28,10 @@ export function OffsetPrepressDetails({ order, showMaterialRequest = false, show
     <section className="requirement-detail-section" aria-label="Prepress Details">
       <h3>Prepress Details</h3>
       {order.offsetPrepress ? <DetailGrid fields={[
-        ["No JO / PN / Code", order.offsetPrepress.noJoPnCode],
+        ["MC No. / Code", order.mainData.mcNo || order.offsetPrepress.noJoPnCode],
         ["ID Plate", order.offsetPrepress.idPlate],
         ["Plate Type", order.offsetPrepress.plateType],
+        ["FG Qty", order.offsetPrepress.fgQuantity],
         ["Proof Color", order.offsetPrepress.proofColor],
         ["Plot", order.offsetPrepress.plot],
         ["Plate", order.offsetPrepress.plate],

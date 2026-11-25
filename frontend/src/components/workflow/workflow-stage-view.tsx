@@ -23,7 +23,8 @@ export type WorkflowEditModalRenderProps = {
   onClose: () => void;
 };
 
-type ConvertingTableFilterKind = "tooling" | "rubber" | "material" | "sample";
+type ConvertingTableFilterKind = "tooling" | "rubber" | "material" | "sample" | "offset-tooling";
+type QueueStatusPresentation = "tooling" | "rubber" | "material" | "offset-prepress" | "offset-material" | "offset-tooling";
 
 export type QueueTableFilter = {
   key: string;
@@ -63,6 +64,7 @@ function valueOrDash(value: string | null | undefined) {
 
 function recordStatusFor(order: Order, kind: ConvertingTableFilterKind): RequirementStatus | MaterialRequestStatus | undefined {
   if (kind === "tooling") return order.toolingOrders.at(-1)?.status;
+  if (kind === "offset-tooling") return order.offsetToolingRecords?.find((record) => record.id === order.offsetToolingId)?.status ?? order.offsetToolingRecords?.at(-1)?.status ?? "needed";
   if (kind === "rubber") return order.rubberOrders.at(-1)?.status;
   if (kind === "material") return order.materialRequests.at(-1)?.status;
   return undefined;
@@ -70,6 +72,7 @@ function recordStatusFor(order: Order, kind: ConvertingTableFilterKind): Require
 
 function recordPicFor(order: Order, kind: ConvertingTableFilterKind) {
   if (kind === "tooling") return valueOrDash(order.toolingOrders.at(-1)?.requestedBy ?? order.pic);
+  if (kind === "offset-tooling") return valueOrDash(order.pic);
   if (kind === "rubber") return valueOrDash(order.rubberOrders.at(-1)?.requestedBy ?? order.pic);
   if (kind === "material") return valueOrDash(order.materialRequests.at(-1)?.requestedBy ?? order.pic);
   return valueOrDash(order.sampleProgress?.at(-1)?.pic ?? order.pic);
@@ -119,6 +122,7 @@ export function WorkflowStageView({
   const { orders } = useWorkflowOrders();
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [historyOrder, setHistoryOrder] = useState<Order | null>(null);
+  const [toastMessage, setToastMessage] = useState("");
   const [query, setQuery] = useState("");
   const [pic, setPic] = useState("");
   const [recordStatus, setRecordStatus] = useState("");
@@ -128,6 +132,10 @@ export function WorkflowStageView({
       ? orders.filter((order) => isInRequirementQueue(order, stage === "tooling-progress" ? "tooling" : "rubber"))
         .map((order) => requirementQueueDisplay(order, stage === "tooling-progress" ? "tooling" : "rubber"))
       : stage === "material-request" ? orders.filter((order) => order.workflow.preparationType === "converting").flatMap(materialRequestQueueEntries)
+      : stage === "offset-plate" ? orders.filter((order) => order.workflow.preparationType === "offset" && order.workflow.currentStatus !== "cancelled" && (
+        order.stage === "offset-plate" || order.offsetPreparationRecords?.some((record) => record.kind === "tooling" && record.state === "submitted")
+      ))
+      : stage === "offset-prepress" ? orders.filter((order) => order.workflow.preparationType === "offset" && order.workflow.currentStatus !== "cancelled" && order.workflow.currentStatus !== "completed")
       : orders.filter((order) => order.stage === stage),
     [orders, stage],
   );
@@ -166,6 +174,19 @@ export function WorkflowStageView({
   );
   const resetPage = pagination.resetPage;
   const hasRecordFilterCards = Boolean(convertingTableFilter && convertingTableFilter !== "sample");
+  const statusPresentation: QueueStatusPresentation | undefined = stage === "tooling-progress"
+    ? "tooling"
+    : stage === "rubber-order-setting"
+      ? "rubber"
+      : stage === "material-request"
+        ? "material"
+        : stage === "offset-prepress"
+          ? "offset-prepress"
+        : stage === "offset-material-request"
+          ? "offset-material"
+          : stage === "offset-plate"
+            ? "offset-tooling"
+            : undefined;
   const clearTableFilters = () => {
     setQuery("");
     setPic("");
@@ -208,7 +229,7 @@ export function WorkflowStageView({
 
       {hasRecordFilterCards && convertingTableFilter ? (
         <RecordFilterCards
-          title={`${convertingTableFilter === "material" ? "Material Request" : convertingTableFilter === "tooling" ? "Tooling" : "Rubber"} Status`}
+          title={`${convertingTableFilter === "material" ? "Material Request" : convertingTableFilter === "rubber" ? "Rubber" : "Tooling"} Status`}
           description="Filter records by their saved status."
           options={filterOptionsFor(convertingTableFilter)}
           selectedValue={recordStatus}
@@ -236,6 +257,7 @@ export function WorkflowStageView({
             "quality-control", "fa-report", "submit-sample", "sample-completed",
           ].includes(stage)}
           requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined}
+          statusPresentation={statusPresentation}
           personLabel={convertingTableFilter ? "PIC" : undefined}
           personForOrder={convertingTableFilter ? (order) => recordPicFor(order, convertingTableFilter) : undefined}
           onViewOrder={setHistoryOrder}
@@ -259,8 +281,12 @@ export function WorkflowStageView({
           })
         : null}
       {historyOrder ? (
-        <ProjectHistoryModal order={historyOrder} onClose={() => setHistoryOrder(null)} offsetDetails={stage.startsWith("offset-")} requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined} materialRequest={stage === "material-request" || stage === "offset-material-request"} sampleProgress={stage === "sample-progress"} />
+        <ProjectHistoryModal order={historyOrder} onClose={() => setHistoryOrder(null)} onPreparationUpdated={stage === "offset-prepress" ? () => {
+          setToastMessage(`Preparation for ${historyOrder.no} was updated and moved to Material Request / MI.`);
+          window.setTimeout(() => setToastMessage(""), 3200);
+        } : undefined} offsetDetails={stage.startsWith("offset-")} requirementKind={stage === "tooling-progress" ? "tooling" : stage === "rubber-order-setting" ? "rubber" : undefined} materialRequest={stage === "material-request" || stage === "offset-material-request"} sampleProgress={stage === "sample-progress"} />
       ) : null}
+      {toastMessage ? <div className="toast-message" role="status">{toastMessage}</div> : null}
     </>
   );
 }

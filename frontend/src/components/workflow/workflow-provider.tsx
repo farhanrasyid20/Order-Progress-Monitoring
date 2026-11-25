@@ -15,6 +15,7 @@ import { orders as initialOrders } from "@/data/orders";
 import { canUpdateDrawingStatus } from "@/lib/permissions";
 import { drawingStatusOptions, getDrawingStatus } from "@/lib/drawing-status";
 import { canRecordConvertingRequirement, isParallelPreparationPending, isParallelPreparationComplete, isInRequirementQueue, materialRequestQueueEntries } from "@/lib/requirement-queue";
+import { appendOffsetPreparationRecords, createOffsetPreparationPlan, submittedOffsetPreparationKinds } from "@/lib/offset-preparation";
 import type {
   DesignDecision,
   DrawingStatus,
@@ -28,10 +29,10 @@ import type {
   OffsetSpkStatus,
   OffsetSpkValues,
   OffsetPrepressValues,
+  OffsetPreparationPlanValues,
   OffsetToolingValues,
   ManualOffsetToolingValues,
   ManualOffsetToolingRecord,
-  OffsetToolingCatalogRecord,
   ProjectCurrentStage,
   ProjectFormValues,
   ProjectLineage,
@@ -215,7 +216,6 @@ export type WorkflowOrdersContextValue = {
   updateDrawingStatus: (projectId: string, status: DrawingStatus) => void;
   orders: Order[];
   manualOffsetToolingRecords: ManualOffsetToolingRecord[];
-  offsetToolingCatalog: OffsetToolingCatalogRecord[];
   nextProjectCode: string;
   addProject: (values: ProjectFormValues) => void;
   editProject: (orderNo: string, values: ProjectFormValues) => void;
@@ -266,6 +266,10 @@ export type WorkflowOrdersContextValue = {
     values: OffsetPrepressValues,
     continueWorkflow: boolean,
   ) => void;
+  /** Saves only the Offset parallel-preparation plan; it never moves a workflow stage. */
+  saveOffsetPreparationPlan: (orderNo: string, values: OffsetPreparationPlanValues) => void;
+  /** Submits the Material branch of an Offset preparation plan and opens its MI queue. */
+  submitOffsetMaterialPreparation: (orderNo: string, values: OffsetPreparationPlanValues) => void;
   saveOffsetTooling: (
     orderNo: string,
     values: OffsetToolingValues,
@@ -273,7 +277,6 @@ export type WorkflowOrdersContextValue = {
   ) => void;
   createOffsetTooling: (orderNo: string, values: OffsetToolingValues) => void;
   updateOffsetTooling: (orderNo: string, toolingId: string, values: OffsetToolingValues) => void;
-  selectOffsetTooling: (orderNo: string, toolingId: string) => void;
   createManualOffsetTooling: (values: ManualOffsetToolingValues) => void;
   updateManualOffsetTooling: (toolingId: string, values: ManualOffsetToolingValues) => void;
   completeSampleDecision: (orderNo: string, decision: "approve" | "revision" | "cancel", pic: string, notes: string) => void;
@@ -475,6 +478,18 @@ function hasOrderValues(values: Partial<OrderFormValues>) {
   return Object.values(values).some((value) => value !== undefined && value !== "");
 }
 
+const offsetPrepressStatusFields = ["proofColor", "plot", "plate", "ink"] as const;
+
+/** Returns a user-facing validation message without rewriting legacy prepress values. */
+export function validateOffsetPrepressValues(values: OffsetPrepressValues) {
+  const missing = offsetPrepressStatusFields.filter((field) => !values[field]);
+  if (missing.length) return `Select a status for ${missing.map((field) => ({ proofColor: "Proof Color", plot: "Plot", plate: "Plate", ink: "Ink" }[field])).join(", ")}.`;
+  if (offsetPrepressStatusFields.some((field) => values[field] === "Waiting") && !values.remark.trim()) {
+    return "Remark is required when any Prepress Status is Waiting.";
+  }
+  return "";
+}
+
 function appendHistory(
   order: Order,
   entry: Pick<Order["processHistory"][number], "process" | "status" | "user" | "changeSummary" | "remark" | "stage" | "pic" | "deadline" | "source">,
@@ -513,6 +528,14 @@ function firstStageAfterDesignApproval(order: Order): WorkflowStage {
 function nextStageForOrder(order: Order): WorkflowStage | undefined {
   if (order.stage === "review-approval") {
     return firstStageAfterDesignApproval(order);
+  }
+
+  // Offset MI explicitly chooses its downstream preparation queue. Legacy MI
+  // records without a choice retain the original Tooling / Plate route.
+  if (order.stage === "offset-material-request") {
+    return order.materialRequests.at(-1)?.offsetNextStep === "varnish"
+      ? "offset-varnish"
+      : "offset-plate";
   }
 
   return nextWorkflowStage[order.stage];
@@ -851,7 +874,7 @@ function moveToStageWithActor(
 }
 
 /** Convert browser data created by earlier prototypes into the current workflow shape. */
-function normalizePersistedOrder(order: Order): Order {
+export function normalizePersistedOrder(order: Order): Order {
   const legacySelections = order.workflow.productionOrder === "tooling_and_rubber"
     ? (["tooling", "rubber"] as PreparationOrderKind[])
     : order.workflow.productionOrder
@@ -865,9 +888,9 @@ function normalizePersistedOrder(order: Order): Order {
 
   const savedToolingRecords = order.offsetToolingRecords ?? [];
   const offsetToolingRecords = savedToolingRecords.length
-    ? savedToolingRecords
+    ? savedToolingRecords.map((record) => ({ ...record, status: record.status ?? "needed" }))
     : order.offsetTooling
-      ? [{ ...order.offsetTooling, id: `legacy-offset-tooling-${order.id}` }]
+      ? [{ ...order.offsetTooling, status: order.offsetTooling.status ?? "needed", id: `legacy-offset-tooling-${order.id}` }]
       : [];
   const offsetToolingId = offsetToolingRecords.some((record) => record.id === order.offsetToolingId)
     ? order.offsetToolingId
@@ -956,19 +979,6 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
   const designFileUrls = useRef<string[]>([]);
   const moveToStage = useCallback((order: Order, stage: WorkflowStage, options: { preserveStatus?: boolean } = {}) =>
     moveToStageWithActor(order, stage, { ...options, actor: currentUserName }), [currentUserName]);
-  const offsetToolingCatalog = useMemo<OffsetToolingCatalogRecord[]>(() => [
-    ...manualOffsetToolingRecords,
-    ...orders.flatMap((order) => (order.offsetToolingRecords ?? []).map((record) => ({
-      ...record,
-      customer: order.mainData.custName || order.customer,
-      description: order.mainData.component || order.product,
-      material: order.mainData.boardQua || order.material,
-      imposition: order.mainData.imposition ?? "",
-      pic: order.pic === "-" ? "" : order.pic,
-      sourceProjectId: order.id,
-    }))),
-  ], [manualOffsetToolingRecords, orders]);
-
   useEffect(() => {
     // Restore browser data after hydration so the server and initial client render agree.
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -1057,10 +1067,12 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
         ...normalizeBoardMaterialCapitalization(values.mainData),
         mcNo: values.mainData.mcNo.trim() || code,
       };
-      const stage = "order" as const;
+      // Offset starts in Prepress as soon as its Add Project submission succeeds.
+      // Existing persisted projects keep their saved stage and legacy handoff path.
+      const stage = values.preparationType === "offset" ? "offset-prepress" : "order";
       const details = workflowStageDetails[stage];
       const isVersionUp = lineage.entryType === "version_up";
-      const process = isVersionUp
+      const process = stage === "order" && isVersionUp
         ? `Version Up ${lineage.versionNumber}`
         : details.process;
       const material = [mainData.boardQua, mainData.corFlut]
@@ -1081,15 +1093,17 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
             preparationOrders: [],
             productionOrder: null,
             materialRequested: false,
-            currentStage: "order",
-            currentProcess: isVersionUp
-              ? `version_up_${lineage.versionNumber}`
-              : "new_project",
-            currentStatus: "new",
+            currentStage: currentStageForQueue(stage),
+            currentProcess: stage === "order"
+              ? isVersionUp
+                ? `version_up_${lineage.versionNumber}`
+                : "new_project"
+              : details.process,
+            currentStatus: currentStatusForQueue(stage, details.status),
             drawingLink,
             drawingFileName: values.designFile?.name,
             designDecision: null,
-            progress: 0,
+            progress: details.progress,
           },
           toolingOrders: [],
           rubberOrders: [],
@@ -1110,6 +1124,14 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
                   : "New project created.",
               remark: mainData.remark.trim(),
             },
+            ...(stage === "offset-prepress" ? [{
+              process: details.process,
+              status: details.status,
+              date: createdAt,
+              user: "System",
+              changeSummary: "Automatically routed to Prepress after project creation.",
+              remark: "",
+            }] : []),
           ],
           createdAt,
           updatedAt: createdAt,
@@ -1662,34 +1684,48 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
             return order;
           }
 
+          // Offset MI always retains the project master Material. Its form is
+          // intentionally read-only, and this guard also protects callers
+          // outside the form from overwriting it.
+          const savedValues = order.workflow.preparationType === "offset"
+            ? {
+              ...values,
+              material: order.mainData.boardQua || (order.material === "-" ? "" : order.material) || order.materialRequests.at(-1)?.material || "",
+              unit: values.unit || "sheet",
+            }
+            : values;
+          const replacesOffsetRecord = order.workflow.preparationType === "offset" && order.materialRequests.length > 0;
           const record = {
-            ...values,
-            sequence: order.materialRequests.length + 1,
+            ...savedValues,
+            sequence: replacesOffsetRecord ? order.materialRequests.at(-1)!.sequence : order.materialRequests.length + 1,
           };
           const updated = appendHistory(
             {
               ...order,
-              materialRequests: [...order.materialRequests, record],
+              materialRequests: replacesOffsetRecord ? [...order.materialRequests.slice(0, -1), record] : [...order.materialRequests, record],
               workflow: {
                 ...order.workflow,
                 materialRequested: true,
-                materialForwarded: continueWorkflow && values.source
-                  ? { ...order.workflow.materialForwarded, [values.source]: true }
+                materialReady: order.workflow.preparationType === "offset"
+                  ? savedValues.status === "released" || savedValues.status === "received"
+                  : order.workflow.materialReady,
+                materialForwarded: continueWorkflow && savedValues.source
+                  ? { ...order.workflow.materialForwarded, [savedValues.source]: true }
                   : order.workflow.materialForwarded,
               },
             },
             {
-              source: values.source,
+              source: savedValues.source,
               process: "material_request",
-              status: values.status,
+              status: savedValues.status,
               user: currentUserName,
-              changeSummary: `Material request ${values.miNumber} updated to ${values.status}.${values.offsetNextStep ? ` Next step: ${values.offsetNextStep === "tooling_plate" ? "Tooling / Plate" : "Block / Spot Varnish"}.` : ""}`,
-              remark: values.remark.trim(),
+              changeSummary: `Material request ${savedValues.miNumber} updated to ${savedValues.status}.${order.workflow.preparationType !== "offset" && savedValues.offsetNextStep ? ` Next step: ${savedValues.offsetNextStep === "tooling_plate" ? "Tooling / Plate" : "Block / Spot Varnish"}.` : ""}`,
+              remark: savedValues.remark.trim(),
             },
           );
 
           if (isParallelPreparationPending(order)) {
-            const ready = values.status === "released" || values.status === "received";
+            const ready = savedValues.status === "released" || savedValues.status === "received";
             const prepared = { ...updated, workflow: {
               ...updated.workflow,
               materialReady: ready && (continueWorkflow || Boolean(order.workflow.materialReady)),
@@ -1697,10 +1733,14 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
             return isParallelPreparationComplete(prepared) ? moveToStage(prepared, "sample-progress") : prepared;
           }
 
+          // Material readiness is an independent Offset branch. Tooling,
+          // Varnish, and Printing routing remain pending their own stages.
+          if (order.workflow.preparationType === "offset") return updated;
+
           const canMoveToNextStage =
             ["converting-design", "converting-production", "material-request", "offset-material-request"].includes(order.stage) ||
-            values.status === "released" ||
-            values.status === "received";
+            savedValues.status === "released" ||
+            savedValues.status === "received";
 
           const nextStage = continueWorkflow && canMoveToNextStage
             ? (["converting-design", "converting-production"].includes(order.stage)
@@ -1719,12 +1759,13 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
   );
 
   const saveOffsetPrepress = useCallback(
-    (orderNo: string, values: OffsetPrepressValues, continueWorkflow: boolean) => {
+    (orderNo: string, values: OffsetPrepressValues, _continueWorkflow: boolean) => {
+      void _continueWorkflow;
+      if (validateOffsetPrepressValues(values)) return;
       setOrders((currentOrders) => currentOrders.map((order) => {
         if (
           !matchesOrder(order, orderNo) ||
           order.workflow.preparationType !== "offset" ||
-          order.stage !== "offset-prepress" ||
           order.workflow.currentStatus === "cancelled"
         ) return order;
 
@@ -1744,10 +1785,107 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
           remark: values.remark.trim(),
         });
 
-        if (!continueWorkflow) return updated;
+        // Details Prepress is the sole handoff point for the preparation plan.
+        // Edit Prepress must never bypass that plan through Save & Continue.
+        return updated;
+      }));
+    },
+    [currentUserName],
+  );
+
+  const saveOffsetPreparationPlan = useCallback(
+    (orderNo: string, values: OffsetPreparationPlanValues) => {
+      setOrders((currentOrders) => currentOrders.map((order) => {
+        if (
+          !matchesOrder(order, orderNo) ||
+          order.workflow.preparationType !== "offset" ||
+          order.stage !== "offset-prepress" ||
+          order.workflow.currentStatus === "cancelled"
+        ) return order;
+
+        const timestamp = new Date().toISOString();
+        const plan = createOffsetPreparationPlan(order.id, values, currentUserName, timestamp);
+        const records = appendOffsetPreparationRecords(
+          order.offsetPreparationRecords,
+          plan,
+          currentUserName,
+          timestamp,
+        );
+        const submittedKinds = submittedOffsetPreparationKinds(plan);
+        const addedRecordCount = records.length - (order.offsetPreparationRecords?.length ?? 0);
+
+        return appendHistory({
+          ...order,
+          offsetPreparationPlan: plan,
+          offsetPreparationRecords: records,
+        }, {
+          process: "offset_preparation_plan",
+          stage: "offset-prepress",
+          status: submittedKinds.length ? "submitted" : "draft",
+          user: currentUserName,
+          changeSummary: submittedKinds.length
+            ? `Offset preparation plan submitted: ${submittedKinds.join(", ")}${addedRecordCount ? "." : " (existing submissions retained)."}`
+            : "Offset preparation plan saved as draft.",
+          remark: plan.remark ?? "",
+        });
+      }));
+    },
+    [currentUserName],
+  );
+
+  const submitOffsetMaterialPreparation = useCallback(
+    (orderNo: string, values: OffsetPreparationPlanValues) => {
+      setOrders((currentOrders) => currentOrders.map((order) => {
+        if (
+          !matchesOrder(order, orderNo) ||
+          order.workflow.preparationType !== "offset" ||
+          order.stage !== "offset-prepress" ||
+          order.workflow.currentStatus === "cancelled" ||
+          values.material.state !== "submitted"
+        ) return order;
+
+        const timestamp = new Date().toISOString();
+        const plan = createOffsetPreparationPlan(order.id, values, currentUserName, timestamp);
+        const records = appendOffsetPreparationRecords(order.offsetPreparationRecords, plan, currentUserName, timestamp);
+        const submittedKinds = submittedOffsetPreparationKinds(plan);
+        const addedRecordCount = records.length - (order.offsetPreparationRecords?.length ?? 0);
+        const toolingDraft = plan.tooling?.state === "submitted" ? plan.tooling.draft : undefined;
+        const canCreateTooling = Boolean(toolingDraft && !order.offsetToolingId && !(order.offsetToolingRecords?.length));
+        const tooling = canCreateTooling && toolingDraft ? {
+          ...toolingDraft,
+          id: `offset-tooling-${Date.now()}-${(order.offsetToolingRecords?.length ?? 0) + 1}`,
+          recordedAt: timestamp,
+          updatedBy: currentUserName,
+        } : undefined;
+        const prepared = appendHistory({
+          ...order,
+          offsetPreparationPlan: plan,
+          offsetPreparationRecords: records,
+          ...(tooling ? {
+            offsetToolingRecords: [...(order.offsetToolingRecords ?? []), tooling],
+            offsetToolingId: tooling.id,
+          } : {}),
+        }, {
+          process: "offset_preparation_plan",
+          stage: "offset-prepress",
+          status: "submitted",
+          user: currentUserName,
+          changeSummary: `Offset Material preparation submitted${submittedKinds.length ? `: ${submittedKinds.join(", ")}` : ""}${addedRecordCount ? "." : " (existing submissions retained)."}`,
+          remark: plan.remark ?? "",
+        });
+
+        const submitted = tooling ? appendHistory(prepared, {
+          process: "offset_tooling",
+          stage: "offset-plate",
+          status: "submitted",
+          user: currentUserName,
+          changeSummary: `Offset Tooling / Plate ${tooling.mcNo.trim() || "record"} submitted from Prepress.`,
+          remark: plan.remark ?? "",
+        }) : prepared;
+
         return moveToStage({
-          ...updated,
-          workflow: { ...updated.workflow, offsetHandoffRemark: values.remark.trim() },
+          ...submitted,
+          workflow: { ...submitted.workflow, offsetHandoffRemark: plan.remark ?? "" },
         }, "offset-material-request");
       }));
     },
@@ -1782,21 +1920,18 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
           remark: values.remark.trim(),
         });
 
-        if (!continueWorkflow) return updated;
-        return moveToStage({
-          ...updated,
-          workflow: { ...updated.workflow, offsetHandoffRemark: values.remark.trim() },
-        }, "offset-varnish");
+        void continueWorkflow;
+        return updated;
       }));
     },
-    [currentUserName, moveToStage],
+    [currentUserName],
   );
 
   const createOffsetTooling = useCallback((orderNo: string, values: OffsetToolingValues) => {
     setOrders((currentOrders) => currentOrders.map((order) => {
       if (
         !matchesOrder(order, orderNo) || order.workflow.preparationType !== "offset" ||
-        order.stage !== "offset-plate" || order.workflow.currentStatus === "cancelled"
+        order.stage !== "offset-plate" || order.workflow.currentStatus === "cancelled" || order.offsetToolingId
       ) return order;
       const record = {
         ...values,
@@ -1836,7 +1971,7 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
         return ownsRecord || usesRecord ? appendHistory(updated, {
           process: "offset_tooling",
           stage: "offset-plate",
-          status: received ? "received" : "updated",
+          status: values.status,
           user: currentUserName,
           changeSummary,
           remark: values.remark.trim(),
@@ -1844,28 +1979,6 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
       });
     });
   }, [currentUserName]);
-
-  const selectOffsetTooling = useCallback((orderNo: string, toolingId: string) => {
-    setOrders((currentOrders) => currentOrders.map((order) => {
-      const tooling = offsetToolingCatalog.find((record) => record.id === toolingId);
-      const same = (left: string, right: string) => !left.trim() || !right.trim() || left.trim().toLowerCase() === right.trim().toLowerCase();
-      const compatible = tooling && same(tooling.customer, order.mainData.custName || order.customer) &&
-        same(tooling.material, order.mainData.boardQua || order.material) && same(tooling.imposition, order.mainData.imposition ?? "");
-      if (
-        !matchesOrder(order, orderNo) || !compatible ||
-        order.workflow.preparationType !== "offset" || order.workflow.currentStatus === "cancelled"
-      ) return order;
-      if (order.offsetToolingId === toolingId) return order;
-      return appendHistory({ ...order, offsetToolingId: toolingId }, {
-        process: "offset_tooling_selected",
-        stage: "offset-plate",
-        status: "selected",
-        user: currentUserName,
-        changeSummary: `Offset Tooling / Plate ${tooling.mcNo.trim() || "record"} selected.`,
-        remark: "",
-      });
-    }));
-  }, [currentUserName, offsetToolingCatalog]);
 
   const createManualOffsetTooling = useCallback((values: ManualOffsetToolingValues) => {
     setManualOffsetToolingRecords((current) => [
@@ -2052,7 +2165,6 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
       updateDrawingStatus,
       orders,
       manualOffsetToolingRecords,
-      offsetToolingCatalog,
       nextProjectCode: nextOrderCode(orders),
       addProject,
       editProject,
@@ -2068,10 +2180,11 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
       saveRubberRequirement,
       saveMaterialRequest,
       saveOffsetPrepress,
+      saveOffsetPreparationPlan,
+      submitOffsetMaterialPreparation,
       saveOffsetTooling,
       createOffsetTooling,
       updateOffsetTooling,
-      selectOffsetTooling,
       createManualOffsetTooling,
       updateManualOffsetTooling,
       saveOffsetSpk,
@@ -2095,13 +2208,13 @@ export function WorkflowOrdersProvider({ children, currentUserRole = "design", c
       moveOrderToStage,
       orders,
       manualOffsetToolingRecords,
-      offsetToolingCatalog,
       saveMaterialRequest,
       saveOffsetPrepress,
+      saveOffsetPreparationPlan,
+      submitOffsetMaterialPreparation,
       saveOffsetTooling,
       createOffsetTooling,
       updateOffsetTooling,
-      selectOffsetTooling,
       createManualOffsetTooling,
       updateManualOffsetTooling,
       saveOffsetSpk,

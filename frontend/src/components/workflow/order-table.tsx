@@ -5,7 +5,17 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { englishOffsetLabel } from "@/lib/offset-labels";
 import { offsetHandoffStatus } from "@/lib/offset-handoff-status";
-import type { Order, StandaloneRequirementKind } from "@/types/order";
+import type { MaterialRequestStatus, Order, RequirementStatus, StandaloneRequirementKind } from "@/types/order";
+
+type QueueStatusPresentation = "tooling" | "rubber" | "material" | "offset-prepress" | "offset-material" | "offset-tooling";
+
+const requirementStatusLabels: Record<RequirementStatus, string> = {
+  needed: "Needed", ordered: "Ordered", received: "Received", available: "Available / Existing",
+  on_hold: "On Hold", repair: "Repair", issue: "Issue / Reorder", cancelled: "Cancelled",
+};
+const materialStatusLabels: Record<MaterialRequestStatus, string> = {
+  draft: "Draft", requested: "Requested", released: "Released", received: "Received", on_hold: "On Hold",
+};
 
 export type OrderTableProps = {
   orders: Order[];
@@ -13,6 +23,8 @@ export type OrderTableProps = {
   queueLayout?: boolean;
   editActionLabel?: string;
   requirementKind?: StandaloneRequirementKind;
+  /** Renders the selected queue-record status and the preceding handoff remark without badges. */
+  statusPresentation?: QueueStatusPresentation;
   /** Queue pages can opt into their context-specific PIC field. */
   personLabel?: string;
   personForOrder?: (order: Order) => string;
@@ -44,6 +56,53 @@ function routeLabel(order: Order) {
     : "Converting / By Design";
 }
 
+function selectedQueueStatus(order: Order, presentation: QueueStatusPresentation) {
+  if (presentation === "tooling") return requirementStatusLabels[order.toolingOrders.at(-1)?.status ?? "needed"];
+  if (presentation === "rubber") return requirementStatusLabels[order.rubberOrders.at(-1)?.status ?? "needed"];
+  if (presentation === "material" || presentation === "offset-material") return materialStatusLabels[order.materialRequests.at(-1)?.status ?? "draft"];
+  if (presentation === "offset-tooling") {
+    const record = order.offsetToolingRecords?.find((item) => item.id === order.offsetToolingId) ?? order.offsetToolingRecords?.at(-1);
+    return requirementStatusLabels[record?.status ?? "needed"];
+  }
+  return requirementStatusLabels.needed;
+}
+
+function prepressStatusValue(value: string | undefined) {
+  return value?.trim() || "-";
+}
+
+function prepressStatusSummary(order: Order) {
+  const prepress = order.offsetPrepress;
+  return [
+    ["Proof", prepressStatusValue(prepress?.proofColor)],
+    ["Plot", prepressStatusValue(prepress?.plot)],
+    ["Plate", prepressStatusValue(prepress?.plate)],
+    ["Ink", prepressStatusValue(prepress?.ink)],
+  ] as const;
+}
+
+function previousStageRemark(order: Order, presentation: QueueStatusPresentation) {
+  if (presentation.startsWith("offset-")) {
+    if (presentation === "offset-material") {
+      return order.workflow.offsetHandoffRemark?.trim() ||
+        [...order.processHistory].reverse().find((entry) => entry.process === "offset_prepress")?.remark.trim() || "-";
+    }
+    if (presentation === "offset-tooling") {
+      return order.workflow.offsetHandoffRemark?.trim() ||
+        [...order.processHistory].reverse().find((entry) => entry.process === "offset_prepress")?.remark.trim() || "-";
+    }
+    const previousProcess = "offset_tooling";
+    const remark = [...order.processHistory].reverse().find((entry) => entry.process === previousProcess)?.remark.trim();
+    return remark || offsetHandoffStatus(order) || "-";
+  }
+
+  const preferredProcesses = presentation === "material"
+    ? ["tooling_requirement", "rubber_requirement", "incoming_preparation"]
+    : ["incoming_preparation"];
+  const remark = [...order.processHistory].reverse().find((entry) => preferredProcesses.includes(entry.process) && entry.remark.trim())?.remark.trim();
+  return remark || "-";
+}
+
 /** Shared responsive table for dashboard, orders, and workflow queues. */
 export function OrderTable({
   orders,
@@ -51,6 +110,7 @@ export function OrderTable({
   queueLayout = false,
   editActionLabel,
   requirementKind,
+  statusPresentation,
   personLabel = "Designer",
   personForOrder = (order) => order.pic,
   onViewOrder,
@@ -108,7 +168,7 @@ export function OrderTable({
         </tr></thead>
         <tbody>{visibleOrders.map(order => <tr key={`${order.id}-${order.materialRequestSource ?? "project"}`}>
           {actionCell(order)}
-          <td><Badge tone={order.tone}>{offsetHandoffStatus(order)}</Badge></td>
+          <td className={statusPresentation ? "incoming-status-cell" : undefined}>{statusPresentation === "offset-prepress" ? <><div className="prepress-status-grid">{prepressStatusSummary(order).map(([label, status]) => <span key={label}>{label}: {status}</span>)}</div><span className="prepress-status-remark">{order.offsetPrepress?.remark?.trim() || "-"}</span></> : statusPresentation ? <><strong>{selectedQueueStatus(order, statusPresentation)}</strong><span>{previousStageRemark(order, statusPresentation)}</span></> : <Badge tone={order.tone}>{offsetHandoffStatus(order)}</Badge>}</td>
           <td><strong className="order-number">{order.no}</strong>{order.requirementBranch ? <span>{order.requirementBranch === "tooling" ? "Tooling" : "Rubber"}</span> : null}</td>
           <td>{englishOffsetLabel(order.process)}</td>
           <td><strong>{order.customer}</strong><span>{order.product}</span></td>

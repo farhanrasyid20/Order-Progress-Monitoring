@@ -1,7 +1,7 @@
 "use client";
 
 import { WorkflowStageView } from "@/components/workflow/workflow-stage-view";
-import { MaterialRequestModal } from "@/app/converting/components/material-request-modal";
+import { OffsetMaterialRequestModal } from "./offset-material-request-modal";
 import type { QueueTableFilterConfig } from "@/components/workflow/workflow-stage-view";
 
 const offsetMaterialFilters: QueueTableFilterConfig = {
@@ -19,14 +19,14 @@ export function OffsetMaterialRequestView() {
     <WorkflowStageView
       stage="offset-material-request"
       title="Offset Material / Create MI"
-      copy="Manage MI records and material readiness before Offset plate preparation."
+      copy="Manage MI records and material readiness independently from other Offset preparation branches."
       icon="box"
       summaryLanguage="en"
       queueTableFilters={offsetMaterialFilters}
       queueTitle="Offset Material Queue"
-      queueCopy="Offset projects that have completed Prepress"
+      queueCopy="Offset projects handed off from Prepress"
       renderEditModal={({ order, onClose }) => (
-        <MaterialRequestModal order={order} onClose={onClose} offset />
+        <OffsetMaterialRequestModal order={order} onClose={onClose} />
       )}
     />
   );

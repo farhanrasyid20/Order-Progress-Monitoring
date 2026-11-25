@@ -1,6 +1,7 @@
 "use client";
 
 import { OffsetPrepressDetails } from "./offset-prepress-details";
+import { OffsetPrepressPreparationDetails } from "./offset-prepress-preparation-details";
 import { OffsetProjectDetails } from "./offset-project-details";
 
 import { useEffect, useId } from "react";
@@ -21,6 +22,7 @@ import { ArchiveProjectDetails } from "./archive-project-details";
 export type ProjectHistoryModalProps = {
   order: Order;
   onClose: () => void;
+  onPreparationUpdated?: () => void;
   requirementKind?: StandaloneRequirementKind;
   materialRequest?: boolean;
   sampleProgress?: boolean;
@@ -81,7 +83,7 @@ function historyChange(record: ProcessHistoryRecord) {
 }
 
 /** Shared audit detail for records after they move beyond Incoming Design. */
-export function ProjectHistoryModal({ order, onClose, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false, offsetDetails = false }: ProjectHistoryModalProps) {
+export function ProjectHistoryModal({ order, onClose, onPreparationUpdated, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false, offsetDetails = false }: ProjectHistoryModalProps) {
   const titleId = useId();
   const qcDetails = order.stage === "quality-control" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
   const faDetails = order.stage === "fa-report" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
@@ -154,6 +156,8 @@ export function ProjectHistoryModal({ order, onClose, requirementKind, materialR
               <strong>{displayHistoryTime(order.updatedAt)}</strong>
             </div>
           </div>
+
+          {prepressDetails ? <OffsetPrepressPreparationDetails order={order} onClose={onClose} onSubmitted={onPreparationUpdated} /> : null}
 
           {qcDetails || faDetails || readyDetails || decisionDetails ? <>
             <SampleProgressDetails order={order} fullProjectInformation />

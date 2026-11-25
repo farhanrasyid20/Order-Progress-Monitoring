@@ -389,12 +389,96 @@ test("Offset queue status displays only its stored handoff remark", () => {
   }));
   assert.match(legacyMaterialMarkup, /Waiting material/);
 
+  const handoffMarkup = renderToStaticMarkup(React.createElement(OrderTable, {
+    orders: [{
+      ...offsetOrder("offset-material-request", "Create MI from Prepress"),
+      materialRequests: [{ miNumber: "OMI-001", status: "requested", requestedBy: "Design", requestDate: "2026-11-25", material: "Ivory", quantity: "100", unit: "sheet", remark: "" }],
+      processHistory: [{ process: "offset_prepress", status: "updated", date: "2026-11-25T01:00:00.000Z", user: "Design", remark: "Old prepress remark" }],
+    }],
+    queueLayout: true,
+    statusPresentation: "offset-material",
+  }));
+  assert.match(handoffMarkup, /Requested/);
+  assert.match(handoffMarkup, /Create MI from Prepress/);
+  assert.doesNotMatch(handoffMarkup, /Old prepress remark/);
+  assert.doesNotMatch(handoffMarkup, /badge/);
+
   const emptyModalMarkup = renderToStaticMarkup(React.createElement(ProjectHistoryModal, {
     order: offsetOrder("offset-material-request", ""),
     offsetDetails: true,
     onClose: () => {},
   }));
   assert.match(emptyModalMarkup, /<span>Status<\/span><strong>-<\/strong>/);
+});
+
+test("Offset Preparation Check uses submitted branch records and never marks drafts ready", () => {
+  const { preparationChecks } = load(path.resolve(sourceRoot, "app/orders/components/incoming-orders-table.tsx"));
+  const base = {
+    ...makeOrder(),
+    id: "offset-preparation-check",
+    stage: "offset-material-request",
+    workflow: { ...makeOrder().workflow, preparationType: "offset", convertingRoute: null },
+    offsetPreparationPlan: {
+      projectId: "offset-preparation-check",
+      material: { state: "draft" },
+      tooling: { state: "draft" },
+      varnish: { state: "draft" },
+    },
+    materialRequests: [{ status: "released" }],
+    offsetToolingId: "offset-tooling-1",
+    offsetToolingRecords: [{ id: "offset-tooling-1", status: "available" }],
+  };
+  assert.deepEqual(preparationChecks(base), [
+    { label: "Material / MI", state: "empty" },
+    { label: "Tooling / Plate", state: "empty" },
+    { label: "Block / Spot Varnish", state: "empty" },
+  ]);
+
+  const ready = {
+    ...base,
+    offsetPreparationPlan: {
+      ...base.offsetPreparationPlan,
+      material: { state: "submitted" },
+      tooling: { state: "submitted" },
+    },
+  };
+  assert.deepEqual(preparationChecks(ready), [
+    { label: "Material / MI", state: "complete" },
+    { label: "Tooling / Plate", state: "complete" },
+    { label: "Block / Spot Varnish", state: "empty" },
+  ]);
+  assert.ok(!preparationChecks(ready).some((check) => check.label === "Req. Material"));
+});
+
+test("Offset Prepress queue renders its four saved statuses and prepress remark without badges", () => {
+  const { OrderTable } = load(path.resolve(sourceRoot, "components/workflow/order-table.tsx"));
+  const order = {
+    ...makeOrder(),
+    stage: "offset-prepress",
+    status: "Waiting for Prepress",
+    workflow: { ...makeOrder().workflow, preparationType: "offset", convertingRoute: null },
+    offsetPrepress: {
+      noJoPnCode: "MC-001", idPlate: "PL-001", plateType: "CD102", fgQuantity: "900",
+      proofColor: "Ready", plot: "Waiting", plate: "Ready", ink: "Waiting",
+      remark: "Waiting for ink and plot.", recordedAt: "2026-11-25T00:00:00.000Z", updatedBy: "Design",
+    },
+  };
+  const markup = renderToStaticMarkup(React.createElement(OrderTable, {
+    orders: [order], queueLayout: true, statusPresentation: "offset-prepress",
+  }));
+  assert.match(markup, /Proof: Ready/);
+  assert.match(markup, /Plot: Waiting/);
+  assert.match(markup, /Plate: Ready/);
+  assert.match(markup, /Ink: Waiting/);
+  assert.match(markup, /Waiting for ink and plot\./);
+  assert.doesNotMatch(markup, /Waiting for Prepress/);
+  assert.doesNotMatch(markup, /badge/);
+
+  const legacyMarkup = renderToStaticMarkup(React.createElement(OrderTable, {
+    orders: [{ ...order, offsetPrepress: undefined }], queueLayout: true, statusPresentation: "offset-prepress",
+  }));
+  assert.match(legacyMarkup, /Proof: -/);
+  assert.match(legacyMarkup, /<span class="prepress-status-remark">-<\/span>/);
 });
 
 test("every Offset Details modal renders the complete shared Add Project master data", () => {

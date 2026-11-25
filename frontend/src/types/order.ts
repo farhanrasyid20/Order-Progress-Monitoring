@@ -89,7 +89,7 @@ export type PreparationOrderSelection =
 export type DesignDecision = "approve" | "revision";
 export type PreparationWorkflowUpdate = {
   route: PreparationRoute;
-  /** Offset projects leave Incoming Design only after Prepress is selected. */
+  /** Retained only for Offset projects created before automatic Prepress routing. */
   offsetNextPreparation?: "prepress";
   /** Legacy single value consumed by older screens. */
   productionOrder: PreparationOrderSelection | null;
@@ -180,11 +180,7 @@ export type MaterialRequestStatus =
   | "received"
   | "on_hold";
 
-/**
- * A planning choice made from Offset MI. It deliberately does not control a
- * workflow handoff yet, so Plate and Varnish can gain independent readiness
- * rules (including parallel work) without changing saved MI records.
- */
+/** The destination selected after saving an Offset Material / MI record. */
 export type OffsetMaterialNextStep = "tooling_plate" | "varnish";
 
 export type MaterialRequestRecord = {
@@ -246,20 +242,71 @@ export type OffsetSpkRecord = {
 export type OffsetSpkValues = Omit<OffsetSpkRecord, "id" | "createdAt">;
 
 export type OffsetPlateType = "" | "GTO54" | "CD102" | "SM102" | "SUMITOMO";
+export type OffsetPrepressStatus = "" | "Ready" | "Waiting";
 
 export type OffsetPrepressValues = {
+  /** Legacy snapshot retained for existing search/history records; new input derives this from mainData.mcNo. */
   noJoPnCode: string;
   idPlate: string;
   plateType: OffsetPlateType;
-  proofColor: string;
-  plot: string;
-  plate: string;
-  ink: string;
+  /** Finished-good quantity confirmed by Prepress, separate from master FG Qty (SHT). */
+  fgQuantity: string;
+  proofColor: OffsetPrepressStatus;
+  plot: OffsetPrepressStatus;
+  plate: OffsetPrepressStatus;
+  ink: OffsetPrepressStatus;
   remark: string;
 };
 
 export type OffsetPrepressRecord = OffsetPrepressValues & {
   recordedAt: string;
+  updatedBy: string;
+};
+
+/**
+ * Offset preparation is planned independently from the legacy linear route.
+ * These values deliberately describe only draft/submitted state; business
+ * readiness and Varnish requirement rules remain pending product decisions.
+ */
+export type OffsetPreparationBranchKind = "material" | "tooling" | "varnish";
+export type OffsetPreparationSubmissionState = "draft" | "submitted";
+
+export type OffsetPreparationPlanBranch = {
+  state: OffsetPreparationSubmissionState;
+};
+
+export type OffsetToolingPreparationPlanBranch = OffsetPreparationPlanBranch & {
+  /** Offset Tooling input held by Prepress until its parent plan is updated. */
+  draft?: OffsetToolingValues;
+};
+
+export type OffsetPreparationPlanValues = {
+  material: OffsetPreparationPlanBranch;
+  /** A single property intentionally permits at most one active Tooling draft. */
+  tooling?: OffsetToolingPreparationPlanBranch;
+  /** Set only by a later approved Varnish-need decision; never inferred here. */
+  varnish?: OffsetPreparationPlanBranch;
+  /** Preparation note; kept separate from the project master remark. */
+  remark?: string;
+};
+
+export type OffsetPreparationPlan = OffsetPreparationPlanValues & {
+  projectId: string;
+  updatedAt: string;
+  updatedBy: string;
+};
+
+/**
+ * Submission/audit record for an Offset preparation branch. This is not a
+ * readiness, purchase-order, or production-process record.
+ */
+export type OffsetPreparationBranchRecord = {
+  id: string;
+  projectId: string;
+  kind: OffsetPreparationBranchKind;
+  state: "submitted";
+  createdAt: string;
+  updatedAt: string;
   updatedBy: string;
 };
 
@@ -269,6 +316,8 @@ export type OffsetToolingMachine = "Auto Haido" | "Auto Jingya" | "Baozika" | "D
 
 export type OffsetToolingValues = {
   mcNo: string;
+  /** Uses the same operational states as the Converting tooling queue. */
+  status: RequirementStatus;
   grammage: string;
   openWidth: string;
   openLength: string;
@@ -414,6 +463,10 @@ export type Order = {
   offsetToolingRecords?: OffsetToolingRecord[];
   /** The record currently selected for this project's Tooling / Plate work. */
   offsetToolingId?: string;
+  /** Optional for legacy projects created before parallel Offset preparation planning. */
+  offsetPreparationPlan?: OffsetPreparationPlan;
+  /** Immutable-per-kind submission records for the future parallel Offset queues. */
+  offsetPreparationRecords?: OffsetPreparationBranchRecord[];
   processHistory: ProcessHistoryRecord[];
   createdAt: string;
   updatedAt: string;

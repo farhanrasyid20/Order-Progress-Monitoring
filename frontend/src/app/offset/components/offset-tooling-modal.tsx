@@ -12,23 +12,31 @@ const priorityOptions: readonly OffsetToolingPriority[] = ["Low", "Medium", "Har
 const machineOptions: readonly OffsetToolingMachine[] = ["Auto Haido", "Auto Jingya", "Baozika", "DC Manual", "DC TMZ", "DC Flat"];
 
 /** Dedicated Offset Tooling / Plate form. Its values intentionally stay outside project mainData. */
-export function OffsetToolingModal({ order, onClose, tooling, mode = "edit" }: { order: Order; onClose: () => void; tooling?: OffsetToolingRecord; mode?: "create" | "edit" }) {
+export function OffsetToolingModal({ order, onClose, tooling, mode = "edit", draftValues, onSaveDraft }: {
+  order: Order;
+  onClose: () => void;
+  tooling?: OffsetToolingRecord;
+  mode?: "create" | "edit" | "draft";
+  draftValues?: OffsetToolingValues;
+  onSaveDraft?: (values: OffsetToolingValues) => void;
+}) {
   const titleId = useId();
   const { createOffsetTooling, updateOffsetTooling } = useWorkflowOrders();
   const saved = mode === "edit" ? tooling : undefined;
   const [values, setValues] = useState<OffsetToolingValues>({
-    mcNo: saved?.mcNo ?? "",
-    grammage: saved?.grammage ?? order.mainData.grammage ?? "",
-    openWidth: saved?.openWidth ?? "",
-    openLength: saved?.openLength ?? "",
-    priority: saved?.priority ?? "",
-    machine: saved?.machine ?? "",
-    orderDate: saved?.orderDate ?? "",
-    receivedDate: saved?.receivedDate ?? "",
-    supplier: saved?.supplier ?? "",
-    invoiceNumber: saved?.invoiceNumber ?? "",
-    price: saved?.price ?? "",
-    remark: saved?.remark ?? "",
+    mcNo: draftValues?.mcNo ?? saved?.mcNo ?? order.mainData.mcNo ?? order.no,
+    status: draftValues?.status ?? saved?.status ?? "needed",
+    grammage: draftValues?.grammage ?? saved?.grammage ?? order.mainData.grammage ?? "",
+    openWidth: draftValues?.openWidth ?? saved?.openWidth ?? "",
+    openLength: draftValues?.openLength ?? saved?.openLength ?? "",
+    priority: draftValues?.priority ?? saved?.priority ?? "",
+    machine: draftValues?.machine ?? saved?.machine ?? "",
+    orderDate: draftValues?.orderDate ?? saved?.orderDate ?? "",
+    receivedDate: draftValues?.receivedDate ?? saved?.receivedDate ?? "",
+    supplier: draftValues?.supplier ?? saved?.supplier ?? "",
+    invoiceNumber: draftValues?.invoiceNumber ?? saved?.invoiceNumber ?? "",
+    price: draftValues?.price ?? saved?.price ?? "",
+    remark: draftValues?.remark ?? saved?.remark ?? "",
   });
 
   useEffect(() => {
@@ -45,7 +53,8 @@ export function OffsetToolingModal({ order, onClose, tooling, mode = "edit" }: {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (mode === "create") createOffsetTooling(order.id, values);
+    if (mode === "draft") onSaveDraft?.(values);
+    else if (mode === "create") createOffsetTooling(order.id, values);
     else if (saved) updateOffsetTooling(order.id, saved.id, values);
     onClose();
   };
@@ -60,8 +69,8 @@ export function OffsetToolingModal({ order, onClose, tooling, mode = "edit" }: {
     <section className="modal-dialog" role="dialog" aria-modal="true" aria-labelledby={titleId}>
       <header className="modal-header">
         <div>
-          <h2 id={titleId}>{mode === "create" ? "Add Tooling / Plate" : "Edit Tooling / Plate"}</h2>
-          <p>Record Offset tooling and plate order details for {order.no}.</p>
+          <h2 id={titleId}>{mode === "create" || (mode === "draft" && !draftValues) ? "Add Tooling / Plate" : "Edit Tooling / Plate"}</h2>
+          <p>{mode === "draft" ? `Save a Tooling draft for ${order.no}; it will not create an order until the Prepress plan is updated.` : `Record Offset tooling and plate order details for ${order.no}.`}</p>
         </div>
         <button type="button" className="modal-close" aria-label="Close Tooling / Plate form" onClick={onClose} autoFocus>
           <Icon name="close" size={18} />
@@ -90,7 +99,7 @@ export function OffsetToolingModal({ order, onClose, tooling, mode = "edit" }: {
         </div>
         <footer className="modal-actions">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" icon="save">Save Tooling / Plate</Button>
+          <Button type="submit" icon="save">{mode === "draft" ? "Save Tooling Draft" : "Save Tooling / Plate"}</Button>
         </footer>
       </form>
     </section>
