@@ -4,6 +4,8 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { defaultOffsetPreparationStatus, isOffsetPreparationStatus, offsetToolingStatus } from "@/lib/offset-preparation-status";
+import { ToolingStatusField } from "./offset-tooling-management-modals";
 import type { OffsetToolingMachine, OffsetToolingPriority, OffsetToolingRecord, OffsetToolingValues, Order } from "@/types/order";
 
 const grammageOptions = [60, 70, 80, 100, 120, 150, 175, 210, 230, 260, 300, 310, 400]
@@ -23,12 +25,11 @@ export function OffsetToolingModal({ order, onClose, tooling, mode = "edit", dra
   const titleId = useId();
   const { createOffsetTooling, updateOffsetTooling } = useWorkflowOrders();
   const saved = mode === "edit" ? tooling : undefined;
-  const [values, setValues] = useState<OffsetToolingValues>({
+  const savedStatus = offsetToolingStatus(draftValues?.status ?? saved?.status ?? defaultOffsetPreparationStatus);
+  const [status, setStatus] = useState<OffsetToolingValues["status"] | "">(() => isOffsetPreparationStatus(savedStatus) ? savedStatus : "");
+  const [values, setValues] = useState<Omit<OffsetToolingValues, "status">>({
     mcNo: draftValues?.mcNo ?? saved?.mcNo ?? order.mainData.mcNo ?? order.no,
-    status: draftValues?.status ?? saved?.status ?? "needed",
     grammage: draftValues?.grammage ?? saved?.grammage ?? order.mainData.grammage ?? "",
-    openWidth: draftValues?.openWidth ?? saved?.openWidth ?? "",
-    openLength: draftValues?.openLength ?? saved?.openLength ?? "",
     priority: draftValues?.priority ?? saved?.priority ?? "",
     machine: draftValues?.machine ?? saved?.machine ?? "",
     orderDate: draftValues?.orderDate ?? saved?.orderDate ?? "",
@@ -47,15 +48,17 @@ export function OffsetToolingModal({ order, onClose, tooling, mode = "edit", dra
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [onClose]);
 
-  const update = <Key extends keyof OffsetToolingValues>(key: Key, value: OffsetToolingValues[Key]) => {
+  const update = <Key extends keyof typeof values>(key: Key, value: OffsetToolingValues[Key]) => {
     setValues((current) => ({ ...current, [key]: value }));
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (mode === "draft") onSaveDraft?.(values);
-    else if (mode === "create") createOffsetTooling(order.id, values);
-    else if (saved) updateOffsetTooling(order.id, saved.id, values);
+    if (!status) return;
+    const input = { ...values, status };
+    if (mode === "draft") onSaveDraft?.(input);
+    else if (mode === "create") createOffsetTooling(order.id, input);
+    else if (saved) updateOffsetTooling(order.id, saved.id, input);
     onClose();
   };
 
@@ -85,11 +88,10 @@ export function OffsetToolingModal({ order, onClose, tooling, mode = "edit", dra
           <label className="modal-field"><span>Material</span><input value={material} disabled /></label>
           <label className="modal-field"><span>Imposition / UP</span><input value={order.mainData.imposition ?? ""} disabled /></label>
           <label className="modal-field"><span>Gramatur</span><select value={values.grammage} onChange={(event) => update("grammage", event.target.value)}><option value="">Select grammage...</option>{grammageOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
-          <label className="modal-field"><span>Open Size Width</span><input value={values.openWidth} onChange={(event) => update("openWidth", event.target.value)} /></label>
-          <label className="modal-field"><span>Open Size Length</span><input value={values.openLength} onChange={(event) => update("openLength", event.target.value)} /></label>
           <label className="modal-field"><span>Priority</span><select value={values.priority} onChange={(event) => update("priority", event.target.value as OffsetToolingPriority | "")}><option value="">Select priority...</option>{priorityOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
           <label className="modal-field"><span>PIC</span><input value={order.pic === "-" ? "" : order.pic} disabled /></label>
           <label className="modal-field"><span>Machine</span><select value={values.machine} onChange={(event) => update("machine", event.target.value as OffsetToolingMachine | "")}><option value="">Select machine...</option>{machineOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>
+          <ToolingStatusField value={status} savedStatus={savedStatus} onChange={setStatus} />
           <label className="modal-field"><span>Order Date</span><input type="date" value={values.orderDate} onChange={(event) => update("orderDate", event.target.value)} /></label>
           <label className="modal-field"><span>Received Date</span><input type="date" value={values.receivedDate} onChange={(event) => update("receivedDate", event.target.value)} /></label>
           <label className="modal-field"><span>Supplier</span><input value={values.supplier} onChange={(event) => update("supplier", event.target.value)} /></label>
@@ -99,7 +101,7 @@ export function OffsetToolingModal({ order, onClose, tooling, mode = "edit", dra
         </div>
         <footer className="modal-actions">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" icon="save">{mode === "draft" ? "Save Tooling Draft" : "Save Tooling / Plate"}</Button>
+          <Button type="submit" icon="save" disabled={!status}>{mode === "draft" ? "Save Tooling Draft" : "Save Tooling / Plate"}</Button>
         </footer>
       </form>
     </section>

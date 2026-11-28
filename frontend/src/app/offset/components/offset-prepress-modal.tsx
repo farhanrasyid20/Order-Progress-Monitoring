@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useId, useState, type FormEvent } from "react";
-import { useWorkflowOrders, validateOffsetPrepressValues } from "@/components/workflow/workflow-provider";
+import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
+import { canEditOffsetPreparation, offsetPreparationSnapshot, validateOffsetPrepressValues } from "@/lib/offset-readiness";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import type { OffsetPlateType, OffsetPrepressStatus, OffsetPrepressValues, Order } from "@/types/order";
+import { useOffsetContinueConfirmation } from "./offset-continue-confirmation";
+import type { OffsetPlateType, OffsetPreparationSaveAction, OffsetPrepressStatus, OffsetPrepressValues, Order } from "@/types/order";
 
 const plateTypes: readonly OffsetPlateType[] = ["", "GTO54", "CD102", "SM102", "SUMITOMO"];
 const prepressStatuses: readonly Exclude<OffsetPrepressStatus, "">[] = ["Ready", "Waiting"];
@@ -15,7 +17,10 @@ function savedStatus(value: string | undefined): OffsetPrepressStatus {
 
 export function OffsetPrepressModal({ order, onClose }: { order: Order; onClose: () => void }) {
   const titleId = useId();
-  const { saveOffsetPrepress } = useWorkflowOrders();
+  const { orders, saveOffsetPrepress } = useWorkflowOrders();
+  const [snapshot] = useState(() => offsetPreparationSnapshot(order, "prepress"));
+  const currentOrder = orders.find((item) => item.id === order.id);
+  const canEdit = Boolean(currentOrder && canEditOffsetPreparation(currentOrder, "prepress"));
   const saved = order.offsetPrepress;
   const noJoPnCode = order.mainData.mcNo || saved?.noJoPnCode || "";
   const [values, setValues] = useState<OffsetPrepressValues>({
@@ -30,6 +35,9 @@ export function OffsetPrepressModal({ order, onClose }: { order: Order; onClose:
     remark: saved?.remark ?? "",
   });
   const [validationError, setValidationError] = useState("");
+  const draftError = validateOffsetPrepressValues(values, "draft");
+  const continueError = validateOffsetPrepressValues(values, "continue");
+  const actionError = validationError || (canEdit ? continueError : "");
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -41,17 +49,25 @@ export function OffsetPrepressModal({ order, onClose }: { order: Order; onClose:
 
   const update = <Key extends keyof OffsetPrepressValues>(key: Key, value: OffsetPrepressValues[Key]) => {
     setValues((current) => ({ ...current, [key]: value }));
+    setValidationError("");
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const error = validateOffsetPrepressValues(values);
+  const persist = (action: OffsetPreparationSaveAction) => {
+    const error = (action === "continue" ? continueError : draftError) || saveOffsetPrepress(order.id, values, action, snapshot);
     if (error) {
       setValidationError(error);
       return;
     }
-    saveOffsetPrepress(order.id, values, false);
     onClose();
+  };
+  const { requestConfirmation, confirmation } = useOffsetContinueConfirmation(() => persist("continue"));
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canEdit) return;
+    const action = (event.nativeEvent as SubmitEvent).submitter?.getAttribute("value") === "continue" ? "continue" : "draft";
+    if (action === "continue" && !continueError) requestConfirmation();
+    else persist(action);
   };
 
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
@@ -78,23 +94,25 @@ export function OffsetPrepressModal({ order, onClose }: { order: Order; onClose:
           <label className="modal-field"><span>Material</span><input value={order.mainData.boardQua || order.material} disabled /></label>
           <label className="modal-field"><span>FG Qty (SHT)</span><input value={order.mainData.fgQuantity || "-"} disabled /></label>
           <label className="modal-field"><span>Imposition / Up</span><input value={order.mainData.imposition || "-"} disabled /></label>
-          <label className="modal-field"><span>ID Plate</span><input value={values.idPlate} onChange={(event) => update("idPlate", event.target.value)} /></label>
-          <label className="modal-field"><span>Plate Type</span><select value={values.plateType} onChange={(event) => update("plateType", event.target.value as OffsetPlateType)}>{plateTypes.map((type) => <option key={type || "empty"} value={type}>{type || "Select plate type..."}</option>)}</select></label>
-          <label className="modal-field"><span>FG Qty</span><input type="number" min="0" value={values.fgQuantity} placeholder="Enter FG Qty" onChange={(event) => update("fgQuantity", event.target.value)} /></label>
+          <label className="modal-field"><span>ID Plate</span><input value={values.idPlate} disabled={!canEdit} onChange={(event) => update("idPlate", event.target.value)} /></label>
+          <label className="modal-field"><span>Plate Type</span><select value={values.plateType} disabled={!canEdit} onChange={(event) => update("plateType", event.target.value as OffsetPlateType)}>{plateTypes.map((type) => <option key={type || "empty"} value={type}>{type || "Select plate type..."}</option>)}</select></label>
+          <label className="modal-field"><span>FG Qty</span><input type="number" min="0" value={values.fgQuantity} disabled={!canEdit} placeholder="Enter FG Qty" onChange={(event) => update("fgQuantity", event.target.value)} /></label>
           <label className="modal-field"><span>Colours</span><input value={order.mainData.colours || "-"} disabled /></label>
           <label className="modal-field"><span>Coating / Varnish</span><input value={order.mainData.varnish || "-"} disabled /></label>
         </div>
         <div className="project-form-section-heading prepress-status-section-heading"><h3>Prepress Status</h3></div>
         <div className="modal-form-grid">
-          {(["proofColor", "plot", "plate", "ink"] as const).map((field) => <label className="modal-field" key={field}><span>{({ proofColor: "Proof Color", plot: "Plot", plate: "Plate", ink: "Ink" }[field])} <b className="project-form-required">*</b></span><select value={values[field]} aria-invalid={Boolean(validationError) && !values[field]} onChange={(event) => { update(field, event.target.value as OffsetPrepressStatus); setValidationError(""); }}><option value="">Select status...</option>{prepressStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>)}
-          <label className="modal-field modal-field-full"><span>Remark</span><textarea value={values.remark} aria-invalid={Boolean(validationError) && (values.proofColor === "Waiting" || values.plot === "Waiting" || values.plate === "Waiting" || values.ink === "Waiting")} placeholder="Enter prepress notes or explain any preparation issues..." rows={3} onChange={(event) => { update("remark", event.target.value); setValidationError(""); }} /></label>
+          {(["proofColor", "plot", "plate", "ink"] as const).map((field) => <label className="modal-field" key={field}><span>{({ proofColor: "Proof Color", plot: "Plot", plate: "Plate", ink: "Ink" }[field])} <b className="project-form-required">*</b></span><select value={values[field]} disabled={!canEdit} aria-invalid={Boolean(validationError) && !values[field]} onChange={(event) => { update(field, event.target.value as OffsetPrepressStatus); setValidationError(""); }}><option value="">Select status...</option>{prepressStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>)}
+          <label className="modal-field modal-field-full"><span>Remark</span><textarea value={values.remark} disabled={!canEdit} aria-invalid={Boolean(validationError) && (values.proofColor === "Waiting" || values.plot === "Waiting" || values.plate === "Waiting" || values.ink === "Waiting")} placeholder="Enter prepress notes or explain any preparation issues..." rows={3} onChange={(event) => { update("remark", event.target.value); setValidationError(""); }} /></label>
         </div>
-        {validationError ? <p className="project-save-error" role="alert">{validationError}</p> : null}
+        {actionError ? <p className="project-save-error" role={validationError ? "alert" : "status"}>{actionError}</p> : null}
         <footer className="modal-actions">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" variant="secondary">Save Prepress</Button>
+          <Button type="submit" value="draft" variant="secondary" disabled={!canEdit || Boolean(draftError)}>Save Draft</Button>
+          <Button type="submit" value="continue" icon="arrow" disabled={!canEdit || Boolean(continueError)}>Save &amp; Continue</Button>
         </footer>
       </form>
+      {confirmation}
     </section>
   </div>;
 }

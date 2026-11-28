@@ -1,6 +1,7 @@
 "use client";
 
 import type { OffsetToolingRecord, Order } from "@/types/order";
+import { offsetPreparationStatusLabel, offsetToolingQueueStatus } from "@/lib/offset-preparation-status";
 import { DetailGrid } from "./requirement-details";
 
 /** Read-only companion to the Offset Tooling / Plate form. */
@@ -27,9 +28,8 @@ export function OffsetToolingDetails({ order }: { order: Order }) {
       ["MC No. / Code", tooling.mcNo], ["Customer", customer],
       ["Description", component], ["Material", material],
       ["Imposition / UP", imposition], ["Gramatur", tooling.grammage],
-      ["Open Size Width", tooling.openWidth], ["Open Size Length", tooling.openLength],
       ["Priority", tooling.priority], ["PIC", pic], ["Machine", tooling.machine],
-      ["Status", tooling.status ?? "needed"],
+      ["Status", offsetPreparationStatusLabel(offsetToolingQueueStatus(order))],
       ["Order Date", tooling.orderDate], ["Received Date", tooling.receivedDate],
       ["Supplier", tooling.supplier], ["Invoice Number", tooling.invoiceNumber],
       ["Price", tooling.price], ["Remark", tooling.remark],

@@ -6,7 +6,7 @@ import { Icon } from "@/components/ui/icon";
 
 export type CancelProjectModalProps = {
   onClose: () => void;
-  onConfirm: (reason: string) => void;
+  onConfirm: (reason: string) => string | void;
 };
 
 /**
@@ -42,7 +42,7 @@ export function CancelProjectModal({
       return;
     }
 
-    onConfirm(trimmedReason);
+    setError(onConfirm(trimmedReason) || "");
   };
 
   return (

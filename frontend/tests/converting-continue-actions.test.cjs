@@ -11,9 +11,12 @@ function sourceFile(relativePath) {
   return fs.readFileSync(path.resolve(sourceRoot, relativePath), "utf8");
 }
 
-/** Executes the provider with synchronous hook state, without browser storage. */
+/** Executes the provider with synchronous hook state and in-memory storage. */
 function workflowHarness() {
   const states = [];
+  const refs = [];
+  const persisted = new Map();
+  let refCursor = 0;
   let cursor = 0;
   const react = {
     createContext: () => ({ Provider: "provider" }),
@@ -26,7 +29,7 @@ function workflowHarness() {
     },
     useCallback: (callback) => callback,
     useMemo: (factory) => factory(),
-    useRef: (current) => ({ current }),
+    useRef: (current) => (refs[refCursor++] ??= { current }),
     useEffect: () => {},
   };
   const cache = new Map();
@@ -57,13 +60,17 @@ function workflowHarness() {
       return require(specifier);
     };
 
-    new Function("require", "module", "exports", source)(localRequire, loaded, loaded.exports);
+    new Function("require", "module", "exports", "window", source)(localRequire, loaded, loaded.exports, {
+      localStorage: { getItem: (key) => persisted.get(key) ?? null, setItem: (key, value) => { persisted.set(key, value); } },
+    });
     return loaded.exports;
   }
 
   const { WorkflowOrdersProvider } = load(path.resolve(sourceRoot, "components/workflow/workflow-provider.tsx"));
+  states[2] = true;
   const api = () => {
     cursor = 0;
+    refCursor = 0;
     return WorkflowOrdersProvider({ children: null, currentUserName: "Continue Test" }).props.value;
   };
 

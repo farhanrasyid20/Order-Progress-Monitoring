@@ -269,6 +269,15 @@ export type OffsetPrepressRecord = OffsetPrepressValues & {
  * readiness and Varnish requirement rules remain pending product decisions.
  */
 export type OffsetPreparationBranchKind = "material" | "tooling" | "varnish";
+export type OffsetPreparationStep = "prepress" | OffsetPreparationBranchKind;
+export type OffsetPreparationSaveAction = "draft" | "continue";
+export type OffsetPreparationCompletion = { actor: string; timestamp: string; fingerprint: string };
+
+export type OffsetPreparationSubmission = {
+  rows: readonly ("tooling" | "varnish" | null)[];
+  toolingDraft?: OffsetToolingDraft;
+  remark: string;
+};
 export type OffsetPreparationSubmissionState = "draft" | "submitted";
 
 export type OffsetPreparationPlanBranch = {
@@ -277,7 +286,7 @@ export type OffsetPreparationPlanBranch = {
 
 export type OffsetToolingPreparationPlanBranch = OffsetPreparationPlanBranch & {
   /** Offset Tooling input held by Prepress until its parent plan is updated. */
-  draft?: OffsetToolingValues;
+  draft?: OffsetToolingDraft;
 };
 
 export type OffsetPreparationPlanValues = {
@@ -311,13 +320,16 @@ export type OffsetPreparationBranchRecord = {
 };
 
 /** Monitoring state for the submitted Offset Varnish branch only. */
-export type OffsetVarnishStatus = "Waiting" | "In Progress" | "Ready" | "Revision Required";
+export type OffsetPreparationStatus = "not_ordered" | "ordered" | "received" | "cancelled";
+export type OffsetVarnishStatus = OffsetPreparationStatus | "Waiting" | "In Progress" | "Ready" | "Revision Required";
 export type OffsetVarnishValues = {
-  status: OffsetVarnishStatus | "";
+  status: OffsetPreparationStatus | "";
   remark: string;
 };
 export type OffsetVarnishRecord = Omit<OffsetVarnishValues, "status"> & {
   status: OffsetVarnishStatus;
+  revision?: number;
+  completion?: OffsetPreparationCompletion;
   updatedAt: string;
   updatedBy: string;
 };
@@ -328,11 +340,8 @@ export type OffsetToolingMachine = "Auto Haido" | "Auto Jingya" | "Baozika" | "D
 
 export type OffsetToolingValues = {
   mcNo: string;
-  /** Uses the same operational states as the Converting tooling queue. */
-  status: RequirementStatus;
+  status: OffsetPreparationStatus;
   grammage: string;
-  openWidth: string;
-  openLength: string;
   priority: OffsetToolingPriority | "";
   machine: OffsetToolingMachine | "";
   orderDate: string;
@@ -343,7 +352,17 @@ export type OffsetToolingValues = {
   remark: string;
 };
 
-export type OffsetToolingLegacyRecord = OffsetToolingValues & {
+/** Retained only on persisted Tooling drafts and records. */
+type LegacyOffsetToolingDimensions = {
+  openWidth?: string;
+  openLength?: string;
+};
+
+export type OffsetToolingDraft = Omit<OffsetToolingValues, "status"> & LegacyOffsetToolingDimensions & {
+  status: OffsetPreparationStatus | RequirementStatus;
+};
+
+export type OffsetToolingLegacyRecord = OffsetToolingDraft & {
   recordedAt: string;
   updatedBy: string;
 };
@@ -361,7 +380,7 @@ export type ManualOffsetToolingValues = OffsetToolingValues & {
   pic: string;
 };
 
-export type ManualOffsetToolingRecord = ManualOffsetToolingValues & {
+export type ManualOffsetToolingRecord = Omit<ManualOffsetToolingValues, "status"> & OffsetToolingDraft & {
   id: string;
   recordedAt: string;
   updatedBy: string;
@@ -479,6 +498,10 @@ export type Order = {
   offsetPreparationPlan?: OffsetPreparationPlan;
   /** Immutable-per-kind submission records for the future parallel Offset queues. */
   offsetPreparationRecords?: OffsetPreparationBranchRecord[];
+  offsetPreparationProgress?: Partial<Record<Exclude<OffsetPreparationStep, "varnish">, {
+    revision: number;
+    completion?: OffsetPreparationCompletion;
+  }>>;
   /** Kept independently from the master remark and every other preparation branch. */
   offsetVarnish?: OffsetVarnishRecord;
   processHistory: ProcessHistoryRecord[];

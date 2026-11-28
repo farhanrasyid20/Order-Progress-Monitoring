@@ -411,7 +411,7 @@ test("Offset queue status displays only its stored handoff remark", () => {
   assert.match(emptyModalMarkup, /<span>Status<\/span><strong>-<\/strong>/);
 });
 
-test("Offset Preparation Check uses submitted branch records and never marks drafts ready", () => {
+test("Offset Preparation Check keeps legacy status-only and draft records neutral", () => {
   const { preparationChecks } = load(path.resolve(sourceRoot, "app/orders/components/incoming-orders-table.tsx"));
   const base = {
     ...makeOrder(),
@@ -443,8 +443,8 @@ test("Offset Preparation Check uses submitted branch records and never marks dra
     },
   };
   assert.deepEqual(preparationChecks(ready), [
-    { label: "Material / MI", state: "complete" },
-    { label: "Tooling / Plate", state: "complete" },
+    { label: "Material / MI", state: "empty" },
+    { label: "Tooling / Plate", state: "empty" },
     { label: "Block / Spot Varnish", state: "empty" },
   ]);
   assert.ok(!preparationChecks(ready).some((check) => check.label === "Req. Material"));

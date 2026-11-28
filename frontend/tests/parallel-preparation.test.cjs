@@ -5,10 +5,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const ts = require("typescript");
 
-// Exercise the real provider callbacks with synchronous hook state. Effects
-// are omitted so these workflow tests never read or overwrite browser storage.
+// Exercise the real provider callbacks with synchronous hook state and in-memory storage.
 function workflowHarness() {
   const states = [];
+  const refs = [];
+  const persisted = new Map();
+  let refCursor = 0;
   let actor = "Farhan";
   let cursor = 0;
   const react = {
@@ -20,7 +22,12 @@ function workflowHarness() {
     },
     useCallback: (callback) => callback,
     useMemo: (factory) => factory(),
-    useRef: (current) => ({ current }),
+    useRef(current) {
+      const isOrdersRef = refCursor === 0;
+      const ref = (refs[refCursor++] ??= { current });
+      if (isOrdersRef) ref.current = current;
+      return ref;
+    },
     useEffect: () => {},
   };
   const cache = new Map();
@@ -41,16 +48,20 @@ function workflowHarness() {
       }
       return require(specifier);
     };
-    new Function("require", "module", "exports", source)(localRequire, loadedModule, loadedModule.exports);
+    new Function("require", "module", "exports", "window", source)(localRequire, loadedModule, loadedModule.exports, {
+      localStorage: { getItem: (key) => persisted.get(key) ?? null, setItem: (key, value) => { persisted.set(key, value); } },
+    });
     return loadedModule.exports;
   }
   const { WorkflowOrdersProvider } = load(path.resolve(__dirname, "../src/components/workflow/workflow-provider.tsx"));
   const queue = load(path.resolve(__dirname, "../src/lib/requirement-queue.ts"));
   const api = () => {
     cursor = 0;
+    refCursor = 0;
     return WorkflowOrdersProvider({ children: null, currentUserName: actor }).props.value;
   };
   const original = structuredClone(api().orders[0]);
+  states[2] = true;
   function start(kinds) {
     states[0] = [{ ...structuredClone(original), id: "parallel-project", no: "PSR-TEST", stage: "order",
       toolingOrders: [], rubberOrders: [], materialRequests: [], processHistory: [],
@@ -619,7 +630,7 @@ test("manual Offset Tooling is retained independently without creating or changi
   const before = structuredClone(h.api().orders);
   h.api().createManualOffsetTooling({
     mcNo: "TOOL-MANUAL-01", customer: "Manual Customer", description: "Manual plate", material: "Ivory",
-    imposition: "2 UP", pic: "PIC", status: "needed", grammage: "310 gsm", openWidth: "700", openLength: "1000",
+    imposition: "2 UP", pic: "PIC", status: "not_ordered", grammage: "310 gsm", openWidth: "700", openLength: "1000",
     priority: "Medium", machine: "DC Flat", orderDate: "", receivedDate: "", supplier: "", invoiceNumber: "", price: "", remark: "",
   });
   const current = h.api();
@@ -635,7 +646,7 @@ test("manual Offset Tooling cannot be selected by an Offset project", () => {
   const original = structuredClone(h.api().orders[0]);
   h.api().createManualOffsetTooling({
     mcNo: "TOOL-CATALOG-01", customer: "Catalog Customer", description: "Catalog carton", material: "Ivory",
-    imposition: "4 UP", pic: "PIC", status: "needed", grammage: "310 gsm", openWidth: "700", openLength: "1000",
+    imposition: "4 UP", pic: "PIC", status: "not_ordered", grammage: "310 gsm", openWidth: "700", openLength: "1000",
     priority: "Medium", machine: "DC Flat", orderDate: "", receivedDate: "", supplier: "", invoiceNumber: "", price: "", remark: "",
   });
   h.states[0] = [{
@@ -657,7 +668,7 @@ test("received manual tooling remains independent from project history", () => {
   const original = structuredClone(h.api().orders[0]);
   const values = {
     mcNo: "TOOL-RECEIVED-01", customer: "Received Customer", description: "Carton", material: "Ivory",
-    imposition: "2 UP", pic: "PIC", status: "needed", grammage: "310 gsm", openWidth: "700", openLength: "1000",
+    imposition: "2 UP", pic: "PIC", status: "not_ordered", grammage: "310 gsm", openWidth: "700", openLength: "1000",
     priority: "Medium", machine: "DC Flat", orderDate: "", receivedDate: "", supplier: "", invoiceNumber: "", price: "", remark: "",
   };
   h.api().createManualOffsetTooling(values);
@@ -728,6 +739,8 @@ test("Offset Prepress edit saves its own details without bypassing the preparati
       offsetHandoffRemark: "Incoming handoff",
     },
   }];
+  const { offsetPreparationSnapshot } = h.load(path.resolve(__dirname, "../src/lib/offset-readiness.ts"));
+  const initialSnapshot = offsetPreparationSnapshot(h.api().orders[0], "prepress");
   const values = {
     noJoPnCode: "JO-01",
     idPlate: "PL-100",
@@ -740,18 +753,18 @@ test("Offset Prepress edit saves its own details without bypassing the preparati
     remark: "Waiting material",
   };
 
-  h.api().saveOffsetPrepress("offset-prepress-test", { ...values, proofColor: "", remark: "" }, false);
+  assert.match(h.api().saveOffsetPrepress("offset-prepress-test", { ...values, proofColor: "", remark: "" }, "continue", initialSnapshot), /must be Ready/);
   assert.equal(h.api().orders[0].offsetPrepress, undefined);
   assert.equal(h.api().orders[0].processHistory.length, 0);
 
-  h.api().saveOffsetPrepress("offset-prepress-test", { ...values, remark: "" }, false);
+  assert.match(h.api().saveOffsetPrepress("offset-prepress-test", { ...values, remark: "" }, "continue", initialSnapshot), /Remark is required/);
   assert.equal(h.api().orders[0].offsetPrepress, undefined);
   assert.equal(h.api().orders[0].processHistory.length, 0);
 
-  h.api().saveOffsetPrepress("offset-prepress-test", values, false);
+  h.api().saveOffsetPrepress("offset-prepress-test", values, "draft", initialSnapshot);
   let saved = h.api().orders[0];
   assert.equal(saved.stage, "offset-prepress");
-  assert.deepEqual({ ...saved.offsetPrepress, recordedAt: undefined, updatedBy: undefined }, { ...values, recordedAt: undefined, updatedBy: undefined });
+  assert.deepEqual({ ...saved.offsetPrepress, recordedAt: undefined, updatedBy: undefined }, { ...values, noJoPnCode: mainData.mcNo || "", recordedAt: undefined, updatedBy: undefined });
   assert.deepEqual(saved.mainData, mainData);
   assert.equal(saved.workflow.offsetHandoffRemark, "Incoming handoff");
   assert.ok(saved.processHistory.some((entry) => entry.process === "offset_prepress" && entry.remark === "Waiting material"));
@@ -762,7 +775,7 @@ test("Offset Prepress edit saves its own details without bypassing the preparati
   assert.equal(reloaded.offsetPrepress.proofColor, "Waiting");
   assert.equal(reloaded.processHistory.filter((entry) => entry.process === "offset_prepress").length, 1);
 
-  h.api().saveOffsetPrepress("offset-prepress-test", { ...values, proofColor: "Ready", remark: "" }, true);
+  h.api().saveOffsetPrepress("offset-prepress-test", { ...values, proofColor: "Ready", remark: "" }, "continue", offsetPreparationSnapshot(saved, "prepress"));
   saved = h.api().orders[0];
   assert.equal(saved.stage, "offset-prepress");
   assert.equal(saved.offsetPrepress.plate, "Ready");
@@ -784,7 +797,7 @@ test("Edit Prepress maps project master fields read-only and exposes only approv
     "order.mainData.colours", "order.mainData.varnish",
   ]) assert.match(modalSource, new RegExp(masterField.replaceAll(".", "\\.")));
   assert.match(modalSource, /const prepressStatuses: readonly Exclude<OffsetPrepressStatus, "">\[\] = \["Ready", "Waiting"\]/);
-  assert.match(modalSource, /validateOffsetPrepressValues\(values\)/);
+  assert.match(modalSource, /validateOffsetPrepressValues\(values, "continue"\)/);
   assert.match(modalSource, /modal-dialog modal-dialog-wide/);
   assert.match(detailsSource, /\["FG Qty", order\.offsetPrepress\.fgQuantity\]/);
 });
@@ -796,7 +809,7 @@ test("target queue Status columns use saved record status and the preceding-stag
   assert.match(tableSource, /order\.toolingOrders\.at\(-1\)\?\.status \?\? "needed"/);
   assert.match(tableSource, /order\.rubberOrders\.at\(-1\)\?\.status \?\? "needed"/);
   assert.match(tableSource, /order\.materialRequests\.at\(-1\)\?\.status \?\? "draft"/);
-  assert.match(tableSource, /order\.offsetToolingRecords/);
+  assert.match(tableSource, /offsetToolingQueueStatus\(order\)/);
   assert.doesNotMatch(tableSource, /offset-varnish/);
   assert.match(tableSource, /previousStageRemark/);
   assert.match(tableSource, /prepressStatusSummary/);
@@ -840,17 +853,15 @@ test("Offset retains only the relevant handoff remark for each destination stage
   assert.equal(project.workflow.offsetHandoffRemark, "Waiting proof color");
   assert.equal(project.mainData.remark, "Master project remark");
 
-  h.api().advanceOrder("offset-handoff-test", {
-    pic: project.pic,
-    deadline: project.deadline,
-    description: "Waiting material",
-  });
+  const { offsetPlanSnapshot } = h.load(path.resolve(__dirname, "../src/lib/offset-readiness.ts"));
+  assert.equal(h.api().submitOffsetMaterialPreparation(project.id, { rows: [], remark: "Waiting material" },
+    offsetPlanSnapshot(project)), "");
   project = h.api().orders[0];
   assert.equal(project.stage, "offset-material-request");
   assert.equal(project.workflow.offsetHandoffRemark, "Waiting material");
   assert.equal(project.mainData.remark, "Master project remark");
   assert.ok(project.processHistory.some((entry) =>
-    entry.process === "handoff_details_updated" && entry.remark === "Waiting material",
+    entry.process === "offset_preparation_plan" && entry.remark === "Waiting material",
   ));
 
   h.api().advanceOrder("offset-handoff-test", {
@@ -858,12 +869,7 @@ test("Offset retains only the relevant handoff remark for each destination stage
     deadline: project.deadline,
     description: "",
   });
-  project = h.api().orders[0];
-  assert.equal(project.stage, "offset-plate");
-  assert.equal(project.workflow.offsetHandoffRemark, "");
-  assert.ok(project.processHistory.some((entry) =>
-    entry.process === "handoff_details_updated" && entry.stage === "offset-material-request" && entry.remark === "",
-  ));
+  assert.equal(h.api().orders[0], project);
 });
 
 test("standalone requirements keep their direct Material to Sample route", () => {

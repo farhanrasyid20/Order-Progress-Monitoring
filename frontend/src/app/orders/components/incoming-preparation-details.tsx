@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { StandaloneRequirementModal } from "@/app/converting/components/standalone-requirement-modal";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
+import { isActiveProject } from "@/lib/active-project";
 import { canUpdateDrawingStatus } from "@/lib/permissions";
 import { drawingStatusOptions, getDrawingStatus } from "@/lib/drawing-status";
 import { drawingDisplayName, drawingHref } from "@/lib/drawing-link";
@@ -28,7 +29,7 @@ type RequirementEditor = { order: Order; kind: PreparationOrderKind };
 export type IncomingPreparationDetailsProps = {
   order: Order;
   onCancel: (order: Order) => void;
-  onUpdatePreparation: (orderNo: string, values: PreparationWorkflowUpdate) => void;
+  onUpdatePreparation: (orderNo: string, values: PreparationWorkflowUpdate) => string | void;
 };
 
 const routeOptions: readonly { value: PreparationRoute; label: string }[] = [
@@ -61,7 +62,7 @@ function draftFromOrder(order: Order): PreparationDraft {
   const preparationOrders = selectedOrdersFromWorkflow(order);
   return {
     route: order.workflow.preparationType === "offset" ? "offset" : order.workflow.convertingRoute ?? "by_design",
-    offsetNextPreparation: undefined,
+    offsetNextPreparation: order.workflow.preparationType === "offset" ? "prepress" : undefined,
     productionOrder: preparationOrders[0] ?? null,
     preparationOrders,
     materialRequested: order.workflow.materialRequested,
@@ -86,12 +87,22 @@ function kindLabel(kind: PreparationOrderKind) {
 
 function finalPreparationStatus(order: Order, draft: PreparationDraft) {
   if (order.workflow.currentStatus === "cancelled" || !isPreparationOrder(order)) return order.status;
-  if (draft.route === "offset") return draft.offsetNextPreparation === "prepress" ? "Prepress" : "Select Next Preparation";
+  if (draft.route === "offset") return "Prepress";
   if (draft.materialRequested) return "Request Material / Create MI";
   const selected = draft.preparationOrders.filter((kind): kind is PreparationOrderKind => Boolean(kind));
   if (selected.length === 2) return "Order Tooling & Order Rubber";
   if (selected[0]) return kindLabel(selected[0]);
   return draft.route === "by_design" ? "Under Design" : "Under Production";
+}
+
+function initialOffsetPrepressRemark(order: Order) {
+  const firstSaved = order.processHistory.find((record, index, history) => {
+    if (!record.remark?.trim()) return false;
+    if (record.process === "offset_prepress") return !record.stage || record.stage === "offset-prepress";
+    return record.process === "handoff_details_updated" && (record.stage === "offset-prepress" ||
+      (!record.stage && ["Offset Material / Create MI", "Offset Material Request"].includes(history[index + 1]?.process)));
+  });
+  return firstSaved?.remark.trim() || order.offsetPrepress?.remark?.trim() || "-";
 }
 
 function drawingNetworkPath(order: Order) {
@@ -103,6 +114,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
   const { currentUserRole, updateDrawingStatus, updateIncomingRequirementDetails } = useWorkflowOrders();
   const [drafts, setDrafts] = useState<Record<string, PreparationDraft>>({});
   const [requirementEditor, setRequirementEditor] = useState<RequirementEditor | null>(null);
+  const [saveError, setSaveError] = useState("");
 
   const draftFor = (currentOrder: Order) => drafts[currentOrder.no] ?? draftFromOrder(currentOrder);
   const updateDraft = (currentOrder: Order, patch: Partial<PreparationDraft>) => {
@@ -134,13 +146,15 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
     return !requirement?.orderDate || !requirement.expectedDate;
   });
   const canAddPreparationOrder = draft.route === "by_production" && draft.preparationOrders.length < preparationOrderOptions.length && !hasIncompleteRow;
-  const canUpdatePreparation = !isCancelled && isPreparation && !hasIncompleteRow && !missingRequirementDetails.length &&
-    (!isOffset || draft.offsetNextPreparation === "prepress") && hasChanges;
+  const isActiveOffset = isOffset && isActiveProject(order) && order.workflow.currentStatus !== "completed";
+  const canCancelProject = isOffset ? isActiveOffset : !isCancelled && isPreparation;
+  const canUpdatePreparation = !isCancelled && isPreparation &&
+    (isOffset ? isActiveOffset : !hasIncompleteRow && !missingRequirementDetails.length && hasChanges);
   const updateTitle = isCancelled ? "This project has already been cancelled"
     : !isPreparation ? "Only new incoming projects can update their preparation plan"
+    : isOffset ? (isActiveOffset ? "Send this project to Prepress" : "This project has already been completed")
     : hasIncompleteRow ? "Complete any empty preparation-order row first"
     : missingRequirementDetails.length ? `Complete Order Date and Expected Arrival Date for ${missingRequirementDetails.map(kindLabel).join(" and ")}`
-    : isOffset && draft.offsetNextPreparation !== "prepress" ? "Select Prepress as Next Preparation"
     : !hasChanges ? "Make changes before updating"
     : "Save the preparation plan and move the project to Progress Drawing";
   const networkPath = drawingNetworkPath(order);
@@ -161,7 +175,9 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
   const persistDraft = () => {
     if (!canUpdatePreparation) return;
     const preparationOrders = draft.preparationOrders.filter((kind): kind is PreparationOrderKind => Boolean(kind));
-    onUpdatePreparation(order.id, { ...draft, preparationOrders, productionOrder: preparationOrders[0] ?? null });
+    const error = onUpdatePreparation(order.id, { ...draft, preparationOrders, productionOrder: preparationOrders[0] ?? null });
+    setSaveError(error || "");
+    if (error) return;
     setDrafts((current) => {
       const next = { ...current };
       delete next[order.no];
@@ -194,16 +210,7 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
 
       <label className="modal-field material-request-field">
         <span>Next Preparation</span>
-        {isOffset ? <select
-          className="preparation-select"
-          value={draft.offsetNextPreparation ?? ""}
-          aria-label={`Select next preparation for ${order.no}`}
-          disabled={isCancelled || !isPreparation}
-          onChange={(event) => updateDraft(order, { offsetNextPreparation: event.target.value === "prepress" ? "prepress" : undefined })}
-        >
-          <option value="">Select next step...</option>
-          <option value="prepress">Prepress</option>
-        </select> : <select
+        {isOffset ? <input className="preparation-select" value="Prepress" readOnly /> : <select
           className="preparation-select"
           value={draft.materialRequested ? "requested" : ""}
           aria-label={`Select material request for ${order.no}`}
@@ -244,7 +251,8 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
 
       <label className="modal-field">
         <span>Remarks</span>
-        <input className="preparation-remark" value={draft.remark} aria-label={`Write remarks for ${order.no}`} placeholder="Write a remark..." disabled={isCancelled || !isPreparation} onChange={(event) => updateDraft(order, { remark: event.target.value })} />
+        {isOffset ? <input className="preparation-remark" value={initialOffsetPrepressRemark(order)} readOnly />
+          : <input className="preparation-remark" value={draft.remark} aria-label={`Write remarks for ${order.no}`} placeholder="Write a remark..." disabled={isCancelled || !isPreparation} onChange={(event) => updateDraft(order, { remark: event.target.value })} />}
       </label>
 
       <div className="modal-field">
@@ -254,10 +262,11 @@ export function IncomingPreparationDetails({ order, onCancel, onUpdatePreparatio
       </div>
     </div>
 
+    {saveError ? <p className="project-form-error" role="alert">{saveError}</p> : null}
     <div className="incoming-detail-actions">
       <Badge tone={order.tone}>{finalPreparationStatus(order, draft)}</Badge>
       <button type="button" className="table-update-button" disabled={!canUpdatePreparation} title={updateTitle} onClick={persistDraft}><Icon name="save" size={14} /> Update</button>
-      <button type="button" className="table-cancel-button" disabled={isCancelled || !isPreparation} title={isCancelled ? "This project has already been cancelled" : !isPreparation ? "Only new incoming projects can be cancelled" : "Cancel this project"} onClick={() => onCancel(order)}><Icon name="close" size={14} /> Cancel</button>
+      <button type="button" className="table-cancel-button" disabled={!canCancelProject} title={canCancelProject ? "Cancel this project" : isCancelled ? "This project has already been cancelled" : isOffset ? "This project has already been completed" : "Only new incoming projects can be cancelled"} onClick={() => { if (canCancelProject) onCancel(order); }}><Icon name="close" size={14} /> Cancel</button>
     </div>
 
     {requirementEditor ? <StandaloneRequirementModal kind={requirementEditor.kind} project={requirementEditor.order} initialRequirement={requirementFor(requirementEditor.kind)} saveImmediately={!isPreparation} hideReceivedDate onSaveRequirement={(requirement) => saveRequirementDetail(requirementEditor.kind, requirement)} onClose={() => setRequirementEditor(null)} /> : null}

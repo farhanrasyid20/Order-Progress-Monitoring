@@ -2,6 +2,7 @@
 
 import { OffsetStageView } from "../components";
 import type { QueueTableFilterConfig } from "@/components/workflow/workflow-stage-view";
+import { defaultOffsetPreparationStatus, offsetPreparationStatusLabel, offsetPreparationStatusOptions } from "@/lib/offset-preparation-status";
 
 const varnishFilters: QueueTableFilterConfig = {
   searchPlaceholder: "Search Sample Number, customer, product, varnish, or coating...",
@@ -9,6 +10,7 @@ const varnishFilters: QueueTableFilterConfig = {
   filters: [
     { key: "varnish", label: "Varnish", valuesFor: (orders) => orders.map((order) => order.mainData.varnish ?? ""), matches: (order, value) => order.mainData.varnish === value },
     { key: "coatingSide", label: "Coating Side", valuesFor: (orders) => orders.map((order) => order.mainData.coatingSide ?? ""), matches: (order, value) => order.mainData.coatingSide === value },
+    { key: "status", label: "Status", valuesFor: () => offsetPreparationStatusOptions.map((option) => option.label), matches: (order, value) => offsetPreparationStatusLabel(order.offsetVarnish?.status ?? defaultOffsetPreparationStatus) === value },
   ],
 };
 

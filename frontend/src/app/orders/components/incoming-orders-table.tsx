@@ -2,6 +2,7 @@
 
 import { workflowStageDetails } from "@/components/workflow/workflow-provider";
 import { Icon } from "@/components/ui/icon";
+import { evaluateOffsetReadiness } from "@/lib/offset-readiness";
 import type { Order } from "@/types/order";
 
 export type IncomingOrdersTableProps = {
@@ -76,23 +77,6 @@ function stateFor(
   return isSelected ? "pending" : "empty";
 }
 
-function isOffsetMaterialReady(order: Order) {
-  const materialSubmitted = order.offsetPreparationPlan?.projectId === order.id && order.offsetPreparationPlan.material.state === "submitted";
-  const status = order.materialRequests.at(-1)?.status;
-  return materialSubmitted && (status === "released" || status === "received");
-}
-
-function isOffsetToolingReady(order: Order) {
-  const toolingSubmitted = order.offsetPreparationPlan?.projectId === order.id && order.offsetPreparationPlan.tooling?.state === "submitted";
-  const record = order.offsetToolingRecords?.find((item) => item.id === order.offsetToolingId) ?? order.offsetToolingRecords?.at(-1);
-  return toolingSubmitted && (record?.status === "received" || record?.status === "available");
-}
-
-function isOffsetVarnishReady(order: Order) {
-  const submitted = order.offsetPreparationRecords?.some((record) => record.projectId === order.id && record.kind === "varnish" && record.state === "submitted");
-  return submitted && order.offsetVarnish?.status === "Ready";
-}
-
 export function preparationChecks(order: Order): PreparationCheck[] {
   const taskOrders = order.workflow.preparationOrders ?? [];
   const selected = (kind: "tooling" | "rubber") =>
@@ -101,19 +85,19 @@ export function preparationChecks(order: Order): PreparationCheck[] {
     taskOrders.includes(kind);
 
   if (order.workflow.preparationType === "offset") {
-    const plan = order.offsetPreparationPlan?.projectId === order.id ? order.offsetPreparationPlan : undefined;
+    const { branches } = evaluateOffsetReadiness(order);
     return [
       {
         label: "Material / MI",
-        state: isOffsetMaterialReady(order) ? "complete" : "empty",
+        state: branches.material === "ready" ? "complete" : "empty",
       },
-      ...(plan?.tooling ? [{
+      ...(branches.tooling !== "not-selected" ? [{
         label: "Tooling / Plate",
-        state: isOffsetToolingReady(order) ? "complete" as const : "empty" as const,
+        state: branches.tooling === "ready" ? "complete" as const : "empty" as const,
       }] : []),
-      ...(plan?.varnish ? [{
+      ...(branches.varnish !== "not-selected" ? [{
         label: "Block / Spot Varnish",
-        state: isOffsetVarnishReady(order) ? "complete" as const : "empty" as const,
+        state: branches.varnish === "ready" ? "complete" as const : "empty" as const,
       }] : []),
     ];
   }

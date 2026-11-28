@@ -4,13 +4,14 @@ import { useState } from "react";
 import { OffsetToolingDraftModal } from "@/app/offset/components/offset-tooling-management-modals";
 import { useOptionalWorkflowOrders } from "./workflow-provider";
 import { Icon } from "@/components/ui/icon";
-import type { OffsetPreparationPlanValues, OffsetToolingValues, Order } from "@/types/order";
+import { canChangeOffsetPreparationPlan, offsetPlanSnapshot, validateOffsetPreparationSubmission } from "@/lib/offset-readiness";
+import type { OffsetPreparationPlanValues, OffsetToolingDraft, OffsetToolingValues, Order } from "@/types/order";
 
 type PreparationOrder = "tooling" | "varnish";
 type PreparationOrderRow = PreparationOrder | null;
 
 /** The Offset plan belongs in Details and remains draft-only until Update. */
-export function OffsetPrepressPreparationDetails({ order, onClose, onSubmitted }: { order: Order; onClose: () => void; onSubmitted?: () => void }) {
+export function OffsetPrepressPreparationDetails({ order, onSubmitted }: { order: Order; onSubmitted?: () => void }) {
   const workflow = useOptionalWorkflowOrders();
   const currentOrder = workflow?.orders.find((item) => item.id === order.id) ?? order;
   const savedPlan = currentOrder.offsetPreparationPlan?.projectId === currentOrder.id ? currentOrder.offsetPreparationPlan : undefined;
@@ -19,55 +20,65 @@ export function OffsetPrepressPreparationDetails({ order, onClose, onSubmitted }
   if (savedPlan?.varnish) initialOrders.push("varnish");
   const [materialRequested, setMaterialRequested] = useState(Boolean(savedPlan?.material));
   const [preparationOrders, setPreparationOrders] = useState<PreparationOrderRow[]>(initialOrders);
-  const [toolingDraft, setToolingDraft] = useState<OffsetToolingValues | undefined>(savedPlan?.tooling?.draft);
+  const [toolingDraft, setToolingDraft] = useState<OffsetToolingDraft | undefined>(savedPlan?.tooling?.draft);
   const [remark, setRemark] = useState(savedPlan?.remark ?? "");
   const [isToolingEditorOpen, setIsToolingEditorOpen] = useState(false);
+  const [planSnapshot, setPlanSnapshot] = useState(() => offsetPlanSnapshot(currentOrder));
+  const [saveError, setSaveError] = useState("");
   const toolingSubmitted = savedPlan?.tooling?.state === "submitted";
   const varnishSubmitted = savedPlan?.varnish?.state === "submitted";
-  const canUpdatePreparation = currentOrder.stage === "offset-prepress";
+  const canUpdatePreparation = canChangeOffsetPreparationPlan(currentOrder);
   const preparationOrderLocked = !materialRequested;
   const selectedOrders = preparationOrders.filter((kind): kind is PreparationOrder => Boolean(kind));
   const canAddPreparationOrder = preparationOrders.length < 2;
   const hasUnselectedPreparationOrder = preparationOrders.some((kind) => !kind);
+  const submission = { rows: preparationOrders, toolingDraft, remark };
+  const submissionError = validateOffsetPreparationSubmission(submission);
+  const updateDisabled = !workflow || !materialRequested || !canUpdatePreparation || Boolean(submissionError);
 
-  const planValues = (materialState: "draft" | "submitted", rows = preparationOrders, draft = toolingDraft): OffsetPreparationPlanValues => {
+  const planValues = (rows: PreparationOrderRow[], draft: OffsetToolingDraft | undefined): OffsetPreparationPlanValues => {
     const selected = rows.filter((kind): kind is PreparationOrder => Boolean(kind));
     const includesTooling = selected.includes("tooling");
     return {
-      material: { state: materialState },
-      ...(includesTooling && (draft ?? savedPlan?.tooling?.draft) ? {
-        tooling: {
-          state: materialState === "submitted" ? "submitted" as const : "draft" as const,
-          draft: draft ?? savedPlan?.tooling?.draft,
-        },
-      } : {}),
-      // A selected Varnish branch becomes submitted only with a successful parent Update.
-      ...(selected.includes("varnish") ? { varnish: { state: materialState === "submitted" || varnishSubmitted ? "submitted" as const : "draft" as const } } : {}),
+      material: { state: "draft" },
+      ...(includesTooling ? { tooling: { state: "draft" as const, draft } } : {}),
+      ...(selected.includes("varnish") ? { varnish: { state: "draft" as const } } : {}),
       remark,
     };
   };
 
   const persistToolingDraft = (draft: OffsetToolingValues) => {
-    if (!workflow) return;
+    if (!workflow) return "Project data is still loading. Try again.";
+    const result = workflow.saveOffsetPreparationPlan(currentOrder.id, planValues(preparationOrders, draft), planSnapshot);
+    if (typeof result === "string") return result;
+    setPlanSnapshot(offsetPlanSnapshot(result));
     setToolingDraft(draft);
-    workflow.saveOffsetPreparationPlan(currentOrder.id, planValues(savedPlan?.material.state === "submitted" ? "submitted" : "draft", preparationOrders, draft));
     setIsToolingEditorOpen(false);
+    setSaveError("");
+    return "";
   };
   const updatePreparationOrder = (index: number, value: PreparationOrderRow) => {
     setPreparationOrders((current) => current.map((kind, rowIndex) => rowIndex === index ? value : kind));
   };
   const removePreparationOrder = (index: number) => {
     const kind = preparationOrders[index];
-    if (!workflow || (kind === "tooling" && toolingSubmitted) || (kind === "varnish" && varnishSubmitted)) return;
+    if (!workflow || !canUpdatePreparation) return;
     const nextOrders = preparationOrders.filter((_, rowIndex) => rowIndex !== index);
     const nextDraft = kind === "tooling" ? undefined : toolingDraft;
+    if (savedPlan) {
+      const result = workflow.saveOffsetPreparationPlan(currentOrder.id, planValues(nextOrders, nextDraft), planSnapshot);
+      if (typeof result === "string") { setSaveError(result); return; }
+      setPlanSnapshot(offsetPlanSnapshot(result));
+    }
     setPreparationOrders(nextOrders);
     setToolingDraft(nextDraft);
-    workflow.saveOffsetPreparationPlan(currentOrder.id, planValues(savedPlan?.material.state === "submitted" ? "submitted" : "draft", nextOrders, nextDraft));
+    setSaveError("");
   };
   const updatePreparation = () => {
-    if (!workflow || !materialRequested || !canUpdatePreparation) return;
-    workflow.submitOffsetMaterialPreparation(currentOrder.id, planValues("submitted"));
+    if (updateDisabled) return;
+    const error = workflow.submitOffsetMaterialPreparation(currentOrder.id, submission, planSnapshot);
+    if (error) { setSaveError(error); return; }
+    setSaveError("");
     onSubmitted?.();
   };
   return <>
@@ -100,9 +111,9 @@ export function OffsetPrepressPreparationDetails({ order, onClose, onSubmitted }
         </div> : null}
         <label className="modal-field"><span>Remarks</span><input className="preparation-remark" value={remark} disabled={!canUpdatePreparation} aria-label={`Write preparation remarks for ${currentOrder.no}`} placeholder="Write a remark..." onChange={(event) => setRemark(event.target.value)} /></label>
       </div>
+      {saveError ? <p className="project-save-error" role="alert">{saveError}</p> : null}
       <div className="incoming-detail-actions">
-        <button type="button" className="table-update-button" disabled={!workflow || !materialRequested || !canUpdatePreparation} title={!materialRequested ? "Select Request Material / Create MI first" : !canUpdatePreparation ? "Preparation has already been submitted." : "Save the preparation plan without moving the workflow"} onClick={updatePreparation}><Icon name="save" size={14} /> Update</button>
-        <button type="button" className="table-cancel-button" onClick={onClose}><Icon name="close" size={14} /> Cancel</button>
+        <button type="button" className="table-update-button" disabled={updateDisabled} title={!materialRequested ? "Select Request Material / Create MI first" : !canUpdatePreparation ? "Preparation has already been submitted." : submissionError || undefined} onClick={updatePreparation}><Icon name="save" size={14} /> Update</button>
       </div>
     </section>
     <section className="requirement-detail-section" aria-label="Varnish Specification">

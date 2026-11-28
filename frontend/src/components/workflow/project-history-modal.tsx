@@ -24,6 +24,7 @@ export type ProjectHistoryModalProps = {
   order: Order;
   onClose: () => void;
   onPreparationUpdated?: () => void;
+  offsetPreparationDetails?: "material" | "tooling" | "varnish" | "printing";
   requirementKind?: StandaloneRequirementKind;
   materialRequest?: boolean;
   sampleProgress?: boolean;
@@ -65,6 +66,7 @@ function historyActivity(record: ProcessHistoryRecord) {
     offset_prepress: "Offset Prepress details updated",
     offset_tooling: "Offset Tooling / Plate details updated",
     offset_tooling_selected: "Offset Tooling / Plate selected",
+    offset_printing_routed: "Automatic routing to Press / Printing",
     handoff_details_updated: "Handoff details updated",
     project_details_updated: "Project decision details updated",
     project_updated: "Project information updated",
@@ -86,17 +88,18 @@ function historyChange(record: ProcessHistoryRecord) {
 }
 
 /** Shared audit detail for records after they move beyond Incoming Design. */
-export function ProjectHistoryModal({ order, onClose, onPreparationUpdated, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false, offsetDetails = false, showOffsetPrepressPreparation = false }: ProjectHistoryModalProps) {
+export function ProjectHistoryModal({ order, onClose, onPreparationUpdated, offsetPreparationDetails, requirementKind, materialRequest = false, sampleProgress = false, archiveDetails = false, offsetDetails = false, showOffsetPrepressPreparation = false }: ProjectHistoryModalProps) {
   const titleId = useId();
   const qcDetails = order.stage === "quality-control" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
   const faDetails = order.stage === "fa-report" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
   const readyDetails = order.stage === "submit-sample" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
   const decisionDetails = order.stage === "sample-completed" && !archiveDetails && !requirementKind && !materialRequest && !sampleProgress && !offsetDetails;
   const prepressDetails = Boolean(offsetDetails && (order.stage === "offset-prepress" || showOffsetPrepressPreparation));
-  const offsetMaterialDetails = order.workflow.preparationType === "offset" && order.stage === "offset-material-request" && (offsetDetails || materialRequest);
-  const offsetPlateDetails = Boolean(offsetDetails && order.stage === "offset-plate");
-  const offsetVarnishDetails = Boolean(offsetDetails && order.stage === "offset-varnish");
-  const offsetPressDetails = Boolean(offsetDetails && order.stage === "offset-press");
+  const offsetMaterialDetails = order.workflow.preparationType === "offset" &&
+    (offsetPreparationDetails === "material" || (order.stage === "offset-material-request" && (offsetDetails || materialRequest)));
+  const offsetPlateDetails = Boolean(offsetDetails && (order.stage === "offset-plate" || offsetPreparationDetails === "tooling"));
+  const offsetVarnishDetails = Boolean(offsetDetails && (offsetPreparationDetails === "varnish" || (!offsetPreparationDetails && order.stage === "offset-varnish")));
+  const offsetPressDetails = Boolean(offsetDetails && (offsetPreparationDetails === "printing" || order.stage === "offset-press"));
   const offsetQcDetails = order.workflow.preparationType === "offset" && order.stage === "quality-control" && !archiveDetails;
   const offsetFaDetails = order.workflow.preparationType === "offset" && order.stage === "fa-report" && !archiveDetails;
   const offsetReadyDetails = order.workflow.preparationType === "offset" && order.stage === "submit-sample" && !archiveDetails;
@@ -160,7 +163,7 @@ export function ProjectHistoryModal({ order, onClose, onPreparationUpdated, requ
             </div>
           </div>
 
-          {prepressDetails ? <OffsetPrepressPreparationDetails order={order} onClose={onClose} onSubmitted={onPreparationUpdated} /> : null}
+          {prepressDetails ? <OffsetPrepressPreparationDetails order={order} onSubmitted={onPreparationUpdated} /> : null}
 
           {qcDetails || faDetails || readyDetails || decisionDetails ? <>
             <SampleProgressDetails order={order} fullProjectInformation />

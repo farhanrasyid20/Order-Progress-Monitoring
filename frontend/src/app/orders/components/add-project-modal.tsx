@@ -6,6 +6,8 @@ import { Icon } from "@/components/ui/icon";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { useBoardTypes } from "@/components/board-types/board-types-provider";
 import { useAuth } from "@/components/auth/auth-provider";
+import { canEditOffsetVarnish, isOffsetVarnishQueueOrder, varnishSpecificationFields } from "@/lib/offset-preparation";
+import { lockedOffsetReadinessMasterFields } from "@/lib/offset-readiness";
 import type {
   PreparationType,
   Order,
@@ -26,7 +28,7 @@ import {
 type AddProjectModalProps = {
   order?: Order;
   onClose: () => void;
-  onSubmit: (values: ProjectFormValues) => void;
+  onSubmit: (values: ProjectFormValues) => string | void;
 };
 
 type ProjectFormErrors = Partial<Record<ProjectFormFieldKey, string>>;
@@ -90,7 +92,13 @@ function inputDate(value: string) {
 
 export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalProps) {
   const titleId = useId();
-  const { nextProjectCode } = useWorkflowOrders();
+  const { nextProjectCode, orders } = useWorkflowOrders();
+  const currentOrder = order && (orders.find((item) => item.id === order.id) ?? order);
+  const varnishLocked = Boolean(currentOrder && isOffsetVarnishQueueOrder(currentOrder) && !canEditOffsetVarnish(currentOrder));
+  const lockedMasterFields = currentOrder ? lockedOffsetReadinessMasterFields(currentOrder) : [];
+  const offsetTypeLocked = currentOrder?.workflow.preparationType === "offset" &&
+    (currentOrder.stage !== "order" || currentOrder.offsetPreparationPlan?.material?.state === "submitted" ||
+      Boolean(currentOrder.offsetPreparationRecords?.length));
   const { boardTypes } = useBoardTypes();
   const { user } = useAuth();
   const [draft, setDraft] = useState<ProjectFormDraft>(() => order ? {
@@ -106,6 +114,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
   } : { ...createEmptyProjectFormDraft(), pic: user?.name ?? "" });
   const [errors, setErrors] = useState<ProjectFormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [designFile, setDesignFile] = useState<File | null>(null);
   const [customJoinOptions, setCustomJoinOptions] = useState<string[]>(readCustomJoinOptions);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -195,6 +204,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
       return;
     }
 
+    setSaveError("");
     setIsSaving(true);
     window.setTimeout(() => {
       const sharedValues = {
@@ -205,7 +215,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
           draft.preparationType === "converting" ? draft.convertingRoute : "",
       };
 
-      onSubmit(
+      const error = onSubmit(
         draft.entryType === "version_up"
           ? {
               ...sharedValues,
@@ -218,6 +228,11 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
               previousProjectCode: "",
             },
       );
+      if (error) {
+        setSaveError(error);
+        setIsSaving(false);
+        return;
+      }
       onClose();
     }, 300);
   };
@@ -242,7 +257,11 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
     const sharedProps = {
       id: fieldId,
       value: getProjectFieldValue(draft, field),
-      disabled: isSaving || Boolean(order && (field.key === "entryType" || field.key === "previousProjectCode")) || field.disabledWhen?.(draft),
+      disabled: isSaving || Boolean(order && (field.key === "entryType" || field.key === "previousProjectCode")) ||
+        ((lockedMasterFields.length > 0 || offsetTypeLocked) && field.key === "preparationType") ||
+        lockedMasterFields.some((key) => key === field.key) ||
+        (varnishLocked && varnishSpecificationFields.some((key) => key === field.key)) ||
+        field.disabledWhen?.(draft),
       "aria-invalid": Boolean(error),
       "aria-describedby": error ? `${fieldId}-error` : undefined,
       onChange: (
@@ -367,6 +386,7 @@ export function AddProjectModal({ order, onClose, onSubmit }: AddProjectModalPro
             ))}
 
             <footer className="modal-actions project-form-actions">
+              {saveError ? <p className="project-save-error" role="alert">{saveError}</p> : null}
               {invalidFields.length ? <p className="project-save-error" role="alert">
                 Please complete or check: {invalidFields.map(field => field.label).join(", ")}.
               </p> : null}

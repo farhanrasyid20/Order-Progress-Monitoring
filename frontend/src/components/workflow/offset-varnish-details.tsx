@@ -1,5 +1,6 @@
 import { DetailGrid } from "./requirement-details";
 import { OffsetProjectDetails } from "./offset-project-details";
+import { defaultOffsetPreparationStatus, offsetPreparationStatusLabel } from "@/lib/offset-preparation-status";
 import type { Order } from "@/types/order";
 
 const valueOrDash = (value: string | undefined) => value?.trim() || "-";
@@ -14,7 +15,7 @@ export function OffsetVarnishDetails({ order }: { order: Order }) {
       ["Customer", valueOrDash(order.customer)], ["Description / Component", valueOrDash(order.mainData.component ?? order.product)],
       ["PIC", valueOrDash(order.pic)], ["Target Completion Date", valueOrDash(order.deadline)],
       ["Varnish Type", valueOrDash(order.mainData.varnish)], ["Lamination", valueOrDash(order.mainData.lamination)],
-      ["Coating Side", valueOrDash(order.mainData.coatingSide)], ["Varnish Status", order.offsetVarnish?.status ?? "Waiting"],
+      ["Coating Side", valueOrDash(order.mainData.coatingSide)], ["Varnish Status", offsetPreparationStatusLabel(order.offsetVarnish?.status ?? defaultOffsetPreparationStatus)],
       ["Remark", valueOrDash(order.offsetVarnish?.remark)],
     ]} />
   </section>;

@@ -23,7 +23,7 @@ export type OrderHistoryModalProps = {
   order: Order;
   onClose: () => void;
   onCancel: (order: Order) => void;
-  onUpdatePreparation: (orderNo: string, values: PreparationWorkflowUpdate) => void;
+  onUpdatePreparation: (orderNo: string, values: PreparationWorkflowUpdate) => string | void;
 };
 
 function displayHistoryTime(value: string) {
@@ -49,6 +49,7 @@ function historyActivity(record: ProcessHistoryRecord) {
   if (record.process === "drawing_submitted") return "Drawing link submitted";
   if (record.process === "design_decision") return "Design decision updated";
   if (record.process === "project_cancelled") return "Project cancelled";
+  if (record.process === "offset_printing_routed") return "Automatic routing to Press / Printing";
   if (record.process === "Proses Desain" || record.process === "Design Process") {
     return "Moved to Design Process";
   }

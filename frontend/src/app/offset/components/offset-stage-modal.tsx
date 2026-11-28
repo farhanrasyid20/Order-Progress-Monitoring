@@ -4,6 +4,8 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import { useWorkflowOrders } from "@/components/workflow/workflow-provider";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { canEditOffsetPrinting } from "@/lib/offset-readiness";
+import { useOffsetContinueConfirmation } from "./offset-continue-confirmation";
 import type { Order } from "@/types/order";
 
 export type OffsetStageModalProps = {
@@ -13,12 +15,19 @@ export type OffsetStageModalProps = {
   nextLabel: string;
 };
 
-/** Generic completion handoff for the non-SPK Offset work queues. */
+/** Press / Printing handoff to QC Checking. */
 export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetStageModalProps) {
   const titleId = useId();
-  const { advanceOrder } = useWorkflowOrders();
-  const [pic, setPic] = useState(order.pic === "-" ? "" : order.pic);
+  const { orders, completeOffsetPrinting } = useWorkflowOrders();
   const [notes, setNotes] = useState("");
+  const [saveError, setSaveError] = useState("");
+  const currentOrder = orders.find((item) => item.id === order.id);
+  const canEdit = Boolean(currentOrder && canEditOffsetPrinting(currentOrder));
+  const { requestConfirmation, confirmation } = useOffsetContinueConfirmation(() => {
+    const error = completeOffsetPrinting(order.id, notes, order.updatedAt);
+    if (error) { setSaveError(error); return; }
+    onClose();
+  });
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -31,12 +40,7 @@ export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetSta
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    advanceOrder(order.id, {
-      pic,
-      deadline: order.deadline,
-      description: notes.trim(),
-    });
-    onClose();
+    if (canEdit) requestConfirmation();
   };
 
   return (
@@ -72,7 +76,7 @@ export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetSta
             </label>
             <label className="modal-field">
               <span>PIC</span>
-              <input value={pic} disabled={order.stage === "offset-prepress" || order.stage === "offset-plate" || order.stage === "offset-varnish" || order.stage === "offset-press"} onChange={(event) => setPic(event.target.value)} required />
+              <input value={order.pic === "-" ? "" : order.pic} disabled />
             </label>
             <label className="modal-field modal-field-full">
               <span>Target Completion Date</span>
@@ -82,21 +86,24 @@ export function OffsetStageModal({ order, onClose, title, nextLabel }: OffsetSta
               <span>Process Notes</span>
               <textarea
                 value={notes}
-                onChange={(event) => setNotes(event.target.value)}
+                disabled={!canEdit}
+                onChange={(event) => { setNotes(event.target.value); setSaveError(""); }}
                 placeholder="Enter process results, issues, or handoff instructions"
                 rows={4}
               />
             </label>
           </div>
+          {saveError ? <p className="project-save-error" role="alert">{saveError}</p> : null}
           <footer className="modal-actions">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" icon="arrow">
+            <Button type="submit" icon="arrow" disabled={!canEdit}>
               Complete &amp; Continue
             </Button>
           </footer>
         </form>
+        {confirmation}
       </section>
     </div>
   );

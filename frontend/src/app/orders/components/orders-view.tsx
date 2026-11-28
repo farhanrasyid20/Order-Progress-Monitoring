@@ -206,7 +206,8 @@ export function OrdersView({
         <AddProjectModal
           onClose={() => setIsAddModalOpen(false)}
           onSubmit={(values) => {
-            addProject(values);
+            const error = addProject(values);
+            if (error) return error;
             setIsAddModalOpen(false);
             resetPage();
             setToastMessage("Project added successfully.");
@@ -222,7 +223,8 @@ export function OrdersView({
             setCancellingOrder(null);
           }}
           onConfirm={(reason) => {
-            cancelIncomingProject(cancellingOrder.id, reason);
+            const error = cancelIncomingProject(cancellingOrder.id, reason);
+            if (error) return error;
             setCancellingOrder(null);
             resetPage();
             setPendingHistoryOrderNo(cancellingOrder.id);
@@ -241,7 +243,8 @@ export function OrdersView({
             setCancellingOrder(order);
           }}
           onUpdatePreparation={(orderNo, values) => {
-            completeIncomingPreparation(orderNo, values);
+            const error = completeIncomingPreparation(orderNo, values);
+            if (error) return error;
             resetPage();
             setPendingHistoryOrderNo(orderNo);
 

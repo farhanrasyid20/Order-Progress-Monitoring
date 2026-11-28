@@ -1,10 +1,14 @@
 "use client";
 
+import { defaultOffsetPreparationStatus, offsetPreparationStatusLabel, offsetToolingQueueStatus } from "@/lib/offset-preparation-status";
+
 import { DEFAULT_TABLE_PAGE_SIZE } from "@/components/ui/use-table-pagination";
 import { Badge } from "@/components/ui/badge";
 import { Icon } from "@/components/ui/icon";
 import { englishOffsetLabel } from "@/lib/offset-labels";
 import { offsetHandoffStatus } from "@/lib/offset-handoff-status";
+import { canEditOffsetVarnish } from "@/lib/offset-preparation";
+import { canEditOffsetPreparation, canEditOffsetPrinting } from "@/lib/offset-readiness";
 import type { MaterialRequestStatus, Order, RequirementStatus, StandaloneRequirementKind } from "@/types/order";
 
 type QueueStatusPresentation = "tooling" | "rubber" | "material" | "offset-prepress" | "offset-material" | "offset-tooling" | "varnish";
@@ -25,6 +29,7 @@ export type OrderTableProps = {
   requirementKind?: StandaloneRequirementKind;
   /** Renders the selected queue-record status and the preceding handoff remark without badges. */
   statusPresentation?: QueueStatusPresentation;
+  offsetPrintingQueue?: boolean;
   /** Queue pages can opt into their context-specific PIC field. */
   personLabel?: string;
   personForOrder?: (order: Order) => string;
@@ -60,11 +65,8 @@ function selectedQueueStatus(order: Order, presentation: QueueStatusPresentation
   if (presentation === "tooling") return requirementStatusLabels[order.toolingOrders.at(-1)?.status ?? "needed"];
   if (presentation === "rubber") return requirementStatusLabels[order.rubberOrders.at(-1)?.status ?? "needed"];
   if (presentation === "material" || presentation === "offset-material") return materialStatusLabels[order.materialRequests.at(-1)?.status ?? "draft"];
-  if (presentation === "offset-tooling") {
-    const record = order.offsetToolingRecords?.find((item) => item.id === order.offsetToolingId) ?? order.offsetToolingRecords?.at(-1);
-    return requirementStatusLabels[record?.status ?? "needed"];
-  }
-  if (presentation === "varnish") return order.offsetVarnish?.status ?? "Waiting";
+  if (presentation === "offset-tooling") return offsetPreparationStatusLabel(offsetToolingQueueStatus(order));
+  if (presentation === "varnish") return offsetPreparationStatusLabel(order.offsetVarnish?.status ?? defaultOffsetPreparationStatus);
   return requirementStatusLabels.needed;
 }
 
@@ -113,6 +115,7 @@ export function OrderTable({
   editActionLabel,
   requirementKind,
   statusPresentation,
+  offsetPrintingQueue = false,
   personLabel = "Designer",
   personForOrder = (order) => order.pic,
   onViewOrder,
@@ -141,6 +144,11 @@ export function OrderTable({
             className={editActionLabel && !queueLayout ? "button button-secondary" : "table-action"}
             aria-label={`${editActionLabel ?? "Edit"} ${order.no}`}
             title={editActionLabel ?? "Edit"}
+            disabled={(statusPresentation === "varnish" && !canEditOffsetVarnish(order)) ||
+              (statusPresentation === "offset-prepress" && !canEditOffsetPreparation(order, "prepress")) ||
+              (statusPresentation === "offset-material" && !canEditOffsetPreparation(order, "material")) ||
+              (statusPresentation === "offset-tooling" && !canEditOffsetPreparation(order, "tooling")) ||
+              ((offsetPrintingQueue || (order.stage === "offset-press" && order.workflow.preparationType === "offset")) && !canEditOffsetPrinting(order))}
             onClick={() => onEditOrder(order)}
           >
             <Icon name="pen" size={16} />

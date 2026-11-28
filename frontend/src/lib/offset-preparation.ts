@@ -3,8 +3,13 @@ import type {
   OffsetPreparationBranchRecord,
   OffsetPreparationPlan,
   OffsetPreparationPlanValues,
+  OffsetPreparationCompletion,
+  OffsetPreparationSaveAction,
+  OffsetVarnishValues,
   Order,
+  ProjectMainData,
 } from "@/types/order";
+import { defaultOffsetPreparationStatus, isOffsetPreparationStatus } from "./offset-preparation-status";
 
 const preparationKinds: readonly OffsetPreparationBranchKind[] = ["material", "tooling", "varnish"];
 
@@ -14,6 +19,7 @@ export function createOffsetPreparationPlan(
   values: OffsetPreparationPlanValues,
   actor: string,
   timestamp: string,
+  previousTooling?: OffsetPreparationPlanValues["tooling"],
 ): OffsetPreparationPlan {
   return {
     projectId,
@@ -21,7 +27,11 @@ export function createOffsetPreparationPlan(
     ...(values.tooling ? {
       tooling: {
         state: values.tooling.state,
-        ...(values.tooling.draft ? { draft: { ...values.tooling.draft } } : {}),
+        ...(values.tooling.draft ? { draft: {
+          ...previousTooling?.draft,
+          ...values.tooling.draft,
+          status: values.tooling.draft.status === "needed" ? defaultOffsetPreparationStatus : values.tooling.draft.status,
+        } } : {}),
       },
     } : {}),
     ...(values.varnish ? { varnish: { state: values.varnish.state } } : {}),
@@ -70,7 +80,59 @@ export function appendOffsetPreparationRecords(
 export function isOffsetVarnishQueueOrder(order: Order) {
   return order.workflow.preparationType === "offset" &&
     order.workflow.currentStatus !== "cancelled" &&
-    order.offsetPreparationRecords?.some((record) =>
-      record.projectId === order.id && record.kind === "varnish" && record.state === "submitted",
-    ) === true;
+    Boolean(submittedVarnishRecord(order));
+}
+
+function submittedVarnishRecord(order: Order) {
+  if (!Array.isArray(order.offsetPreparationRecords)) return undefined;
+  return order.offsetPreparationRecords.find((record) =>
+    record?.projectId === order.id && record.kind === "varnish" && record.state === "submitted",
+  );
+}
+
+export function canEditOffsetVarnish(order: Order) {
+  const plan = order.offsetPreparationPlan;
+  return plan?.projectId === order.id && plan.material?.state === "submitted" && plan.varnish?.state === "submitted" &&
+    isOffsetVarnishQueueOrder(order) && isActiveOffsetPreparation(order) && !hasValidOffsetVarnishCompletion(order);
+}
+
+export function isActiveOffsetPreparation(order: Order) {
+  return order.workflow.preparationType === "offset" &&
+    order.workflow.currentStatus !== "completed" && order.workflow.currentStatus !== "cancelled" &&
+    ["offset-prepress", "offset-material-request", "offset-plate", "offset-varnish"].includes(order.stage);
+}
+
+export const varnishSpecificationFields = ["varnish", "lamination", "coatingSide"] as const;
+
+export function varnishSpecification(data: ProjectMainData) {
+  return varnishSpecificationFields.map((field) => data[field]?.trim() ?? "");
+}
+
+export function offsetVarnishFingerprint(order: Order, status = order.offsetVarnish?.status ?? defaultOffsetPreparationStatus) {
+  const submission = submittedVarnishRecord(order);
+  return JSON.stringify([order.id, submission?.id, submission?.createdAt, status, ...varnishSpecification(order.mainData)]);
+}
+
+export function offsetVarnishSnapshot(order: Order) {
+  return JSON.stringify([offsetVarnishFingerprint(order), order.offsetVarnish]);
+}
+
+export function hasValidOffsetVarnishCompletion(order: Order) {
+  const record = order.offsetVarnish;
+  // Historical Ready is accepted only with its original, still-current completion evidence.
+  return order.workflow.preparationType === "offset" && Boolean(submittedVarnishRecord(order)) &&
+    (record?.status === "received" || record?.status === "Ready") &&
+    isCurrentOffsetCompletion(record.completion, offsetVarnishFingerprint(order));
+}
+
+export function isCurrentOffsetCompletion(completion: OffsetPreparationCompletion | undefined, fingerprint: string) {
+  return Boolean(typeof completion?.actor === "string" && completion.actor.trim() &&
+    Number.isFinite(Date.parse(completion.timestamp)) && completion.fingerprint === fingerprint);
+}
+
+export function validateOffsetVarnishValues(values: OffsetVarnishValues, action: OffsetPreparationSaveAction) {
+  if (!isOffsetPreparationStatus(values.status)) return "Select a Varnish Status.";
+  if (typeof values.remark !== "string") return "Enter a valid Varnish remark.";
+  if (action === "continue" && values.status !== "received") return "Varnish Status must be Received to continue.";
+  return "";
 }
